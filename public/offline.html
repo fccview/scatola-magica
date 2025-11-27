@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Offline - Scatola Magica</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Roboto', system-ui, -apple-system, sans-serif;
+      background: #faf9fc;
+      color: #1c1b1f;
+      display: flex;
+      align-items: center;
+      justify-center;
+      min-height: 100vh;
+      padding: 1rem;
+    }
+
+    .container {
+      text-align: center;
+      max-width: 400px;
+    }
+
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 1rem;
+      color: #A91D52;
+    }
+
+    p {
+      font-size: 1.125rem;
+      color: #49454f;
+      margin-bottom: 2rem;
+    }
+
+    button {
+      background: #A91D52;
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 100px;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    button:hover {
+      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.3), 0 1px 3px 1px rgba(0, 0, 0, 0.15);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>You're Offline</h1>
+    <p>It looks like you've lost your internet connection. Please check your connection and try again.</p>
+    <button onclick="window.location.reload()">Try Again</button>
+  </div>
+</body>
+</html>

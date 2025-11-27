@@ -1,0 +1,40 @@
+services:
+  scatola-magica:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: scatola-magica-test
+    user: "1000:1000"
+    ports:
+      - "1133:3000"
+    volumes:
+      - ./uploads:/app/data/uploads:rw
+      - ./config:/app/data/config:rw
+      - ./cache:/app/.next/cache:rw
+    restart: unless-stopped
+    environment:
+      # Core Application Settings
+      - NODE_ENV=production # Set to 'production' for production deployment
+
+      # Upload Configuration
+      - UPLOAD_DIR=/app/data/uploads
+      - MAX_CHUNK_SIZE=104857600
+      - PARALLEL_UPLOADS=12
+      - MAX_FILE_SIZE=0
+
+      # HTTPS/Security Configuration
+      # - HTTPS=true  # Uncomment to enable HTTPS mode (requires APP_URL)
+      # - APP_URL=https://your-scatola-magica-domain.com  # Full URL when using HTTPS
+      # - INTERNAL_API_URL=http://localhost:3000  # Internal API URL for server-side requests
+
+      # OIDC Authentication (Single Sign-On)
+      # Uncomment and configure these for OIDC authentication
+      # - OIDC_ISSUER=https://your-oidc-provider.com  # OIDC provider issuer URL
+      # - OIDC_CLIENT_ID=your_client_id  # OIDC client ID
+      # - OIDC_CLIENT_SECRET=your_client_secret  # OIDC client secret
+      # - OIDC_ADMIN_GROUPS=admins  # Comma-separated list of admin groups
+      # - OIDC_GROUPS_SCOPE=groups  # Scope to request for groups (default: 'groups')
+      # - OIDC_LOGOUT_URL=https://your-oidc-provider.com/logout  # Optional custom logout URL
+
+      # Debugging
+      # - DEBUGGER=true  # Enable debug logging for troubleshooting
