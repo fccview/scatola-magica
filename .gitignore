@@ -33,6 +33,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+docker-compose.test.yml
 /data
 /uploads
 /config

@@ -1,6 +1,6 @@
 {
   "name": "Scatola Magica",
-  "short_name": "Scatola",
+  "short_name": "Scatola Magica",
   "description": "Self-hosted file transfer application",
   "start_url": "/",
   "scope": "/",

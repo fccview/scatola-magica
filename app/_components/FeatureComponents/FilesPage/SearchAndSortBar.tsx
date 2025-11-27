@@ -11,3 +11,4 @@ export default function SearchAndSortBar() {
     </div>
   );
 }
+

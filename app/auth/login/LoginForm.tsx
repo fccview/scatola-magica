@@ -82,7 +82,7 @@ export default function LoginForm({
 
   return (
     <div className="space-y-6">
-      {oidcAvailable && !isFirstUser && (
+      {oidcAvailable && (
         <div className="space-y-4">
           <Button
             type="button"
@@ -152,8 +152,8 @@ export default function LoginForm({
               ? "Creating account..."
               : "Signing in..."
             : isFirstUser
-            ? "Create admin account"
-            : "Sign in"}
+              ? "Create admin account"
+              : "Sign in"}
         </Button>
       </form>
     </div>

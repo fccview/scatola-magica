@@ -195,11 +195,8 @@ export async function GET(request: NextRequest) {
   }
 
   const users = await readUsers();
-  if (users.length === 0) {
-    await ensureUser(username, isAdmin);
-  } else {
-    await ensureUser(username, isAdmin);
-  }
+  const isFirstUser = users.length === 0;
+  await ensureUser(username, isFirstUser ? true : isAdmin);
 
   const sessionId = base64UrlEncode(crypto.randomBytes(32));
   const response = NextResponse.redirect(`${appUrl}/`);

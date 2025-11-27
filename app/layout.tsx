@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import ServiceWorkerRegistrar from "@/app/_components/GlobalComponents/Layout/ServiceWorkerRegistrar";
+import PWAInstallPrompt from "@/app/_components/GlobalComponents/Layout/PWAInstallPrompt";
 import ThemeScript from "@/app/_components/GlobalComponents/Layout/ThemeScript";
 import UploadOverlayProvider from "@/app/_providers/UploadOverlayProvider";
 import FoldersProvider from "@/app/_providers/FoldersProvider";
@@ -75,6 +76,7 @@ const RootLayout = async ({
       </head>
       <body>
         <ServiceWorkerRegistrar />
+        <PWAInstallPrompt />
         <ThemeProvider>
           <PreferencesProvider
             preferences={{
