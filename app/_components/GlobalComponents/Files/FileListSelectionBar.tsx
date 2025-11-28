@@ -8,6 +8,7 @@ interface FileListSelectionBarProps {
   onClear: () => void;
   onDelete: () => void;
   onMove: () => void;
+  onDownload: () => void;
   onSelectAll: () => void;
 }
 
@@ -17,6 +18,7 @@ export default function FileListSelectionBar({
   onClear,
   onDelete,
   onMove,
+  onDownload,
   onSelectAll,
 }: FileListSelectionBarProps) {
   const allSelected = totalSelected === totalItems && totalItems > 0;
@@ -59,6 +61,15 @@ export default function FileListSelectionBar({
         >
           <Icon icon="drive_file_move" size="sm" />
           Move
+        </Button>
+        <Button
+          variant="filled"
+          size="sm"
+          onClick={onDownload}
+          disabled={totalSelected === 0}
+        >
+          <Icon icon="download" size="sm" />
+          Download
         </Button>
         <Button
           variant="filled"

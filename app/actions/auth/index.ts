@@ -122,6 +122,10 @@ export async function isOidcAvailable(): Promise<boolean> {
   return !!(issuer && clientId);
 }
 
+export async function isPasswordLoginDisabled(): Promise<boolean> {
+  return process.env.DISABLE_PASSWORD_LOGIN === "true";
+}
+
 export async function getCurrentUser(): Promise<{
   username: string;
   isAdmin: boolean;

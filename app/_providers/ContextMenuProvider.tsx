@@ -15,8 +15,10 @@ export interface ContextMenuTarget {
 interface ContextMenuActions {
   onFileRename?: (fileId: string, fileName: string) => void;
   onFileMove?: (fileId: string) => void;
+  onFileDownload?: (fileId: string) => void;
   onFileDelete?: (fileId: string) => void;
   onFolderRename?: (folderId: string, folderName: string) => void;
+  onFolderDownload?: (folderId: string) => void;
   onFolderDelete?: (folderId: string) => void;
   onCreateFolder?: () => void;
   onUpload?: () => void;
@@ -82,6 +84,14 @@ export default function ContextMenuProvider({
           });
         }
 
+        if (actions.onFileDownload && target.id) {
+          items.push({
+            label: "Download",
+            icon: "download",
+            onClick: () => actions.onFileDownload!(target.id!),
+          });
+        }
+
         if (actions.onFileDelete && target.id) {
           if (items.length > 0) {
             items.push({ label: "", icon: "", onClick: () => {}, divider: true });
@@ -108,6 +118,14 @@ export default function ContextMenuProvider({
                 actions.onFolderRename!(target.id!, newName.trim());
               }
             },
+          });
+        }
+
+        if (actions.onFolderDownload && target.id) {
+          items.push({
+            label: "Download Folder",
+            icon: "download",
+            onClick: () => actions.onFolderDownload!(target.id!),
           });
         }
 
