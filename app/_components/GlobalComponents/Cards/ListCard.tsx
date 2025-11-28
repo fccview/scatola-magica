@@ -102,8 +102,10 @@ export default function ListCard({
       {
         onFileRename: isFolder ? undefined : onRename,
         onFileMove: isFolder ? undefined : onMove,
+        onFileDownload: isFolder ? undefined : onDownload,
         onFileDelete: isFolder ? undefined : onDelete,
         onFolderRename: isFolder ? onRename : undefined,
+        onFolderDownload: isFolder ? onDownload : undefined,
         onFolderDelete: isFolder ? onDelete : undefined,
       }
     );

@@ -2,7 +2,7 @@ export default function EmptyState() {
   return (
     <div className="flex-1 flex items-center justify-center">
       <div className="text-center">
-        <span className="material-symbols-outlined text-6xl text-on-surface-variant mb-4 block">
+        <span className="material-symbols-outlined text-6xl text-on-surface-variant mb-4 block opacity-40">
           folder_open
         </span>
         <p className="text-xl text-on-surface-variant">
@@ -15,4 +15,5 @@ export default function EmptyState() {
     </div>
   );
 }
+
 

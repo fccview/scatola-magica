@@ -1,4 +1,8 @@
+"use client";
+
 import { useEffect, useState } from "react";
+import LottieAnimation from "@/app/_components/GlobalComponents/Layout/LottieAnimation";
+import { ANIMATIONS } from "@/app/_lib/animations";
 
 const PREPARING_MESSAGES = [
   "Chopping your chunks...",
@@ -27,11 +31,16 @@ export default function PreparingUploadMessage() {
   }, []);
 
   return (
-    <div className="flex items-center gap-2 py-2">
-      <div className="relative w-5 h-5">
-        <div className="absolute inset-0 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+    <div className="flex items-center gap-3 py-2">
+      <div className="w-12 h-5">
+        <LottieAnimation
+          animationUrl={ANIMATIONS.LOADING_DOTS}
+          loop={true}
+          autoplay={true}
+          style={{ width: "100%", height: "100%" }}
+        />
       </div>
-      <span className="text-sm text-on-surface-variant animate-pulse">
+      <span className="text-sm text-on-surface-variant">
         {currentMessage}
       </span>
     </div>

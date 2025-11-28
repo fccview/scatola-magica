@@ -13,6 +13,7 @@ OIDC_ISSUER=<YOUR_SSO_ISSUER>
 OIDC_CLIENT_ID=<YOUR_SSO_CLIENT_ID>
 OIDC_CLIENT_SECRET=your_client_secret
 OIDC_ADMIN_GROUPS=admins
+DISABLE_PASSWORD_LOGIN=true
 ```
 
 ### Mandatory (for production instances)
@@ -47,4 +48,8 @@ OIDC_ADMIN_GROUPS=admins
 - `OIDC_ADMIN_GROUPS=admins` Optional. Comma-separated list of OIDC groups that should have admin privileges.
 - `OIDC_GROUPS_SCOPE=groups` Optional. Scope to request for groups. Defaults to "groups". Set to empty string or "no" to disable for providers like Entra ID that don't support the groups scope.
 - `OIDC_LOGOUT_URL=https://authprovider.local/realms/master/logout` Optional. Custom logout URL for global logout.
+- `DISABLE_PASSWORD_LOGIN=true` Optional. When set to "true" and OIDC is properly configured, disables username/password login and only shows OIDC login. If OIDC is not configured, password login will still be available as a fallback.
+
+
+
 

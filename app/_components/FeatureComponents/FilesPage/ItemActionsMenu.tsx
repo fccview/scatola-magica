@@ -36,12 +36,12 @@ export default function ItemActionsMenu({
 
     if (showMenu) {
       setTimeout(() => {
-        document.addEventListener("click", handleClickOutside, true);
-        document.addEventListener("touchend", handleClickOutside, true);
+        document.addEventListener("click", handleClickOutside, false);
+        document.addEventListener("touchend", handleClickOutside, false);
       }, 0);
       return () => {
-        document.removeEventListener("click", handleClickOutside, true);
-        document.removeEventListener("touchend", handleClickOutside, true);
+        document.removeEventListener("click", handleClickOutside, false);
+        document.removeEventListener("touchend", handleClickOutside, false);
       };
     }
   }, [showMenu]);
@@ -132,7 +132,7 @@ export default function ItemActionsMenu({
       </div>
 
       <div
-        className="hidden medium:block opacity-0 group-hover:opacity-100 transition-opacity"
+        className="hidden medium:block opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto"
         ref={menuRef}
       >
         <div

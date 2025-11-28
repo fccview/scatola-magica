@@ -22,25 +22,69 @@ export default function Logo({
       suppressHydrationWarning={true}
     >
       <style>
-        {`#${scopedId} .s0 { fill: ${
-          hideBox ? "transparent" : "var(--logo-box-1)"
-        }; }
-        #${scopedId} .s1 { fill: ${
-          hideBox ? "transparent" : "var(--logo-box-2)"
-        }; }
-        #${scopedId} .s2 { fill: ${
-          hideBox ? "transparent" : "var(--logo-box-3)"
-        }; }
-        #${scopedId} .s3 { fill: ${
-          hideBox ? "transparent" : "var(--logo-box-4)"
-        }; }
-        #${scopedId} .s4 { fill: var(--logo-star); transition: transform 1.5s ease-in-out; }
-        #${scopedId}:hover .s4 { animation: float 1.5s ease-in-out infinite; }
-        #${scopedId}.loading-animation .s4 { animation: float 2s ease-in-out infinite; }
+        {`#${scopedId} .s0 {
+          fill: ${hideBox ? "transparent" : "var(--logo-box-1)"};
+          transition: opacity 0.3s ease;
+        }
+        #${scopedId} .s1 {
+          fill: ${hideBox ? "transparent" : "var(--logo-box-2)"};
+          transition: opacity 0.3s ease;
+        }
+        #${scopedId} .s2 {
+          fill: ${hideBox ? "transparent" : "var(--logo-box-3)"};
+          transition: opacity 0.3s ease;
+        }
+        #${scopedId} .s3 {
+          fill: ${hideBox ? "transparent" : "var(--logo-box-4)"};
+          transition: opacity 0.3s ease;
+        }
+        #${scopedId} .s4 {
+          fill: var(--logo-star);
+          transition: transform 1.5s ease-in-out;
+        }
+
+        #${scopedId}:hover .s4 {
+          animation: float 1.5s ease-in-out infinite;
+        }
+        #${scopedId}.loading-animation .s4 {
+          animation: float 2s ease-in-out infinite;
+        }
+
+        #${scopedId}:hover path[id^="Shape 12"] {
+          animation: sparkle 2s ease-in-out infinite;
+          transform-origin: center;
+        }
+    
+        #${scopedId}:hover path[id="Shape 12"] {
+          animation-delay: 0s;
+        }
+        #${scopedId}:hover path[id="Shape 12 copy"] {
+          animation-delay: 0.4s;
+        }
+        #${scopedId}:hover path[id="Shape 12 copy 2"] {
+          animation-delay: 0.8s;
+        }
+        #${scopedId}:hover path[id="Shape 12 copy 3"] {
+          animation-delay: 1.2s;
+        }
+        #${scopedId}:hover path[id="Shape 12 copy 4"] {
+          animation-delay: 1.6s;
+        }
 
         @keyframes float {
           0%, 100% { transform: translateY(0px); }
           50% { transform: translateY(-12px); }
+        }
+
+        @keyframes sparkle {
+          0%, 100% {
+            opacity: 1;
+            transform: scale(1);
+          }
+          50% {
+            opacity: 0.5;
+            transform: scale(0.8);
+          }
         }`}
       </style>
       <g id="Folder 2">

@@ -243,6 +243,58 @@ export default function FileListClient({
     window.open(`/api/download/${id}`, "_blank");
   };
 
+  const handleDownloadArchive = async (paths: string[]) => {
+    try {
+      const response = await fetch("/api/download/archive", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ paths }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to download archive");
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+
+      const contentDisposition = response.headers.get("Content-Disposition");
+      const filenameMatch = contentDisposition?.match(/filename="(.+)"/);
+      const filename = filenameMatch
+        ? decodeURIComponent(filenameMatch[1])
+        : "download.zip";
+
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error("Download archive failed:", error);
+      alert("Failed to download archive");
+    }
+  };
+
+  const handleFolderDownload = (id: string) => {
+    handleDownloadArchive([id]);
+  };
+
+  const handleBulkDownload = () => {
+    if (totalSelected === 0) return;
+
+    const paths = [
+      ...Array.from(selectedFileIds),
+      ...Array.from(selectedFolderIds),
+    ];
+
+    handleDownloadArchive(paths);
+  };
+
   const toggleFileSelection = (id: string) => {
     setSelectedFileIds((prev) => {
       const newSet = new Set(prev);
@@ -394,6 +446,7 @@ export default function FileListClient({
           onClear={exitSelectionMode}
           onDelete={handleBulkDelete}
           onMove={handleBulkMove}
+          onDownload={handleBulkDownload}
           onSelectAll={selectAll}
         />
       )}
@@ -427,6 +480,7 @@ export default function FileListClient({
               onDelete={
                 deletingFolderId === folder.id ? undefined : handleDeleteFolder
               }
+              onDownload={handleFolderDownload}
               onRename={handleRenameFolder}
               isSelectionMode={isSelectionMode}
               isSelected={selectedFolderIds.has(folder.id)}
