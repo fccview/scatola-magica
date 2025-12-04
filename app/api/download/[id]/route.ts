@@ -3,6 +3,7 @@ import { createReadStream } from "fs";
 import { stat } from "fs/promises";
 import path from "path";
 import { getFileMimeType } from "@/app/_lib/file-utils";
+import { validateRequest } from "@/app/_lib/request-auth";
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR || "./data/uploads";
 
@@ -11,6 +12,12 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Validate authentication
+    const user = await validateRequest(request);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { id } = await params;
 
     const relativePath = decodeURIComponent(id);

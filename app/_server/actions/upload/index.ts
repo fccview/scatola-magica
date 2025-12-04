@@ -5,7 +5,8 @@ import { createWriteStream, createReadStream } from "fs";
 import path from "path";
 import { ServerActionResponse } from "@/app/_types";
 import { revalidatePath } from "next/cache";
-import { getCurrentUser } from "@/app/actions/auth";
+import { getCurrentUser } from "@/app/_server/actions/auth";
+import { decryptPath } from "@/app/_lib/path-encryption";
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR || "./data/uploads";
 const TEMP_DIR = `${UPLOAD_DIR}/temp`;
@@ -183,7 +184,9 @@ async function assembleFile(
 
     const tempDir = path.join(TEMP_DIR, uploadId);
 
-    let actualFolderPath = session.folderPath || "";
+    let actualFolderPath = session.folderPath
+      ? decryptPath(session.folderPath)
+      : "";
 
     if (!currentUser.isAdmin) {
       actualFolderPath = actualFolderPath

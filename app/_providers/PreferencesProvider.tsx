@@ -7,12 +7,14 @@ interface PreferencesContextType {
   particlesEnabled: boolean;
   wandCursorEnabled: boolean;
   user: Partial<User> | null;
+  encryptionKey: string | null;
 }
 
 const PreferencesContext = createContext<PreferencesContextType>({
   particlesEnabled: true,
   wandCursorEnabled: true,
   user: null,
+  encryptionKey: null,
 });
 
 export function PreferencesProvider({

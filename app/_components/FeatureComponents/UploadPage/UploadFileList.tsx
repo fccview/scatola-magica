@@ -4,6 +4,8 @@ import { formatBytes, formatDuration } from "@/app/_lib/file-utils";
 import IconButton from "@/app/_components/GlobalComponents/Buttons/IconButton";
 import Progress from "@/app/_components/GlobalComponents/Layout/Progress";
 import PreparingUploadMessage from "@/app/_components/FeatureComponents/UploadPage/PreparingUploadMessage";
+import LottieAnimation from "@/app/_components/GlobalComponents/Layout/LottieAnimation";
+import { ANIMATIONS } from "@/app/_lib/animations";
 
 interface UploadingFile {
   id: string;
@@ -157,19 +159,26 @@ export default function UploadFileList({
                   key={file.id}
                   className="flex items-center gap-3 p-3 rounded-lg bg-surface-container hover:bg-surface-container-high transition-colors"
                 >
-                  <span
-                    className={`material-symbols-outlined text-xl ${
-                      file.status === UploadStatus.COMPLETED
-                        ? "text-primary"
-                        : "text-error"
-                    }`}
-                  >
-                    {file.status === UploadStatus.COMPLETED
-                      ? "check_circle"
-                      : file.status === UploadStatus.FAILED
-                      ? "error"
-                      : "cancel"}
-                  </span>
+                  {file.status === UploadStatus.COMPLETED ? (
+                    <div className="w-6 h-6 flex-shrink-0">
+                      <LottieAnimation
+                        animationUrl={ANIMATIONS.SUCCESS_CHECKMARK}
+                        loop={false}
+                        autoplay={true}
+                        style={{ width: "100%", height: "100%" }}
+                      />
+                    </div>
+                  ) : (
+                    <span
+                      className={`material-symbols-outlined text-xl ${
+                        file.status === UploadStatus.FAILED
+                          ? "text-error"
+                          : "text-on-surface-variant"
+                      }`}
+                    >
+                      {file.status === UploadStatus.FAILED ? "error" : "cancel"}
+                    </span>
+                  )}
 
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-on-surface truncate">

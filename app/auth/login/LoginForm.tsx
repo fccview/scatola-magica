@@ -8,11 +8,13 @@ import Input from "@/app/_components/GlobalComponents/Form/Input";
 interface LoginFormProps {
   oidcAvailable: boolean;
   isFirstUser: boolean;
+  passwordLoginDisabled: boolean;
 }
 
 export default function LoginForm({
   oidcAvailable,
   isFirstUser,
+  passwordLoginDisabled,
 }: LoginFormProps) {
   const router = useRouter();
   const [username, setUsername] = useState("");
@@ -80,6 +82,8 @@ export default function LoginForm({
     window.location.href = "/api/oidc/login";
   };
 
+  const showPasswordLogin = !passwordLoginDisabled || !oidcAvailable;
+
   return (
     <div className="space-y-6">
       {oidcAvailable && (
@@ -95,67 +99,71 @@ export default function LoginForm({
             Sign in with SSO
           </Button>
 
-          <div className="flex items-center gap-4">
-            <div className="flex-1 h-px bg-outline"></div>
-            <span className="text-sm text-on-surface-variant">or</span>
-            <div className="flex-1 h-px bg-outline"></div>
-          </div>
+          {showPasswordLogin && (
+            <div className="flex items-center gap-4">
+              <div className="flex-1 h-px bg-outline"></div>
+              <span className="text-sm text-on-surface-variant">or</span>
+              <div className="flex-1 h-px bg-outline"></div>
+            </div>
+          )}
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {error && (
-          <div className="p-4 rounded-lg bg-error-container text-on-error-container">
-            {error}
-          </div>
-        )}
+      {showPasswordLogin && (
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {error && (
+            <div className="p-4 rounded-lg bg-error-container text-on-error-container">
+              {error}
+            </div>
+          )}
 
-        {isFirstUser && (
-          <div className="p-4 rounded-lg bg-primary-container text-on-primary-container">
-            <p className="text-sm font-medium">
-              Create the first admin account
-            </p>
-          </div>
-        )}
+          {isFirstUser && (
+            <div className="p-4 rounded-lg bg-primary-container text-on-primary-container">
+              <p className="text-sm font-medium">
+                Create the first admin account
+              </p>
+            </div>
+          )}
 
-        <Input
-          id="username"
-          label="Username"
-          type="text"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          required
-          placeholder="Enter your username"
-          disabled={loading}
-        />
+          <Input
+            id="username"
+            label="Username"
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            required
+            placeholder="Enter your username"
+            disabled={loading}
+          />
 
-        <Input
-          id="password"
-          label="Password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          placeholder="Enter your password"
-          disabled={loading}
-        />
+          <Input
+            id="password"
+            label="Password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            placeholder="Enter your password"
+            disabled={loading}
+          />
 
-        <Button
-          type="submit"
-          variant="filled"
-          size="lg"
-          className="w-full"
-          disabled={loading}
-        >
-          {loading
-            ? isFirstUser
-              ? "Creating account..."
-              : "Signing in..."
-            : isFirstUser
-              ? "Create admin account"
-              : "Sign in"}
-        </Button>
-      </form>
+          <Button
+            type="submit"
+            variant="filled"
+            size="lg"
+            className="w-full"
+            disabled={loading}
+          >
+            {loading
+              ? isFirstUser
+                ? "Creating account..."
+                : "Signing in..."
+              : isFirstUser
+                ? "Create admin account"
+                : "Sign in"}
+          </Button>
+        </form>
+      )}
     </div>
   );
 }

@@ -1,12 +1,13 @@
 import { cookies } from "next/headers";
-import { getFiles } from "@/app/actions/files";
-import { getFolders, getFolderPath } from "@/app/actions/folders";
-import { readUsers } from "@/app/actions/auth";
+import { getFiles } from "@/app/_server/actions/files";
+import { getFolders, getFolderPath } from "@/app/_server/actions/folders";
+import { readUsers } from "@/app/_server/actions/auth";
 import { SortBy } from "@/app/_types/enums";
 import FileListClient from "@/app/_components/GlobalComponents/Files/FileListClient";
 import Breadcrumb from "@/app/_components/FeatureComponents/FilesPage/Breadcrumb";
 import SearchAndSortBar from "@/app/_components/FeatureComponents/FilesPage/SearchAndSortBar";
 import EmptyState from "@/app/_components/FeatureComponents/FilesPage/EmptyState";
+import { decryptPath } from "@/app/_lib/path-encryption";
 
 interface PageProps {
   params: Promise<{ folder?: string[] }>;
@@ -23,7 +24,20 @@ export default async function FilesContent({
   const { folder } = await params;
   const searchParamsResolved = await searchParams;
 
-  const folderPath = folder ? folder.map(decodeURIComponent).join("/") : "";
+  let folderPath = "";
+  if (folder && folder.length > 0) {
+    const decodedSegments = folder.map(decodeURIComponent);
+    const joinedPath = decodedSegments.join("/");
+
+    const decrypted = decryptPath(joinedPath);
+
+    if (decrypted !== joinedPath || folder.length === 1) {
+      folderPath = decrypted;
+    } else {
+      folderPath = joinedPath;
+    }
+  }
+
   const search = searchParamsResolved.search || "";
   const sortBy = searchParamsResolved.sortBy || SortBy.DATE_DESC;
 
@@ -120,4 +134,3 @@ export default async function FilesContent({
     </div>
   );
 }
-

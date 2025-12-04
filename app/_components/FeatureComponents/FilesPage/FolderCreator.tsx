@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createFolder } from "@/app/actions/folders";
+import { createFolder } from "@/app/_server/actions/folders";
 import Button from "@/app/_components/GlobalComponents/Buttons/Button";
 import Card from "@/app/_components/GlobalComponents/Cards/Card";
 import Input from "@/app/_components/GlobalComponents/Form/Input";

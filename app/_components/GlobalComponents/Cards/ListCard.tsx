@@ -4,13 +4,14 @@ import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { FileMetadata, User } from "@/app/_types";
 import { formatBytes } from "@/app/_lib/file-utils";
-import { FolderMetadata } from "@/app/actions/folders";
+import { FolderMetadata } from "@/app/_server/actions/folders";
 import ItemActionsMenu from "@/app/_components/FeatureComponents/FilesPage/ItemActionsMenu";
 import Icon from "@/app/_components/GlobalComponents/Icons/Icon";
 import { getFileIconInfo } from "@/app/_lib/file-icons";
 import FileIconComponent from "@/app/_components/GlobalComponents/Icons/BrandIcon";
 import UserAvatar from "@/app/_components/FeatureComponents/User/UserAvatar";
 import { useContextMenu } from "@/app/_providers/ContextMenuProvider";
+import { usePathEncryption } from "@/app/_hooks/usePathEncryption";
 
 interface ListCardProps {
   file?: FileMetadata;
@@ -42,6 +43,7 @@ export default function ListCard({
   recursive = false,
 }: ListCardProps) {
   const { showContextMenu } = useContextMenu();
+  const { encryptPath } = usePathEncryption();
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState("");
   const renameInputRef = useRef<HTMLInputElement>(null);
@@ -102,8 +104,10 @@ export default function ListCard({
       {
         onFileRename: isFolder ? undefined : onRename,
         onFileMove: isFolder ? undefined : onMove,
+        onFileDownload: isFolder ? undefined : onDownload,
         onFileDelete: isFolder ? undefined : onDelete,
         onFolderRename: isFolder ? onRename : undefined,
+        onFolderDownload: isFolder ? onDownload : undefined,
         onFolderDelete: isFolder ? onDelete : undefined,
       }
     );
@@ -208,10 +212,11 @@ export default function ListCard({
       pathParts.forEach((part, index) => {
         if (part) {
           const pathToHere = pathParts.slice(0, index + 1).join("/");
+          const encryptedPath = encryptPath(pathToHere);
           elements.push(
             <Link
               key={`folder-${index}`}
-              href={`/files/${pathToHere
+              href={`/files/${encryptedPath
                 .split("/")
                 .map(encodeURIComponent)
                 .join("/")}`}
@@ -245,9 +250,13 @@ export default function ListCard({
     }
 
     if (isFolder && !isSelectionMode) {
+      const encryptedPath = encryptPath(itemId);
       return (
         <Link
-          href={`/files/${itemId.split("/").map(encodeURIComponent).join("/")}`}
+          href={`/files/${encryptedPath
+            .split("/")
+            .map(encodeURIComponent)
+            .join("/")}`}
           className="hover:underline text-base font-normal text-on-surface break-all"
         >
           {itemName}

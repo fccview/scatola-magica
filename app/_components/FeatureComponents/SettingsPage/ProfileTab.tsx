@@ -7,12 +7,13 @@ import {
   updateAvatar,
   changePassword,
   removeAvatar,
-} from "@/app/actions/auth";
+} from "@/app/_server/actions/auth";
 import { usePreferences } from "@/app/_providers/PreferencesProvider";
 import Input from "@/app/_components/GlobalComponents/Form/Input";
 import Button from "@/app/_components/GlobalComponents/Buttons/Button";
 import Icon from "@/app/_components/GlobalComponents/Icons/Icon";
 import UserAvatar from "@/app/_components/FeatureComponents/User/UserAvatar";
+import ApiKeySection from "@/app/_components/FeatureComponents/SettingsPage/ApiKeySection";
 
 export default function ProfileTab() {
   const { user } = usePreferences();
@@ -320,6 +321,8 @@ export default function ProfileTab() {
           </Button>
         </form>
       </div>
+
+      <ApiKeySection />
 
       <div>
         <h2 className="text-xl font-medium text-on-surface mb-6">

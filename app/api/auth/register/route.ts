@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { readUsers, writeUsers, getSessionUsername } from "@/app/actions/auth";
+import {
+  readUsers,
+  writeUsers,
+  getSessionUsername,
+} from "@/app/_server/actions/auth";
 import { COOKIE_NAME } from "@/app/_lib/auth-constants";
 
 export const dynamic = "force-dynamic";

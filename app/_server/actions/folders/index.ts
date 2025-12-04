@@ -5,7 +5,7 @@ import path from "path";
 import { ServerActionResponse } from "@/app/_types";
 import { revalidatePath } from "next/cache";
 import { unstable_cache } from "next/cache";
-import { getCurrentUser } from "@/app/actions/auth";
+import { getCurrentUser } from "@/app/_server/actions/auth";
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR || "./data/uploads";
 

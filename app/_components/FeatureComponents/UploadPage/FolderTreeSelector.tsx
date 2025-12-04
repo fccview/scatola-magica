@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { getFolderById, type FolderMetadata } from "@/app/actions/folders";
+import {
+  getFolderById,
+  type FolderMetadata,
+} from "@/app/_server/actions/folders";
 import Card from "@/app/_components/GlobalComponents/Cards/Card";
 import FolderTree from "@/app/_components/GlobalComponents/Folders/FolderTree";
 

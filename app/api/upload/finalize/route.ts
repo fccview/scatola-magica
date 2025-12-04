@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { finalizeUpload } from "@/app/actions/upload";
+import { finalizeUpload } from "@/app/_server/actions/upload";
+import { validateRequest } from "@/app/_lib/request-auth";
 
 export async function POST(request: NextRequest) {
   try {
+    // Validate authentication
+    const user = await validateRequest(request);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await request.json();
     const result = await finalizeUpload(body);
 

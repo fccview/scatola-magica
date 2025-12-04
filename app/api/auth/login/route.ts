@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
-import { readUsers, createSession } from "@/app/actions/auth";
+import { readUsers, createSession } from "@/app/_server/actions/auth";
 import { COOKIE_NAME } from "@/app/_lib/auth-constants";
 
 export const dynamic = "force-dynamic";
@@ -16,6 +16,9 @@ function base64UrlEncode(buffer: Buffer) {
 
 export async function POST(request: NextRequest) {
   try {
+    // Note: Login endpoint is publicly accessible (no auth required)
+    // This is the entry point for creating authentication sessions
+
     const { username, password } = await request.json();
 
     if (!username || !password) {

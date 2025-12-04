@@ -1,13 +1,25 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { readSessions } from "@/app/actions/auth";
+import { readSessions } from "@/app/_server/actions/auth";
+import { isInternalRequest } from "@/app/_lib/request-auth";
 
 type Session = Record<string, string>;
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    // This endpoint is internal-only (session-based auth only)
+    const isInternal = await isInternalRequest(request);
+    if (!isInternal) {
+      return new NextResponse(
+        JSON.stringify({
+          error: "This endpoint is only accessible via browser sessions",
+        }),
+        { status: 403 }
+      );
+    }
+
     const cookieStore = await cookies();
     const cookieName =
       process.env.NODE_ENV === "production" && process.env.HTTPS === "true"

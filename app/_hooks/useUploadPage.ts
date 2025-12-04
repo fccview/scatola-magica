@@ -8,7 +8,7 @@ import {
   extractFolderPaths,
   readFilesFromDataTransfer,
 } from "@/app/_lib/folder-reader";
-import { createFolder } from "@/app/actions/folders";
+import { createFolder } from "@/app/_server/actions/folders";
 
 interface UploadingFile {
   id: string;

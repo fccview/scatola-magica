@@ -7,7 +7,7 @@ import {
   deleteFolder,
   updateFolder,
   type FolderMetadata,
-} from "@/app/actions/folders";
+} from "@/app/_server/actions/folders";
 import { useFolders } from "@/app/_providers/FoldersProvider";
 import { useUsers } from "@/app/_providers/UsersProvider";
 

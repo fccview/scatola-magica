@@ -45,11 +45,14 @@ services:
       - OIDC_GROUPS_SCOPE=groups # Scope to request for groups (set to empty string or "no" to disable for providers like Entra ID)
       - OIDC_LOGOUT_URL=https://authprovider.local/realms/master/logout # Custom logout URL for global logout
       - INTERNAL_API_URL=http://localhost:3000 # Use if getting 403 errors after SSO login (behind reverse proxy)
+      - DISABLE_PASSWORD_LOGIN=true # Disable username/password login and only show OIDC login when OIDC is enabled
 ```
 
 **Note**: The SSO button will appear on the login page when both `OIDC_ISSUER` and `OIDC_CLIENT_ID` are set. `APP_URL` is recommended but not required - if not set, it defaults to the request origin.
 
 **Note**: When OIDC_CLIENT_SECRET is set, Scatola Magica switches to confidential client mode using client authentication instead of PKCE. This is more secure but requires provider support.
+
+**Note**: When `DISABLE_PASSWORD_LOGIN=true` is set and OIDC is properly configured, only the OIDC login button will be shown on the login page. If OIDC is not configured, password login will still be available as a fallback.
 
 Dev verified Providers:
 
@@ -89,4 +92,10 @@ environment:
 This tells the app to use `localhost` for internal API calls instead of going through the reverse proxy. The default value is already `http://localhost:3000`, but explicitly setting it can help in some edge cases.
 
 **Why this happens**: When `APP_URL` is set to your external domain (e.g., `https://scatola-magica.domain.com`), the middleware tries to validate sessions by making a fetch request to `https://scatola-magica.domain.com/api/auth/check-session`. This request goes through your reverse proxy, which may block it with a 403 Forbidden response due to security policies or misconfigurations.
+
+
+
+
+
+
 

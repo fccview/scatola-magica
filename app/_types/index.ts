@@ -66,6 +66,7 @@ export interface User {
   isSuperAdmin?: boolean;
   createdAt: string;
   avatar?: string;
+  apiKey?: string;
 }
 
 export interface Session {
