@@ -6,7 +6,7 @@ import { useDragAndDrop } from "@/app/_hooks/useDragAndDrop";
 import UploadModal from "@/app/_components/FeatureComponents/Modals/UploadModal";
 import UploadProgressModal from "@/app/_components/FeatureComponents/Modals/UploadProgressModal";
 import CreateFolderModal from "@/app/_components/FeatureComponents/Modals/CreateFolderModal";
-import { createFolder } from "@/app/actions/folders";
+import { createFolder } from "@/app/_server/actions/folders";
 import ActionButtons from "@/app/_components/GlobalComponents/Buttons/ActionButtons";
 import MobileBottomBar from "@/app/_components/FeatureComponents/FilesPage/MobileBottomBar";
 import { useFolders } from "@/app/_providers/FoldersProvider";

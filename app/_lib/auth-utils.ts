@@ -2,6 +2,7 @@ import fs from "fs/promises";
 import path from "path";
 import { lock, unlock } from "proper-lockfile";
 import type { User } from "@/app/_types";
+import crypto from "crypto";
 
 function getAuthConfigDir(): string {
   return path.join(process.cwd(), "data", "config");
@@ -96,4 +97,41 @@ export async function deleteSession(sessionId: string): Promise<void> {
   const sessions = await readSessions();
   delete sessions[sessionId];
   await writeSessions(sessions);
+}
+
+// API Key generation and validation
+export async function generateApiKey(username: string, isAdmin: boolean): Promise<string> {
+  // Generate a random 32-character string (256 bits of entropy)
+  const randomBytes = crypto.randomBytes(24); // 24 bytes = 32 chars in base64url
+  const randomString = randomBytes
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=/g, "");
+
+  return `ck_${randomString}`;
+}
+
+export async function verifyApiKey(apiKey: string): Promise<{ username: string; isAdmin: boolean } | null> {
+  try {
+    // Check if it starts with ck_
+    if (!apiKey.startsWith("ck_")) {
+      return null;
+    }
+
+    // Verify the user still exists and the API key matches
+    const users = await readUsers();
+    const user = users.find(u => u.apiKey === apiKey);
+
+    if (!user) {
+      return null;
+    }
+
+    return {
+      username: user.username,
+      isAdmin: user.isAdmin || false
+    };
+  } catch {
+    return null;
+  }
 }

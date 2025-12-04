@@ -1,10 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
-import { deleteSession } from "@/app/actions/auth";
+import { deleteSession } from "@/app/_server/actions/auth";
 import { COOKIE_NAME } from "@/app/_lib/auth-constants";
+import { isInternalRequest } from "@/app/_lib/request-auth";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
+  // This endpoint is internal-only (session-based auth only)
+  const isInternal = await isInternalRequest(request);
+  if (!isInternal) {
+    return NextResponse.json(
+      { error: "This endpoint is only accessible via browser sessions" },
+      { status: 403 }
+    );
+  }
+
   const sessionId = request.cookies.get(COOKIE_NAME)?.value;
 
   if (sessionId) {
@@ -17,6 +27,15 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  // This endpoint is internal-only (session-based auth only)
+  const isInternal = await isInternalRequest(request);
+  if (!isInternal) {
+    return NextResponse.json(
+      { error: "This endpoint is only accessible via browser sessions" },
+      { status: 403 }
+    );
+  }
+
   const sessionId = request.cookies.get(COOKIE_NAME)?.value;
 
   if (sessionId) {

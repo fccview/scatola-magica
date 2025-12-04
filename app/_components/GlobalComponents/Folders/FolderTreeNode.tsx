@@ -10,7 +10,8 @@ import DropdownMenu from "@/app/_components/GlobalComponents/Form/DropdownMenu";
 import Icon from "@/app/_components/GlobalComponents/Icons/Icon";
 import UserAvatar from "@/app/_components/FeatureComponents/User/UserAvatar";
 import { useContextMenu } from "@/app/_providers/ContextMenuProvider";
-import { updateFolder } from "@/app/actions/folders";
+import { updateFolder } from "@/app/_server/actions/folders";
+import { usePathEncryption } from "@/app/_hooks/usePathEncryption";
 
 interface FolderTreeNodeProps {
   folder: FolderWithChildren;
@@ -50,6 +51,7 @@ export default function FolderTreeNode({
 
   const { showContextMenu } = useContextMenu();
   const router = useRouter();
+  const { encryptPath } = usePathEncryption();
 
   const hasChildren = (folder.children?.length || 0) > 0;
   const isCreating = creatingInFolder === folder.id;
@@ -152,14 +154,18 @@ export default function FolderTreeNode({
     );
   }
 
+  // Encrypt the folder path for the URL
+  const encryptedPath = encryptPath(folder.id);
+  const folderHref = `/files/${encryptedPath
+    .split("/")
+    .map(encodeURIComponent)
+    .join("/")}`;
+
   return (
     <div className="select-none">
       <div className="relative group">
         <Link
-          href={`/files/${folder.id
-            .split("/")
-            .map(encodeURIComponent)
-            .join("/")}`}
+          href={folderHref}
           data-folder-id={folder.id}
           className="block"
           onClick={(e) => {

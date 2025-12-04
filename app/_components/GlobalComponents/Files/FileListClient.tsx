@@ -4,12 +4,12 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FileMetadata, User } from "@/app/_types";
 import { FileViewMode, SortBy } from "@/app/_types/enums";
-import { deleteFile, getFiles, renameFile } from "@/app/actions/files";
+import { deleteFile, getFiles, renameFile } from "@/app/_server/actions/files";
 import {
   deleteFolder,
   updateFolder,
   type FolderMetadata,
-} from "@/app/actions/folders";
+} from "@/app/_server/actions/folders";
 import FileCard from "@/app/_components/GlobalComponents/Cards/FileCard";
 import FileListSelectionBar from "@/app/_components/GlobalComponents/Files/FileListSelectionBar";
 import FileListToolbar from "@/app/_components/GlobalComponents/Files/FileListToolbar";

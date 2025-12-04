@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { jwtVerify, createRemoteJWKSet } from "jose";
-import { createSession, readUsers, writeUsers } from "@/app/actions/auth";
+import {
+  createSession,
+  readUsers,
+  writeUsers,
+} from "@/app/_server/actions/auth";
 import { COOKIE_NAME } from "@/app/_lib/auth-constants";
 
 export const dynamic = "force-dynamic";

@@ -1,7 +1,7 @@
 "use client";
 
 import { FileMetadata, User } from "@/app/_types";
-import { FolderMetadata } from "@/app/actions/folders";
+import { FolderMetadata } from "@/app/_server/actions/folders";
 import ListCard from "@/app/_components/GlobalComponents/Cards/ListCard";
 import GridCard from "@/app/_components/GlobalComponents/Cards/GridCard";
 

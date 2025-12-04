@@ -11,7 +11,7 @@ import { SortBy } from "@/app/_types/enums";
 import { revalidatePath } from "next/cache";
 import { getFileMimeType } from "@/app/_lib/file-utils";
 import { unstable_cache } from "next/cache";
-import { getCurrentUser } from "@/app/actions/auth";
+import { getCurrentUser } from "@/app/_server/actions/auth";
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR || "./data/uploads";
 

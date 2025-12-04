@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { moveFile } from "@/app/actions/files";
+import { moveFile } from "@/app/_server/actions/files";
 import Card from "@/app/_components/GlobalComponents/Cards/Card";
 import Button from "@/app/_components/GlobalComponents/Buttons/Button";
 import IconButton from "@/app/_components/GlobalComponents/Buttons/IconButton";

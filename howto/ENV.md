@@ -33,6 +33,7 @@ DISABLE_PASSWORD_LOGIN=true
 - `HTTPS=true` Optional. Enables HTTPS mode for secure connections.
 - `APP_URL=https://your-scatola-magica-domain.com` Force a base URL of your Scatola Magica instance. Required for SSO but optional otherwise - if you have trouble logging in with reverse proxy try setting this up as it will force the application to login using this exact url.
 - `INTERNAL_API_URL=http://localhost:3000` Optional. URL used for internal API calls within the container. Defaults to `http://localhost:3000` if not set. Only needed if you're experiencing session validation issues behind a reverse proxy.
+- `ENCRYPTION_KEY=your-secret-key` Optional. Encrypts folder paths in browser URLs for additional security. Can be any length string. When set, folder paths like `/documents/reports` will appear as encrypted strings in the URL bar. Leave unset for plain folder paths.
 
 ## SSO Configuration (Optional)
 
@@ -49,6 +50,9 @@ DISABLE_PASSWORD_LOGIN=true
 - `OIDC_GROUPS_SCOPE=groups` Optional. Scope to request for groups. Defaults to "groups". Set to empty string or "no" to disable for providers like Entra ID that don't support the groups scope.
 - `OIDC_LOGOUT_URL=https://authprovider.local/realms/master/logout` Optional. Custom logout URL for global logout.
 - `DISABLE_PASSWORD_LOGIN=true` Optional. When set to "true" and OIDC is properly configured, disables username/password login and only shows OIDC login. If OIDC is not configured, password login will still be available as a fallback.
+
+
+
 
 
 

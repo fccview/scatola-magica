@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import archiver from "archiver";
 import { stat } from "fs/promises";
 import path from "path";
-import { getCurrentUser } from "@/app/actions/auth";
+import { validateRequest } from "@/app/_lib/request-auth";
+import { decryptPath } from "@/app/_lib/path-encryption";
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR || "./data/uploads";
 
 export async function POST(request: NextRequest) {
   try {
-    const currentUser = await getCurrentUser();
+    const currentUser = await validateRequest(request);
     if (!currentUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -20,10 +21,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No paths provided" }, { status: 400 });
     }
 
+    // Decrypt paths if encryption is enabled
+    const decryptedPaths = paths.map((p) => decryptPath(p));
+
     const isAdmin = currentUser.isAdmin;
     const username = currentUser.username;
 
-    const actualPaths = paths.map((relativePath) => {
+    const actualPaths = decryptedPaths.map((relativePath) => {
       return isAdmin ? relativePath : `${username}/${relativePath}`;
     });
 
@@ -52,8 +56,8 @@ export async function POST(request: NextRequest) {
     }
 
     let archiveName = "download.zip";
-    if (paths.length === 1) {
-      const singlePath = paths[0];
+    if (decryptedPaths.length === 1) {
+      const singlePath = decryptedPaths[0];
       const baseName = path.basename(singlePath);
       archiveName = `${baseName}.zip`;
     } else {

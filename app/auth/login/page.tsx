@@ -7,7 +7,7 @@ import {
   isOidcAvailable,
   isPasswordLoginDisabled,
   readSessions,
-} from "@/app/actions/auth";
+} from "@/app/_server/actions/auth";
 import { COOKIE_NAME } from "@/app/_lib/auth-constants";
 
 export default async function LoginPage() {
@@ -35,9 +35,7 @@ export default async function LoginPage() {
         <div className="bg-sidebar py-8 px-4">
           <div className="text-center">
             <p className="text-on-surface-variant">
-              {usersExist
-                ? ""
-                : "Create the first admin account"}
+              {usersExist ? "" : "Create the first admin account"}
             </p>
           </div>
 

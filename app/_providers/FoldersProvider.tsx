@@ -7,7 +7,10 @@ import {
   useEffect,
   useCallback,
 } from "react";
-import { getAllFolders, type FolderMetadata } from "@/app/actions/folders";
+import {
+  getAllFolders,
+  type FolderMetadata,
+} from "@/app/_server/actions/folders";
 
 interface FoldersContextValue {
   folders: FolderMetadata[];

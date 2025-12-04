@@ -6,6 +6,7 @@ import { lock, unlock } from "proper-lockfile";
 import { cookies } from "next/headers";
 import type { User } from "@/app/_types";
 import { COOKIE_NAME } from "@/app/_lib/auth-constants";
+import { generateApiKey } from "@/app/_lib/auth-utils";
 
 function getAuthConfigDir(): string {
   return path.join(process.cwd(), "data", "config");
@@ -482,4 +483,78 @@ export async function updateUser(
 
   await writeUsers(users);
   return { success: true };
+}
+
+export async function createApiKey(): Promise<{
+  success: boolean;
+  apiKey?: string;
+  error?: string;
+}> {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) {
+    return { success: false, error: "Unauthorized" };
+  }
+
+  const users = await readUsers();
+  const user = users.find((u) => u.username === currentUser.username);
+  if (!user) {
+    return { success: false, error: "User not found" };
+  }
+
+  const apiKey = await generateApiKey(user.username, user.isAdmin || false);
+  user.apiKey = apiKey;
+
+  await writeUsers(users);
+
+  return { success: true, apiKey };
+}
+
+export async function regenerateApiKey(): Promise<{
+  success: boolean;
+  apiKey?: string;
+  error?: string;
+}> {
+  return createApiKey();
+}
+
+export async function deleteApiKey(): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) {
+    return { success: false, error: "Unauthorized" };
+  }
+
+  const users = await readUsers();
+  const user = users.find((u) => u.username === currentUser.username);
+  if (!user) {
+    return { success: false, error: "User not found" };
+  }
+
+  user.apiKey = undefined;
+  await writeUsers(users);
+
+  return { success: true };
+}
+
+export async function getApiKey(): Promise<{
+  hasApiKey: boolean;
+  apiKey?: string;
+}> {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) {
+    return { hasApiKey: false };
+  }
+
+  const users = await readUsers();
+  const user = users.find((u) => u.username === currentUser.username);
+  if (!user) {
+    return { hasApiKey: false };
+  }
+
+  return {
+    hasApiKey: !!user.apiKey,
+    apiKey: user.apiKey,
+  };
 }

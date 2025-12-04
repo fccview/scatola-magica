@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/app/actions/auth";
+import { getCurrentUser } from "@/app/_server/actions/auth";
 import SettingsPage from "@/app/_components/FeatureComponents/SettingsPage/SettingsPage";
 
 export default async function Settings() {

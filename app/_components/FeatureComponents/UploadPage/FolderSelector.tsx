@@ -5,7 +5,7 @@ import {
   getFolders,
   createFolder,
   type FolderMetadata,
-} from "@/app/actions/folders";
+} from "@/app/_server/actions/folders";
 import Card from "@/app/_components/GlobalComponents/Cards/Card";
 import Button from "@/app/_components/GlobalComponents/Buttons/Button";
 import Input from "@/app/_components/GlobalComponents/Form/Input";

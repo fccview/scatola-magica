@@ -9,7 +9,7 @@ import ThemeProvider from "@/app/_providers/ThemeProvider";
 import ShortcutsProvider from "@/app/_providers/ShortcutsProvider";
 import ContextMenuProvider from "@/app/_providers/ContextMenuProvider";
 import { PreferencesProvider } from "@/app/_providers/PreferencesProvider";
-import { getCurrentUser, readUsers } from "@/app/actions/auth";
+import { getCurrentUser, readUsers } from "@/app/_server/actions/auth";
 import { getUserPreferences } from "@/app/_lib/preferences";
 import "@/app/globals.css";
 
@@ -44,6 +44,8 @@ const RootLayout = async ({
     ? await getUserPreferences(currentUser.username)
     : { particlesEnabled: true, wandCursorEnabled: true, username: "" };
   const initialUsers = await readUsers();
+
+  const encryptionKey = process.env.ENCRYPTION_KEY || null;
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -83,6 +85,7 @@ const RootLayout = async ({
               particlesEnabled: preferences.particlesEnabled,
               wandCursorEnabled: preferences.wandCursorEnabled,
               user: currentUser,
+              encryptionKey,
             }}
           >
             <UsersProvider initialUsers={initialUsers}>
