@@ -159,16 +159,16 @@ const UploadModal = ({
 
   return (
     <>
-      <Modal isOpen={isOpen} onClose={onClose} title="Upload Files" size="lg">
-        <div className="p-6">
-          {hadInterruptedUploads && (
-            <Warning
-              variant="error"
-              title="Uploads Interrupted"
-              message="Your uploads were interrupted by a page refresh. Please upload your files again."
-              onDismiss={dismissInterruptedWarning}
-            />
-          )}
+    <Modal isOpen={isOpen} onClose={onClose} title="Upload Files" size="lg">
+      <div className="p-6">
+        {hadInterruptedUploads && (
+          <Warning
+            variant="error"
+            title="Uploads Interrupted"
+            message="Your uploads were interrupted by a page refresh. Please upload your files again."
+            onDismiss={dismissInterruptedWarning}
+          />
+        )}
 
           {shouldUseE2E && (
             <div className="mb-4 p-3 bg-primary-container text-on-primary-container rounded-lg text-sm flex items-center gap-2">
@@ -177,23 +177,23 @@ const UploadModal = ({
             </div>
           )}
 
-          <UploadDropZone
-            isDragging={isDragging}
-            onDragEnter={handleDragEnter}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
+        <UploadDropZone
+          isDragging={isDragging}
+          onDragEnter={handleDragEnter}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
             onFileSelect={handleE2EFileSelect}
-          />
+        />
 
-          <UploadFileList
-            files={files}
-            onCancel={cancelUpload}
-            onRemove={removeFile}
-            onClose={onClose}
-          />
-        </div>
-      </Modal>
+        <UploadFileList
+          files={files}
+          onCancel={cancelUpload}
+          onRemove={removeFile}
+          onClose={onClose}
+        />
+      </div>
+    </Modal>
 
       <E2EPasswordModal
         isOpen={showPasswordModal}

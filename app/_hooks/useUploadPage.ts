@@ -125,35 +125,35 @@ export const useUploadPage = () => {
 
   const handleFileSelect = useCallback(
     (
-      selectedFiles: FileList | null,
+    selectedFiles: FileList | null,
       targetFolderPath?: string,
       encryption?: E2EEncryptionOptions
-    ) => {
-      if (!selectedFiles || selectedFiles.length === 0) return;
+  ) => {
+    if (!selectedFiles || selectedFiles.length === 0) return;
 
-      const folderPath =
-        targetFolderPath !== undefined ? targetFolderPath : selectedFolderPath;
+    const folderPath =
+      targetFolderPath !== undefined ? targetFolderPath : selectedFolderPath;
 
-      const filesArray = Array.from(selectedFiles);
+    const filesArray = Array.from(selectedFiles);
 
-      const newFiles: UploadingFile[] = filesArray.map((file, index) => ({
-        id: `${Date.now()}-${index}-${Math.random().toString(36).substring(2)}`,
-        file,
-        progress: null,
-        uploader: null,
-        status: UploadStatus.PENDING,
-      }));
+    const newFiles: UploadingFile[] = filesArray.map((file, index) => ({
+      id: `${Date.now()}-${index}-${Math.random().toString(36).substring(2)}`,
+      file,
+      progress: null,
+      uploader: null,
+      status: UploadStatus.PENDING,
+    }));
 
-      setFiles((prev) => {
-        const updated = [...prev, ...newFiles];
-        return updated;
-      });
+    setFiles((prev) => {
+      const updated = [...prev, ...newFiles];
+      return updated;
+    });
 
-      for (const f of newFiles) {
+    for (const f of newFiles) {
         uploadFile(f, folderPath || undefined, encryption).catch((error) => {
-          console.error(`Upload failed for ${f.file.name}:`, error);
-        });
-      }
+        console.error(`Upload failed for ${f.file.name}:`, error);
+      });
+    }
     },
     [selectedFolderPath, e2eEncryption]
   );
