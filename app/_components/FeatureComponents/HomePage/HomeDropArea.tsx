@@ -116,9 +116,8 @@ export default function HomeDropArea() {
           }}
         >
           <Logo
-            className={`w-80 h-80 md:w-96 md:h-96 ${
-              isDragging ? "loading-animation" : ""
-            }`}
+            className="w-80 h-80 md:w-96 md:h-96"
+            hoverEffect={isDragging}
           />
         </div>
 

@@ -9,7 +9,7 @@ interface MarkdownRendererProps {
 
 export default function MarkdownRenderer({ content }: MarkdownRendererProps) {
   return (
-    <div className="text-on-surface max-w-3xl">
+    <div className="text-on-surface">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
@@ -60,7 +60,9 @@ export default function MarkdownRenderer({ content }: MarkdownRendererProps) {
           },
           pre: ({ children }) => <pre className="mb-4">{children}</pre>,
           strong: ({ children }) => (
-            <strong className="font-semibold text-on-surface">{children}</strong>
+            <strong className="font-semibold text-on-surface">
+              {children}
+            </strong>
           ),
           a: ({ children, href }) => (
             <a

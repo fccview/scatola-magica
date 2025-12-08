@@ -349,6 +349,7 @@ export default function ListCard({
       {!isSelectionMode && (
         <div className="absolute right-2">
           <ItemActionsMenu
+            onOpen={onOpen ? () => onOpen(itemId) : undefined}
             onRename={onRename ? handleRenameStart : undefined}
             onMove={onMove ? () => onMove(itemId) : undefined}
             onDownload={onDownload ? () => onDownload(itemId) : undefined}

@@ -6,10 +6,12 @@ export default function Logo({
   className = "",
   hideBox = false,
   id = "",
+  hoverEffect = false,
 }: {
   className?: string;
   hideBox?: boolean;
   id?: string;
+  hoverEffect?: boolean;
 }) {
   const uniqueId = useId();
   const scopedId = id || `logo-${uniqueId}`;
@@ -17,7 +19,9 @@ export default function Logo({
   return (
     <svg
       viewBox="0 0 594 594"
-      className={`logo-container ${className}`}
+      className={`logo-container ${className} ${
+        hoverEffect ? "hover-effect" : ""
+      }`}
       id={scopedId}
       suppressHydrationWarning={true}
     >
@@ -43,31 +47,38 @@ export default function Logo({
           transition: transform 1.5s ease-in-out;
         }
 
-        #${scopedId}:hover .s4 {
+        #${scopedId}:hover .s4,
+        #${scopedId}.hover-effect .s4 {
           animation: float 1.5s ease-in-out infinite;
         }
         #${scopedId}.loading-animation .s4 {
           animation: float 2s ease-in-out infinite;
         }
 
-        #${scopedId}:hover path[id^="Shape 12"] {
+        #${scopedId}:hover path[id^="Shape 12"],
+        #${scopedId}.hover-effect path[id^="Shape 12"] {
           animation: sparkle 2s ease-in-out infinite;
           transform-origin: center;
         }
     
-        #${scopedId}:hover path[id="Shape 12"] {
+        #${scopedId}:hover path[id="Shape 12"],
+        #${scopedId}.hover-effect path[id="Shape 12"] {
           animation-delay: 0s;
         }
-        #${scopedId}:hover path[id="Shape 12 copy"] {
+        #${scopedId}:hover path[id="Shape 12 copy"],
+        #${scopedId}.hover-effect path[id="Shape 12 copy"] {
           animation-delay: 0.4s;
         }
-        #${scopedId}:hover path[id="Shape 12 copy 2"] {
+        #${scopedId}:hover path[id="Shape 12 copy 2"],
+        #${scopedId}.hover-effect path[id="Shape 12 copy 2"] {
           animation-delay: 0.8s;
         }
-        #${scopedId}:hover path[id="Shape 12 copy 3"] {
+        #${scopedId}:hover path[id="Shape 12 copy 3"],
+        #${scopedId}.hover-effect path[id="Shape 12 copy 3"] {
           animation-delay: 1.2s;
         }
-        #${scopedId}:hover path[id="Shape 12 copy 4"] {
+        #${scopedId}:hover path[id="Shape 12 copy 4"],
+        #${scopedId}.hover-effect path[id="Shape 12 copy 4"] {
           animation-delay: 1.6s;
         }
 

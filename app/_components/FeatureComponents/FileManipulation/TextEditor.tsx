@@ -211,12 +211,13 @@ const TextEditor = forwardRef<TextEditorHandle, TextEditorProps>(
     return (
       <>
         {isEditing ? (
-          <div className="flex bg-neutral-900 rounded-lg">
+          <div className="flex bg-surface-container rounded-lg">
             <div
-              className="py-4 pr-3 pl-4 text-neutral-500 text-right select-none"
+              className="py-4 pr-3 pl-4 text-on-surface-variant text-right select-none"
               style={{
-                fontFamily: '"Fira Code", "Courier New", monospace',
-                fontSize: 14,
+                fontFamily:
+                  "Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace",
+                fontSize: "14px",
                 lineHeight: "21px",
               }}
             >
@@ -251,8 +252,9 @@ const TextEditor = forwardRef<TextEditorHandle, TextEditorProps>(
               insertSpaces={true}
               className="flex-1"
               style={{
-                fontFamily: '"Fira Code", "Courier New", monospace',
-                fontSize: 14,
+                fontFamily:
+                  "Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace",
+                fontSize: "14px",
                 minHeight: "400px",
               }}
               textareaClassName="focus:outline-none bg-transparent rounded-r-lg"
@@ -260,7 +262,9 @@ const TextEditor = forwardRef<TextEditorHandle, TextEditorProps>(
           </div>
         ) : (
           <div
-            className={`bg-neutral-900 rounded-lg ${isMarkdown ? "p-6" : ""}`}
+            className={`bg-surface-container rounded-lg ${
+              isMarkdown ? "p-6" : ""
+            }`}
           >
             {isMarkdown ? (
               <MarkdownRenderer content={fileContent} />
