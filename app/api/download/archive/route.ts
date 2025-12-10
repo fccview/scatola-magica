@@ -22,7 +22,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No paths provided" }, { status: 400 });
     }
 
-    const decryptedPaths = paths.map((p) => decryptPath(p));
+    const decryptedPaths = await Promise.all(
+      paths.map((p) => decryptPath(p))
+    );
 
     const isAdmin = currentUser.isAdmin;
     const username = currentUser.username;

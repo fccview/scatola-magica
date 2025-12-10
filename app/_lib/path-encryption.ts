@@ -1,11 +1,26 @@
 import crypto from "crypto";
+import { getCurrentUser } from "@/app/_server/actions/user";
+import { readUsers } from "@/app/_server/actions/user";
 
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
 const ALGORITHM = "aes-256-gcm";
 
-export const isPathEncryptionEnabled = (): boolean => {
-  return !!ENCRYPTION_KEY;
-};
+export const isPathEncryptionEnabled = async (): Promise<boolean> => {
+  const user = await getCurrentUser();
+  if (!user) return false;
+
+  const users = await readUsers();
+  const userData = users.find((u) => u.username === user.username);
+  return !!userData?.encryptionKey;
+}
+
+export const getEncryptionKey = async (): Promise<string | null> => {
+  const user = await getCurrentUser();
+  if (!user) return null;
+
+  const users = await readUsers();
+  const userData = users.find((u) => u.username === user.username);
+  return userData?.encryptionKey || null;
+}
 
 /**
  * Encrypt a folder path for use in the URI
@@ -14,13 +29,13 @@ export const isPathEncryptionEnabled = (): boolean => {
  *
  * I'm not sure if this is the best idea or way to do this, but I love it so fuck conventions.
  */
-export const encryptPath = (path: string): string => {
-  if (!isPathEncryptionEnabled() || !ENCRYPTION_KEY) {
+export const encryptPathWithKey = (path: string, encryptionKey: string): string => {
+  if (!encryptionKey) {
     return path;
   }
 
   try {
-    const key = crypto.createHash("sha256").update(ENCRYPTION_KEY).digest();
+    const key = crypto.createHash("sha256").update(encryptionKey).digest();
 
     const iv = crypto.randomBytes(12);
 
@@ -42,17 +57,28 @@ export const encryptPath = (path: string): string => {
     console.error("Failed to encrypt path:", error);
     return path;
   }
-};
+}
+
+export const encryptPath = async (path: string): Promise<string> => {
+  const encryptionKey = await getEncryptionKey();
+  if (!encryptionKey) {
+    return path;
+  }
+  return encryptPathWithKey(path, encryptionKey);
+}
 
 /**
- * Decrypt a folder path from the URI
+ * Decrypt a folder path for use in the URI
  * If there's no encryption key this will be disabled.
  * @experimental feature.
  *
  * I'm not sure if this is the best idea or way to do this, but I love it so fuck conventions.
  */
-export function decryptPath(encryptedPath: string): string {
-  if (!isPathEncryptionEnabled() || !ENCRYPTION_KEY) {
+export const decryptPathWithKey = (
+  encryptedPath: string,
+  encryptionKey: string
+): string => {
+  if (!encryptionKey) {
     return encryptedPath;
   }
 
@@ -68,14 +94,14 @@ export function decryptPath(encryptedPath: string): string {
         const [key, ...pathParts] = decoded.split(":");
         const path = pathParts.join(":");
 
-        if (key === ENCRYPTION_KEY) {
+        if (key === encryptionKey) {
           return path;
         }
       }
-    } catch (btoaError) {}
+    } catch (btoaError) { }
 
     try {
-      const key = crypto.createHash("sha256").update(ENCRYPTION_KEY).digest();
+      const key = crypto.createHash("sha256").update(encryptionKey).digest();
       const combined = Buffer.from(padded, "base64");
 
       if (combined.length < 28) {
@@ -97,10 +123,18 @@ export function decryptPath(encryptedPath: string): string {
       decrypted += decipher.final("utf8");
 
       return decrypted;
-    } catch (aesError) {}
+    } catch (aesError) { }
 
     return encryptedPath;
   } catch (error) {
     return encryptedPath;
   }
+}
+
+export const decryptPath = async (encryptedPath: string): Promise<string> => {
+  const encryptionKey = await getEncryptionKey();
+  if (!encryptionKey) {
+    return encryptedPath;
+  }
+  return decryptPathWithKey(encryptedPath, encryptionKey);
 }

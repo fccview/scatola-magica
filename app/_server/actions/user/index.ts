@@ -8,25 +8,19 @@ import type { User } from "@/app/_types";
 import { COOKIE_NAME } from "@/app/_lib/auth-constants";
 import { generateApiKey } from "@/app/_lib/auth-utils";
 
-function getAuthConfigDir(): string {
+const _getAuthConfigDir = (): string => {
   return path.join(process.cwd(), "data", "config");
 }
 
-function getUsersFile(): string {
-  return path.join(getAuthConfigDir(), "users.json");
+const _getUsersFile = (): string => {
+  return path.join(_getAuthConfigDir(), "users.json");
 }
 
-function getSessionsFile(): string {
-  return path.join(getAuthConfigDir(), "sessions.json");
+const _getSessionsFile = (): string => {
+  return path.join(_getAuthConfigDir(), "sessions.json");
 }
 
-export async function ensureAuthDir(): Promise<void> {
-  const configDir = getAuthConfigDir();
-  await fs.mkdir(configDir, { recursive: true });
-  await fs.mkdir(path.join(configDir, "avatars"), { recursive: true });
-}
-
-async function readJsonFile<T>(filePath: string): Promise<T | null> {
+const _readJsonFile = async <T>(filePath: string): Promise<T | null> => {
   try {
     const content = await fs.readFile(filePath, "utf-8");
     if (!content) {
@@ -38,100 +32,106 @@ async function readJsonFile<T>(filePath: string): Promise<T | null> {
   }
 }
 
-async function writeJsonFile<T>(filePath: string, data: T): Promise<void> {
+const _writeJsonFile = async <T>(filePath: string, data: T): Promise<void> => {
   await fs.writeFile(filePath, JSON.stringify(data, null, 2));
 }
 
-export async function readUsers(): Promise<User[]> {
+export const ensureAuthDir = async (): Promise<void> => {
+  const configDir = _getAuthConfigDir();
+  await fs.mkdir(configDir, { recursive: true });
+  await fs.mkdir(path.join(configDir, "avatars"), { recursive: true });
+}
+
+export const readUsers = async (): Promise<User[]> => {
   await ensureAuthDir();
-  const users = await readJsonFile<User[]>(getUsersFile());
+  const users = await _readJsonFile<User[]>(_getUsersFile());
   return users || [];
 }
 
-export async function writeUsers(users: User[]): Promise<void> {
+export const writeUsers = async (users: User[]): Promise<void> => {
   await ensureAuthDir();
-  const usersFile = getUsersFile();
+  const usersFile = _getUsersFile();
   try {
     await fs.access(usersFile);
   } catch {
-    await writeJsonFile(usersFile, []);
+    await _writeJsonFile(usersFile, []);
   }
   await lock(usersFile);
   try {
-    await writeJsonFile(usersFile, users);
+    await _writeJsonFile(usersFile, users);
   } finally {
     await unlock(usersFile);
   }
 }
 
-export async function readSessions(): Promise<Record<string, string>> {
+export const readSessions = async (): Promise<Record<string, string>> => {
   await ensureAuthDir();
-  const sessions = await readJsonFile<Record<string, string>>(
-    getSessionsFile()
+  const sessions = await _readJsonFile<Record<string, string>>(
+    _getSessionsFile()
   );
   return sessions || {};
 }
 
-export async function writeSessions(
+export const writeSessions = async (
   sessions: Record<string, string>
-): Promise<void> {
+): Promise<void> => {
   await ensureAuthDir();
-  const sessionsFile = getSessionsFile();
+  const sessionsFile = _getSessionsFile();
   try {
     await fs.access(sessionsFile);
   } catch {
-    await writeJsonFile(sessionsFile, {});
+    await _writeJsonFile(sessionsFile, {});
   }
   await lock(sessionsFile);
   try {
-    await writeJsonFile(sessionsFile, sessions);
+    await _writeJsonFile(sessionsFile, sessions);
   } finally {
     await unlock(sessionsFile);
   }
 }
 
-export async function getSessionUsername(
+export const getSessionUsername = async (
   sessionId: string
-): Promise<string | null> {
+): Promise<string | null> => {
   const sessions = await readSessions();
   return sessions[sessionId] || null;
 }
 
-export async function createSession(
+export const createSession = async (
   sessionId: string,
   username: string
-): Promise<void> {
+): Promise<void> => {
   const sessions = await readSessions();
   sessions[sessionId] = username;
   await writeSessions(sessions);
 }
 
-export async function deleteSession(sessionId: string): Promise<void> {
+export const deleteSession = async (sessionId: string): Promise<void> => {
   const sessions = await readSessions();
   delete sessions[sessionId];
   await writeSessions(sessions);
 }
 
-export async function hasUsers(): Promise<boolean> {
+export const hasUsers = async (): Promise<boolean> => {
   const users = await readUsers();
   return users.length > 0;
 }
 
-export async function isOidcAvailable(): Promise<boolean> {
+export const isOidcAvailable = async (): Promise<boolean> => {
   const issuer = process.env.OIDC_ISSUER || "";
   const clientId = process.env.OIDC_CLIENT_ID || "";
   return !!(issuer && clientId);
 }
 
-export async function isPasswordLoginDisabled(): Promise<boolean> {
+export const isPasswordLoginDisabled = async (): Promise<boolean> => {
   return process.env.DISABLE_PASSWORD_LOGIN === "true";
 }
 
-export async function getCurrentUser(): Promise<{
+export const getCurrentUser = async (): Promise<{
   username: string;
   isAdmin: boolean;
   avatar?: string;
-} | null> {
+} | null> => {
   const cookieStore = await cookies();
   const sessionId = cookieStore.get(COOKIE_NAME)?.value;
   if (!sessionId) {
@@ -153,11 +153,11 @@ export async function getCurrentUser(): Promise<{
   };
 }
 
-export async function createUser(
+export const createUser = async (
   username: string,
   password: string,
   isAdmin: boolean
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string }> => {
   const currentUser = await getCurrentUser();
   if (!currentUser || !currentUser.isAdmin) {
     return { success: false, error: "Unauthorized" };
@@ -172,11 +172,20 @@ export async function createUser(
   const bcrypt = await import("bcryptjs");
   const passwordHash = await bcrypt.hash(password, 10);
 
+  let encryptionKey: string;
+  if (process.env.ENCRYPTION_KEY) {
+    encryptionKey = process.env.ENCRYPTION_KEY;
+  } else {
+    const crypto = await import("crypto");
+    encryptionKey = crypto.randomUUID().slice(0, 13);
+  }
+
   users.push({
     username,
     passwordHash,
     isAdmin,
     createdAt: new Date().toISOString(),
+    encryptionKey,
   });
 
   await writeUsers(users);
@@ -196,11 +205,11 @@ export async function createUser(
   return { success: true };
 }
 
-export async function changePassword(
+export const changePassword = async (
   currentPassword: string,
   newPassword: string,
   confirmPassword: string
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string }> => {
   const currentUser = await getCurrentUser();
   if (!currentUser) {
     return { success: false, error: "Unauthorized" };
@@ -233,9 +242,9 @@ export async function changePassword(
   return { success: true };
 }
 
-export async function changeUsername(
+export const changeUsername = async (
   newUsername: string
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string }> => {
   const currentUser = await getCurrentUser();
   if (!currentUser) {
     return { success: false, error: "Unauthorized" };
@@ -291,10 +300,10 @@ export async function changeUsername(
   return { success: true };
 }
 
-export async function updateAvatar(
+export const updateAvatar = async (
   base64Data: string,
   filename: string
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string }> => {
   const currentUser = await getCurrentUser();
   if (!currentUser) {
     return { success: false, error: "Unauthorized" };
@@ -331,10 +340,10 @@ export async function updateAvatar(
   return { success: true };
 }
 
-export async function removeAvatar(): Promise<{
+export const removeAvatar = async (): Promise<{
   success: boolean;
   error?: string;
-}> {
+}> => {
   const currentUser = await getCurrentUser();
   if (!currentUser) {
     return { success: false, error: "Unauthorized" };
@@ -362,9 +371,9 @@ export async function removeAvatar(): Promise<{
   return { success: true };
 }
 
-export async function deleteUser(
+export const deleteUser = async (
   username: string
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string }> => {
   const currentUser = await getCurrentUser();
   if (!currentUser || !currentUser.isAdmin) {
     return { success: false, error: "Unauthorized" };
@@ -421,10 +430,10 @@ export async function deleteUser(
   return { success: true };
 }
 
-export async function updateUser(
+export const updateUser = async (
   username: string,
   updates: { password?: string; isAdmin?: boolean }
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string }> => {
   const currentUser = await getCurrentUser();
   if (!currentUser || !currentUser.isAdmin) {
     return { success: false, error: "Unauthorized" };
@@ -485,11 +494,11 @@ export async function updateUser(
   return { success: true };
 }
 
-export async function createApiKey(): Promise<{
+export const createApiKey = async (): Promise<{
   success: boolean;
   apiKey?: string;
   error?: string;
-}> {
+}> => {
   const currentUser = await getCurrentUser();
   if (!currentUser) {
     return { success: false, error: "Unauthorized" };
@@ -509,18 +518,18 @@ export async function createApiKey(): Promise<{
   return { success: true, apiKey };
 }
 
-export async function regenerateApiKey(): Promise<{
+export const regenerateApiKey = async (): Promise<{
   success: boolean;
   apiKey?: string;
   error?: string;
-}> {
+}> => {
   return createApiKey();
 }
 
-export async function deleteApiKey(): Promise<{
+export const deleteApiKey = async (): Promise<{
   success: boolean;
   error?: string;
-}> {
+}> => {
   const currentUser = await getCurrentUser();
   if (!currentUser) {
     return { success: false, error: "Unauthorized" };
@@ -538,10 +547,10 @@ export async function deleteApiKey(): Promise<{
   return { success: true };
 }
 
-export async function getApiKey(): Promise<{
+export const getApiKey = async (): Promise<{
   hasApiKey: boolean;
   apiKey?: string;
-}> {
+}> => {
   const currentUser = await getCurrentUser();
   if (!currentUser) {
     return { hasApiKey: false };
@@ -557,4 +566,79 @@ export async function getApiKey(): Promise<{
     hasApiKey: !!user.apiKey,
     apiKey: user.apiKey,
   };
+}
+
+export const ensureEncryptionPassword = async (
+  username: string
+): Promise<string> => {
+  const users = await readUsers();
+  const user = users.find((u) => u.username === username);
+
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  if (user.encryptionKey) {
+    return user.encryptionKey;
+  }
+
+  let encryptionKey: string;
+
+  if (process.env.ENCRYPTION_KEY) {
+    encryptionKey = process.env.ENCRYPTION_KEY;
+  } else {
+    const crypto = await import("crypto");
+    encryptionKey = crypto.randomUUID().slice(0, 13);
+  }
+
+  user.encryptionKey = encryptionKey;
+  await writeUsers(users);
+
+  return encryptionKey;
+}
+
+export const getEncryptionKey = async (): Promise<{
+  hasEncryptionKey: boolean;
+  encryptionKey?: string;
+}> => {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) {
+    return { hasEncryptionKey: false };
+  }
+
+  const users = await readUsers();
+  const user = users.find((u) => u.username === currentUser.username);
+  if (!user) {
+    return { hasEncryptionKey: false };
+  }
+
+  return {
+    hasEncryptionKey: !!user.encryptionKey,
+    encryptionKey: user.encryptionKey,
+  };
+}
+
+export const regenerateEncryptionKey = async (): Promise<{
+  success: boolean;
+  encryptionKey?: string;
+  error?: string;
+}> => {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) {
+    return { success: false, error: "Unauthorized" };
+  }
+
+  const users = await readUsers();
+  const user = users.find((u) => u.username === currentUser.username);
+  if (!user) {
+    return { success: false, error: "User not found" };
+  }
+
+  const crypto = await import("crypto");
+  const encryptionKey = crypto.randomUUID().slice(0, 13);
+
+  user.encryptionKey = encryptionKey;
+  await writeUsers(users);
+
+  return { success: true, encryptionKey };
 }

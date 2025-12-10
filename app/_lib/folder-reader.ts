@@ -9,9 +9,83 @@ export interface FolderStructure {
   rootFolderName: string;
 }
 
-export async function readFilesFromDataTransfer(
+const _readDir = async (
+  directoryEntry: FileSystemDirectoryEntry,
+  basePath: string
+): Promise<FileWithPath[]> => {
+  const files: FileWithPath[] = [];
+  const entries = await _readAllDirEntries(directoryEntry);
+
+  for (const entry of entries) {
+    if (entry.isFile) {
+      const file = await _getFileFromEntry(entry as FileSystemFileEntry);
+      if (file) {
+        const fullPath = `${basePath}/${entry.name}`;
+        const relativePath = fullPath.substring(
+          basePath.split("/")[0].length + 1
+        );
+        files.push({
+          file,
+          relativePath,
+          fullPath,
+        });
+      }
+    } else if (entry.isDirectory) {
+      const subFiles = await _readDir(
+        entry as FileSystemDirectoryEntry,
+        `${basePath}/${entry.name}`
+      );
+      files.push(...subFiles);
+    }
+  }
+
+  return files;
+}
+
+const _readAllDirEntries = async (
+  directoryEntry: FileSystemDirectoryEntry
+): Promise<FileSystemEntry[]> => {
+  const reader = directoryEntry.createReader();
+  const entries: FileSystemEntry[] = [];
+
+  return new Promise((resolve, reject) => {
+    const readBatch = () => {
+      reader.readEntries(
+        (batch) => {
+          if (batch.length === 0) {
+            resolve(entries);
+          } else {
+            entries.push(...batch);
+            readBatch();
+          }
+        },
+        (error) => {
+          reject(error);
+        }
+      );
+    };
+
+    readBatch();
+  });
+}
+
+const _getFileFromEntry = async (
+  fileEntry: FileSystemFileEntry
+): Promise<File | null> => {
+  return new Promise((resolve) => {
+    fileEntry.file(
+      (file) => resolve(file),
+      (error) => {
+        console.error("Error reading file:", error);
+        resolve(null);
+      }
+    );
+  });
+}
+
+export const readFilesFromDataTransfer = async (
   dataTransfer: DataTransfer
-): Promise<FolderStructure> {
+): Promise<FolderStructure> => {
   const items = Array.from(dataTransfer.items);
   const allFiles: FileWithPath[] = [];
   const folderNames: string[] = [];
@@ -24,7 +98,7 @@ export async function readFilesFromDataTransfer(
       if (entry && entry.isDirectory) {
         hasDirectories = true;
         folderNames.push(entry.name);
-        const folderFiles = await readDirectory(
+        const folderFiles = await _readDir(
           entry as FileSystemDirectoryEntry,
           entry.name
         );
@@ -57,80 +131,6 @@ export async function readFilesFromDataTransfer(
     files: allFiles,
     rootFolderName,
   };
-}
-
-async function readDirectory(
-  directoryEntry: FileSystemDirectoryEntry,
-  basePath: string
-): Promise<FileWithPath[]> {
-  const files: FileWithPath[] = [];
-  const entries = await readAllDirectoryEntries(directoryEntry);
-
-  for (const entry of entries) {
-    if (entry.isFile) {
-      const file = await getFileFromEntry(entry as FileSystemFileEntry);
-      if (file) {
-        const fullPath = `${basePath}/${entry.name}`;
-        const relativePath = fullPath.substring(
-          basePath.split("/")[0].length + 1
-        );
-        files.push({
-          file,
-          relativePath,
-          fullPath,
-        });
-      }
-    } else if (entry.isDirectory) {
-      const subFiles = await readDirectory(
-        entry as FileSystemDirectoryEntry,
-        `${basePath}/${entry.name}`
-      );
-      files.push(...subFiles);
-    }
-  }
-
-  return files;
-}
-
-async function readAllDirectoryEntries(
-  directoryEntry: FileSystemDirectoryEntry
-): Promise<FileSystemEntry[]> {
-  const reader = directoryEntry.createReader();
-  const entries: FileSystemEntry[] = [];
-
-  return new Promise((resolve, reject) => {
-    const readBatch = () => {
-      reader.readEntries(
-        (batch) => {
-          if (batch.length === 0) {
-            resolve(entries);
-          } else {
-            entries.push(...batch);
-            readBatch();
-          }
-        },
-        (error) => {
-          reject(error);
-        }
-      );
-    };
-
-    readBatch();
-  });
-}
-
-async function getFileFromEntry(
-  fileEntry: FileSystemFileEntry
-): Promise<File | null> {
-  return new Promise((resolve, reject) => {
-    fileEntry.file(
-      (file) => resolve(file),
-      (error) => {
-        console.error("Error reading file:", error);
-        resolve(null);
-      }
-    );
-  });
 }
 
 export const extractFolderPaths = (files: FileWithPath[]): string[] => {

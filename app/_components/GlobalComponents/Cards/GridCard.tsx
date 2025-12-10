@@ -20,6 +20,9 @@ interface GridCardProps {
   onDownload?: (id: string) => void;
   onMove?: (id: string) => void;
   onRename?: (id: string, newName: string) => void;
+  onOpen?: (id: string) => void;
+  onEncrypt?: (id: string) => void;
+  onDecrypt?: (id: string) => void;
   isSelectionMode?: boolean;
   isSelected?: boolean;
   onToggleSelect?: () => void;
@@ -35,6 +38,9 @@ export default function GridCard({
   onDownload,
   onMove,
   onRename,
+  onOpen,
+  onEncrypt,
+  onDecrypt,
   isSelectionMode = false,
   isSelected = false,
   onToggleSelect,
@@ -102,15 +108,30 @@ export default function GridCard({
         name: itemName,
       },
       {
-        onFileRename: isFolder ? undefined : onRename,
+        onFileOpen: isFolder ? undefined : onOpen,
+        onFileRename: isFolder ? undefined : onRename ? handleRenameStart : undefined,
         onFileMove: isFolder ? undefined : onMove,
         onFileDownload: isFolder ? undefined : onDownload,
+        onFileEncrypt: isFolder ? undefined : onEncrypt,
+        onFileDecrypt: isFolder ? undefined : onDecrypt,
         onFileDelete: isFolder ? undefined : onDelete,
-        onFolderRename: isFolder ? onRename : undefined,
+        onFolderRename: isFolder && onRename ? handleRenameStart : undefined,
         onFolderDownload: isFolder ? onDownload : undefined,
+        onFolderEncrypt: isFolder ? onEncrypt : undefined,
+        onFolderDecrypt: isFolder ? onDecrypt : undefined,
         onFolderDelete: isFolder ? onDelete : undefined,
       }
     );
+  };
+
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    if (isSelectionMode || isRenaming) return;
+
+    if (!isFolder && onOpen) {
+      e.preventDefault();
+      e.stopPropagation();
+      onOpen(itemId);
+    }
   };
 
   const renderItemName = () => {
@@ -206,6 +227,7 @@ export default function GridCard({
         isSelectionMode ? "cursor-pointer" : ""
       } ${isSelected ? "bg-primary/10 hover:bg-primary/15" : ""}`}
       onClick={isSelectionMode ? onToggleSelect : undefined}
+      onDoubleClick={handleDoubleClick}
       onContextMenu={handleContextMenu}
     >
       <div className="flex flex-col items-center text-center">
@@ -373,10 +395,30 @@ export default function GridCard({
       {!isSelectionMode && (
         <div className="absolute top-2 right-2">
           <ItemActionsMenu
+            onOpen={onOpen ? () => onOpen(itemId) : undefined}
             onRename={onRename ? handleRenameStart : undefined}
             onMove={onMove ? () => onMove(itemId) : undefined}
             onDownload={onDownload ? () => onDownload(itemId) : undefined}
             onDelete={onDelete ? () => onDelete(itemId) : undefined}
+            onEncrypt={
+              isFolder
+                ? onEncrypt
+                  ? () => onEncrypt(itemId)
+                  : undefined
+                : onEncrypt
+                ? () => onEncrypt(itemId)
+                : undefined
+            }
+            onDecrypt={
+              isFolder
+                ? onDecrypt
+                  ? () => onDecrypt(itemId)
+                  : undefined
+                : onDecrypt
+                ? () => onDecrypt(itemId)
+                : undefined
+            }
+            fileName={itemName}
           />
         </div>
       )}

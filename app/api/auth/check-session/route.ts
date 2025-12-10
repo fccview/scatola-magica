@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { readSessions } from "@/app/_server/actions/auth";
+import { readSessions } from "@/app/_server/actions/user";
 import { isInternalRequest } from "@/app/_lib/request-auth";
 
 type Session = Record<string, string>;

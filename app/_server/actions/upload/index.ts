@@ -1,47 +1,37 @@
 "use server";
 
-import { writeFile, mkdir, readdir, unlink, rmdir } from "fs/promises";
+import { writeFile, mkdir, readFile, unlink, rmdir } from "fs/promises";
 import { createWriteStream, createReadStream } from "fs";
 import path from "path";
 import { ServerActionResponse } from "@/app/_types";
 import { revalidatePath } from "next/cache";
-import { getCurrentUser } from "@/app/_server/actions/auth";
+import { getCurrentUser } from "@/app/_server/actions/user";
 import { decryptPath } from "@/app/_lib/path-encryption";
+import { decryptChunk } from "@/app/_server/utils/chunk-decryption";
+import { auditLog } from "@/app/_server/actions/logs";
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR || "./data/uploads";
 const TEMP_DIR = `${UPLOAD_DIR}/temp`;
 
+interface UploadSession {
+  fileName: string;
+  fileSize: number;
+  totalChunks: number;
+  receivedChunks: Set<number>;
+  createdAt: number;
+  folderPath?: string;
+  fileId?: string;
+  e2eEncrypted?: boolean;
+  e2ePassword?: string;
+}
+
 const globalForUploadSessions = globalThis as unknown as {
-  uploadSessions:
-    | Map<
-        string,
-        {
-          fileName: string;
-          fileSize: number;
-          totalChunks: number;
-          receivedChunks: Set<number>;
-          createdAt: number;
-          folderPath?: string;
-          fileId?: string;
-        }
-      >
-    | undefined;
+  uploadSessions: Map<string, UploadSession> | undefined;
 };
 
 const uploadSessions =
   globalForUploadSessions.uploadSessions ??
-  new Map<
-    string,
-    {
-      fileName: string;
-      fileSize: number;
-      totalChunks: number;
-      receivedChunks: Set<number>;
-      createdAt: number;
-      folderPath?: string;
-      fileId?: string;
-    }
-  >();
+  new Map<string, UploadSession>();
 
 if (!globalForUploadSessions.uploadSessions) {
   globalForUploadSessions.uploadSessions = uploadSessions;
@@ -53,13 +43,125 @@ interface InitUploadInput {
   fileSize: number;
   totalChunks: number;
   folderPath?: string;
+  e2eEncrypted?: boolean;
+  e2ePassword?: string;
 }
 
-export async function initializeUpload(
-  input: InitUploadInput
-): Promise<ServerActionResponse> {
+interface FinalizeUploadInput {
+  uploadId: string;
+}
+
+const _assembleFile = async (
+  uploadId: string,
+  session: UploadSession
+): Promise<string> => {
   try {
-    const { uploadId, fileName, fileSize, totalChunks, folderPath } = input;
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
+      throw new Error("Unauthorized");
+    }
+
+    const tempDir = path.join(TEMP_DIR, uploadId);
+
+    let actualFolderPath = session.folderPath
+      ? await decryptPath(session.folderPath)
+      : "";
+
+    if (!currentUser.isAdmin) {
+      actualFolderPath = actualFolderPath
+        ? `${currentUser.username}/${actualFolderPath}`
+        : currentUser.username;
+    }
+
+    const targetDir = path.join(UPLOAD_DIR, actualFolderPath);
+
+    await mkdir(targetDir, { recursive: true });
+
+    const finalPath = path.join(targetDir, session.fileName);
+
+    const writeStream = createWriteStream(finalPath);
+
+    for (let i = 0; i < session.totalChunks; i++) {
+      const chunkPath = path.join(tempDir, `chunk-${i}`);
+
+      if (session.e2eEncrypted && session.e2ePassword) {
+        const encryptedChunk = await readFile(chunkPath);
+        const decryptedChunk = await decryptChunk(
+          encryptedChunk,
+          session.e2ePassword
+        );
+
+        await new Promise<void>((resolve, reject) => {
+          writeStream.write(decryptedChunk, (err) => {
+            if (err) reject(err);
+            else resolve();
+          });
+        });
+      } else {
+        const readStream = createReadStream(chunkPath);
+
+        await new Promise<void>((resolve, reject) => {
+          readStream.on("end", resolve);
+          readStream.on("error", reject);
+          writeStream.on("error", reject);
+          readStream.pipe(writeStream, { end: false });
+        });
+      }
+
+      await unlink(chunkPath);
+    }
+
+    await new Promise<void>((resolve, reject) => {
+      writeStream.on("finish", resolve);
+      writeStream.on("error", reject);
+      writeStream.end();
+    });
+
+    await rmdir(tempDir);
+
+    revalidatePath("/files", "layout");
+
+    const relativePath = `${actualFolderPath}/${session.fileName}`;
+
+    await auditLog("file:upload", {
+      resource: relativePath,
+      details: {
+        fileName: session.fileName,
+        fileSize: session.fileSize,
+        e2eEncrypted: session.e2eEncrypted,
+      },
+      success: true,
+    });
+
+    return relativePath;
+  } catch (error) {
+    console.error("Assemble file error:", error);
+    await auditLog("file:upload", {
+      resource: session.fileName,
+      details: {
+        fileName: session.fileName,
+        fileSize: session.fileSize,
+      },
+      success: false,
+      errorMessage: error instanceof Error ? error.message : "Failed to assemble file",
+    });
+    throw error;
+  }
+}
+
+export const initializeUpload = async (
+  input: InitUploadInput
+): Promise<ServerActionResponse> => {
+  try {
+    const {
+      uploadId,
+      fileName,
+      fileSize,
+      totalChunks,
+      folderPath,
+      e2eEncrypted,
+      e2ePassword,
+    } = input;
 
     const tempDir = path.join(TEMP_DIR, uploadId);
     await mkdir(tempDir, { recursive: true });
@@ -71,15 +173,8 @@ export async function initializeUpload(
       receivedChunks: new Set<number>(),
       createdAt: Date.now(),
       folderPath,
-    });
-
-    console.log("Upload session initialized:", {
-      uploadId,
-      fileName,
-      totalChunks,
-      folderPath,
-      sessionCount: uploadSessions.size,
-      allSessions: Array.from(uploadSessions.keys()),
+      e2eEncrypted,
+      e2ePassword,
     });
 
     return { success: true };
@@ -92,17 +187,9 @@ export async function initializeUpload(
   }
 }
 
-interface UploadChunkInput {
-  uploadId: string;
-  chunkIndex: number;
-  totalChunks: number;
-  fileName: string;
-  chunk: Blob;
-}
-
-export async function uploadChunk(
+export const uploadChunk = async (
   formData: FormData
-): Promise<ServerActionResponse<{ progress: number }>> {
+): Promise<ServerActionResponse<{ progress: number }>> => {
   try {
     const uploadId = formData.get("uploadId") as string;
     const chunkIndex = parseInt(formData.get("chunkIndex") as string);
@@ -116,12 +203,6 @@ export async function uploadChunk(
       });
       return { success: false, error: "Invalid chunk data" };
     }
-
-    console.log("Looking for upload session:", {
-      uploadId,
-      sessionCount: uploadSessions.size,
-      allSessions: Array.from(uploadSessions.keys()),
-    });
 
     const session = uploadSessions.get(uploadId);
 
@@ -146,7 +227,7 @@ export async function uploadChunk(
 
     if (session.receivedChunks.size === session.totalChunks) {
       try {
-        const fileId = await assembleFile(uploadId, session);
+        const fileId = await _assembleFile(uploadId, session);
         session.fileId = fileId;
       } catch (assembleError) {
         console.error("Error assembling file:", assembleError);
@@ -167,91 +248,9 @@ export async function uploadChunk(
   }
 }
 
-async function assembleFile(
-  uploadId: string,
-  session: {
-    fileName: string;
-    fileSize: number;
-    totalChunks: number;
-    folderPath?: string;
-  }
-): Promise<string> {
-  try {
-    const currentUser = await getCurrentUser();
-    if (!currentUser) {
-      throw new Error("Unauthorized");
-    }
-
-    const tempDir = path.join(TEMP_DIR, uploadId);
-
-    let actualFolderPath = session.folderPath
-      ? decryptPath(session.folderPath)
-      : "";
-
-    if (!currentUser.isAdmin) {
-      actualFolderPath = actualFolderPath
-        ? `${currentUser.username}/${actualFolderPath}`
-        : currentUser.username;
-    }
-
-    const targetDir = path.join(UPLOAD_DIR, actualFolderPath);
-
-    console.log("Assembling file:", {
-      uploadId,
-      fileName: session.fileName,
-      folderPath: session.folderPath,
-      actualFolderPath,
-      targetDir,
-      username: currentUser.username,
-      isAdmin: currentUser.isAdmin,
-    });
-
-    await mkdir(targetDir, { recursive: true });
-
-    const finalPath = path.join(targetDir, session.fileName);
-
-    const writeStream = createWriteStream(finalPath);
-
-    for (let i = 0; i < session.totalChunks; i++) {
-      const chunkPath = path.join(tempDir, `chunk-${i}`);
-      const readStream = createReadStream(chunkPath);
-
-      await new Promise<void>((resolve, reject) => {
-        readStream.on("end", resolve);
-        readStream.on("error", reject);
-        writeStream.on("error", reject);
-        readStream.pipe(writeStream, { end: false });
-      });
-
-      await unlink(chunkPath);
-    }
-
-    await new Promise<void>((resolve, reject) => {
-      writeStream.on("finish", resolve);
-      writeStream.on("error", reject);
-      writeStream.end();
-    });
-
-    await rmdir(tempDir);
-
-    revalidatePath("/files", "layout");
-
-    const relativePath = `${actualFolderPath}/${session.fileName}`;
-
-    return relativePath;
-  } catch (error) {
-    console.error("Assemble file error:", error);
-    throw error;
-  }
-}
-
-interface FinalizeUploadInput {
-  uploadId: string;
-}
-
-export async function finalizeUpload(
+export const finalizeUpload = async (
   input: FinalizeUploadInput
-): Promise<ServerActionResponse<{ fileId: string }>> {
+): Promise<ServerActionResponse<{ fileId: string }>> => {
   try {
     const { uploadId } = input;
 
@@ -286,7 +285,7 @@ export async function finalizeUpload(
   }
 }
 
-export async function cleanupExpiredSessions(): Promise<void> {
+export const cleanupExpiredSessions = async (): Promise<void> => {
   const now = Date.now();
   const expiredTime = 24 * 60 * 60 * 1000;
 
@@ -294,7 +293,7 @@ export async function cleanupExpiredSessions(): Promise<void> {
     if (now - session.createdAt > expiredTime) {
       try {
         const tempDir = path.join(TEMP_DIR, uploadId);
-        await rmdir(tempDir, { recursive: true }).catch(() => {});
+        await rmdir(tempDir, { recursive: true }).catch(() => { });
         uploadSessions.delete(uploadId);
       } catch (error) {
         console.error(`Failed to cleanup session ${uploadId}:`, error);

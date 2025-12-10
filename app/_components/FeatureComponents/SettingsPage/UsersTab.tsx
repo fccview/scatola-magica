@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { deleteUser, updateUser } from "@/app/_server/actions/auth";
+import { deleteUser, updateUser } from "@/app/_server/actions/user";
 import { useUsers } from "@/app/_providers/UsersProvider";
 import { usePreferences } from "@/app/_providers/PreferencesProvider";
 import Button from "@/app/_components/GlobalComponents/Buttons/Button";
@@ -186,8 +186,8 @@ export default function UsersTab() {
                     {user.isSuperAdmin
                       ? "Super Admin"
                       : user.isAdmin
-                      ? "Administrator"
-                      : "User"}
+                        ? "Administrator"
+                        : "User"}
                   </div>
                   <div className="text-xs text-on-surface-variant">
                     Created: {new Date(user.createdAt).toLocaleDateString()}

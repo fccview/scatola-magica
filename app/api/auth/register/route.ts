@@ -4,7 +4,7 @@ import {
   readUsers,
   writeUsers,
   getSessionUsername,
-} from "@/app/_server/actions/auth";
+} from "@/app/_server/actions/user";
 import { COOKIE_NAME } from "@/app/_lib/auth-constants";
 
 export const dynamic = "force-dynamic";
@@ -51,12 +51,21 @@ export async function POST(request: NextRequest) {
 
     const passwordHash = await bcrypt.hash(password, 10);
 
+    let encryptionKey: string;
+    if (process.env.ENCRYPTION_KEY) {
+      encryptionKey = process.env.ENCRYPTION_KEY;
+    } else {
+      const crypto = await import("crypto");
+      encryptionKey = crypto.randomUUID().slice(0, 13);
+    }
+
     users.push({
       username,
       passwordHash,
       isAdmin: isFirstUser ? true : isAdmin === true,
       isSuperAdmin: isFirstUser,
       createdAt: new Date().toISOString(),
+      encryptionKey,
     });
 
     await writeUsers(users);

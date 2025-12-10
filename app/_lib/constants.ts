@@ -27,3 +27,53 @@ export const MIME_TYPES = {
   AUDIO: "audio/",
   TEXT: "text/",
 } as const;
+
+export const TEXT_EXTENSIONS = [
+  "txt",
+  "md",
+  "markdown",
+  "html",
+  "css",
+  "js",
+  "jsx",
+  "ts",
+  "tsx",
+  "json",
+  "xml",
+  "yaml",
+  "yml",
+  "sh",
+  "bash",
+  "py",
+  "java",
+  "c",
+  "cpp",
+  "h",
+  "hpp",
+  "go",
+  "rs",
+  "php",
+  "rb",
+  "sql",
+  "log",
+  "config",
+  "conf",
+  "ini",
+  "env",
+  "gpg",
+];
+
+export const IMAGE_EXTENSIONS = [
+  "jpg",
+  "jpeg",
+  "png",
+  "gif",
+  "svg",
+  "webp",
+  "bmp",
+  "ico",
+];
+export const VIDEO_EXTENSIONS = ["mp4", "webm", "ogg", "mov", "avi", "mkv"];
+export const PDF_EXTENSIONS = ["pdf"];
+export const CSV_EXTENSIONS = ["csv"];
+export const MARKDOWN_EXTENSIONS = ["md", "markdown"];

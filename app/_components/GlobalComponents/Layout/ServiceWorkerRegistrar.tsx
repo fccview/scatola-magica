@@ -8,8 +8,6 @@ export default function ServiceWorkerRegistrar() {
       navigator.serviceWorker
         .register("/sw.js", { scope: "/" })
         .then((registration) => {
-          console.log("Service Worker registered:", registration);
-
           registration.addEventListener("updatefound", () => {
             const newWorker = registration.installing;
             newWorker?.addEventListener("statechange", () => {

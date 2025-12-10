@@ -6,7 +6,7 @@ import Modal from "@/app/_components/GlobalComponents/Layout/Modal";
 import Button from "@/app/_components/GlobalComponents/Buttons/Button";
 import Input from "@/app/_components/GlobalComponents/Form/Input";
 import Switch from "@/app/_components/GlobalComponents/Form/Switch";
-import { createUser } from "@/app/_server/actions/auth";
+import { createUser } from "@/app/_server/actions/user";
 
 interface CreateUserModalProps {
   isOpen: boolean;

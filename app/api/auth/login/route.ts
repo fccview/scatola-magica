@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
-import { readUsers, createSession } from "@/app/_server/actions/auth";
+import { readUsers, createSession } from "@/app/_server/actions/user";
 import { COOKIE_NAME } from "@/app/_lib/auth-constants";
 
 export const dynamic = "force-dynamic";
@@ -50,6 +50,11 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       );
     }
+
+    const { ensureEncryptionPassword } = await import(
+      "@/app/_server/actions/user"
+    );
+    await ensureEncryptionPassword(username);
 
     const sessionId = base64UrlEncode(crypto.randomBytes(32));
     await createSession(sessionId, username);

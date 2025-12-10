@@ -67,6 +67,7 @@ export interface User {
   createdAt: string;
   avatar?: string;
   apiKey?: string;
+  encryptionKey?: string;
 }
 
 export interface Session {

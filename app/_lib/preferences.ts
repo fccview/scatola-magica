@@ -8,15 +8,17 @@ export interface UserPreferences {
   username: string;
   particlesEnabled: boolean;
   wandCursorEnabled: boolean;
+  customKeysPath?: string;
+  e2eEncryptionOnTransfer?: boolean;
 }
 
-function getPreferencesFile(): string {
+const _getPreferencesFile = (): string => {
   return path.join(process.cwd(), "data", "config", "preferences.json");
 }
 
-async function readPreferences(): Promise<UserPreferences[]> {
+const _readPreferences = async (): Promise<UserPreferences[]> => {
   try {
-    const content = await fs.readFile(getPreferencesFile(), "utf-8");
+    const content = await fs.readFile(_getPreferencesFile(), "utf-8");
     if (!content) return [];
     return JSON.parse(content) as UserPreferences[];
   } catch {
@@ -24,10 +26,8 @@ async function readPreferences(): Promise<UserPreferences[]> {
   }
 }
 
-async function writePreferences(
-  preferences: UserPreferences[]
-): Promise<void> {
-  const file = getPreferencesFile();
+const _writePreferences = async (preferences: UserPreferences[]): Promise<void> => {
+  const file = _getPreferencesFile();
   try {
     await fs.access(file);
   } catch {
@@ -41,26 +41,28 @@ async function writePreferences(
   }
 }
 
-export async function getUserPreferences(
+export const getUserPreferences = async (
   username: string
-): Promise<UserPreferences> {
-  const allPreferences = await readPreferences();
+): Promise<UserPreferences> => {
+  const allPreferences = await _readPreferences();
   const userPref = allPreferences.find((p) => p.username === username);
   return (
     userPref || {
       username,
       particlesEnabled: true,
       wandCursorEnabled: true,
+      customKeysPath: undefined,
+      e2eEncryptionOnTransfer: true,
     }
   );
 }
 
-export async function updateUserPreferences(
+export const updateUserPreferences = async (
   username: string,
   updates: Partial<Omit<UserPreferences, "username">>
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string }> => {
   try {
-    const allPreferences = await readPreferences();
+    const allPreferences = await _readPreferences();
     const existingIndex = allPreferences.findIndex(
       (p) => p.username === username
     );
@@ -77,6 +79,16 @@ export async function updateUserPreferences(
         (existingIndex >= 0
           ? allPreferences[existingIndex].wandCursorEnabled
           : true),
+      customKeysPath:
+        updates.customKeysPath ??
+        (existingIndex >= 0
+          ? allPreferences[existingIndex].customKeysPath
+          : undefined),
+      e2eEncryptionOnTransfer:
+        updates.e2eEncryptionOnTransfer ??
+        (existingIndex >= 0
+          ? allPreferences[existingIndex].e2eEncryptionOnTransfer
+          : true),
     };
 
     if (existingIndex >= 0) {
@@ -85,7 +97,7 @@ export async function updateUserPreferences(
       allPreferences.push(updatedPref);
     }
 
-    await writePreferences(allPreferences);
+    await _writePreferences(allPreferences);
     return { success: true };
   } catch (error) {
     console.error("Failed to update preferences:", error);

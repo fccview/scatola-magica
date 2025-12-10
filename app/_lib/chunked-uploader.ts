@@ -1,6 +1,12 @@
 import { UPLOAD_CONFIG, ADAPTIVE_CHUNK_SIZES } from "@/app/_lib/constants";
 import { UploadProgress } from "@/app/_types";
 import { UploadStatus } from "@/app/_types/enums";
+import { encryptChunk } from "@/app/_lib/chunk-encryption";
+
+export interface E2EEncryptionOptions {
+  enabled: boolean;
+  password: string;
+}
 
 export class ChunkedUploader {
   private file: File;
@@ -13,12 +19,14 @@ export class ChunkedUploader {
   private uploadedBytes: number = 0;
   private abortController: AbortController | null = null;
   private folderPath?: string;
+  private e2eEncryption?: E2EEncryptionOptions;
 
   constructor(
     file: File,
     existingUploadId?: string,
     alreadyUploadedChunks?: number[],
-    folderPath?: string
+    folderPath?: string,
+    e2eEncryption?: E2EEncryptionOptions
   ) {
     this.file = file;
     this.uploadId =
@@ -26,6 +34,7 @@ export class ChunkedUploader {
       `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
     this.chunkSize = ADAPTIVE_CHUNK_SIZES.FAST;
     this.folderPath = folderPath;
+    this.e2eEncryption = e2eEncryption;
     if (alreadyUploadedChunks) {
       this.uploadedChunks = new Set(alreadyUploadedChunks);
       this.uploadedBytes = alreadyUploadedChunks.reduce((total, chunkIndex) => {
@@ -41,15 +50,12 @@ export class ChunkedUploader {
   }
 
   async upload(): Promise<string> {
-    console.log(`[${this.file.name}] ChunkedUploader.upload() called`);
     this.startTime = Date.now();
     this.abortController = new AbortController();
 
     try {
-      console.log(`[${this.file.name}] Detecting optimal chunk size...`);
       await this.detectOptimalChunkSize();
 
-      console.log(`[${this.file.name}] Creating chunks...`);
       this.createChunks();
 
       if (this.onProgressCallback) {
@@ -67,11 +73,7 @@ export class ChunkedUploader {
         });
       }
 
-      console.log(`[${this.file.name}] Initializing upload session...`);
       await this.initializeUploadSession();
-      console.log(
-        `[${this.file.name}] Upload session initialized, starting chunks...`
-      );
 
       await this.uploadChunksInParallel();
 
@@ -99,11 +101,6 @@ export class ChunkedUploader {
 
     if (isLocalNetwork) {
       this.chunkSize = ADAPTIVE_CHUNK_SIZES.ULTRA_FAST;
-      console.log(
-        "Local network detected, using ULTRA_FAST chunks:",
-        this.chunkSize / 1024 / 1024,
-        "MB"
-      );
       return;
     }
 
@@ -162,6 +159,10 @@ export class ChunkedUploader {
         fileSize: this.file.size,
         totalChunks: this.chunks.length,
         folderPath: this.folderPath,
+        e2eEncrypted: this.e2eEncryption?.enabled ?? false,
+        e2ePassword: this.e2eEncryption?.enabled
+          ? this.e2eEncryption.password
+          : undefined,
       }),
       signal: this.abortController?.signal,
     });
@@ -215,12 +216,30 @@ export class ChunkedUploader {
   }
 
   private async uploadChunk(index: number, chunk: Blob): Promise<void> {
+    let chunkToUpload: Blob = chunk;
+
+    if (this.e2eEncryption?.enabled && this.e2eEncryption.password) {
+      try {
+        const arrayBuffer = await chunk.arrayBuffer();
+        const encryptedBuffer = await encryptChunk(
+          arrayBuffer,
+          this.e2eEncryption.password
+        );
+        chunkToUpload = new Blob([encryptedBuffer]);
+      } catch (encryptError) {
+        console.error("Encryption error:", encryptError);
+        throw new Error(
+          `Failed to encrypt chunk ${index}: ${encryptError instanceof Error ? encryptError.message : "Unknown error"}`
+        );
+      }
+    }
+
     const formData = new FormData();
     formData.append("uploadId", this.uploadId);
     formData.append("chunkIndex", index.toString());
     formData.append("totalChunks", this.chunks.length.toString());
     formData.append("fileName", this.file.name);
-    formData.append("chunk", chunk);
+    formData.append("chunk", chunkToUpload);
 
     const response = await fetch("/api/upload/chunk", {
       method: "POST",
@@ -229,8 +248,9 @@ export class ChunkedUploader {
     });
 
     if (!response.ok) {
+      const errorText = await response.text().catch(() => "");
       throw new Error(
-        `Chunk ${index} upload failed with status ${response.status}`
+        `Chunk ${index} upload failed with status ${response.status}: ${errorText}`
       );
     }
   }

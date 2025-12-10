@@ -9,6 +9,7 @@ interface ModalProps {
   title?: string;
   children: React.ReactNode;
   size?: "sm" | "md" | "lg" | "xl";
+  headerActions?: React.ReactNode;
 }
 
 export default function Modal({
@@ -17,6 +18,7 @@ export default function Modal({
   title,
   children,
   size = "md",
+  headerActions,
 }: ModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -67,7 +69,10 @@ export default function Modal({
         {title && (
           <div className="flex items-center justify-between px-6 py-4 border-b border-dashed border-outline-variant flex-shrink-0">
             <h2 className="text-xl font-semibold text-on-surface">{title}</h2>
-            <IconButton icon="close" onClick={onClose} />
+            <div className="flex items-center gap-2">
+              {headerActions}
+              <IconButton icon="close" onClick={onClose} />
+            </div>
           </div>
         )}
         <div className="flex-1 overflow-y-auto">{children}</div>

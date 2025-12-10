@@ -7,7 +7,7 @@ import {
   isOidcAvailable,
   isPasswordLoginDisabled,
   readSessions,
-} from "@/app/_server/actions/auth";
+} from "@/app/_server/actions/user";
 import { COOKIE_NAME } from "@/app/_lib/auth-constants";
 
 export default async function LoginPage() {

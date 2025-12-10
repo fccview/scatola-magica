@@ -7,7 +7,7 @@ import {
   updateAvatar,
   changePassword,
   removeAvatar,
-} from "@/app/_server/actions/auth";
+} from "@/app/_server/actions/user";
 import { usePreferences } from "@/app/_providers/PreferencesProvider";
 import Input from "@/app/_components/GlobalComponents/Form/Input";
 import Button from "@/app/_components/GlobalComponents/Buttons/Button";

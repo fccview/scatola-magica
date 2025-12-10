@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { deleteSession } from "@/app/_server/actions/auth";
+import { deleteSession } from "@/app/_server/actions/user";
 import { COOKIE_NAME } from "@/app/_lib/auth-constants";
 import { isInternalRequest } from "@/app/_lib/request-auth";
 

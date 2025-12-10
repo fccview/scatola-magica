@@ -57,16 +57,29 @@ export async function GET(
       },
     });
 
-    return new NextResponse(readableStream, {
-      headers: {
-        "Content-Type": mimeType,
-        "Content-Length": fileStats.size.toString(),
-        "Content-Disposition": `attachment; filename="${encodeURIComponent(
-          fileName
-        )}"`,
-        "Cache-Control": "public, max-age=31536000",
-      },
-    });
+    const viewInline = request.nextUrl.searchParams.get("view") === "true";
+    const isViewable =
+      mimeType.startsWith("image/") ||
+      mimeType.startsWith("video/") ||
+      mimeType.startsWith("text/") ||
+      mimeType === "application/pdf";
+
+    const disposition = viewInline && isViewable ? "inline" : "attachment";
+
+    const headers: HeadersInit = {
+      "Content-Type": mimeType,
+      "Content-Length": fileStats.size.toString(),
+      "Content-Disposition": `${disposition}; filename="${encodeURIComponent(
+        fileName
+      )}"`,
+      "Cache-Control": "public, max-age=31536000",
+    };
+
+    if (!viewInline && !isViewable) {
+      headers["X-Frame-Options"] = "DENY";
+    }
+
+    return new NextResponse(readableStream, { headers });
   } catch (error) {
     console.error("Download error:", error);
     return NextResponse.json(

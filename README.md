@@ -78,6 +78,7 @@ That said for the sake of sanity let's all follow the same structure:
 - **Search & Sort:** Powerful search functionality and multiple sorting options for finding files quickly.
 - **Chunk uploader** Uses chunk technology to upload files in small chunks in parallel. On a local network the upload will be as fast as your internet speed/hard drive rw speed allows.
 - **Drop/paste to upload** This is truly a magic box (scatola magica), drag a file anywhere in any screen (yes, the settings too) and it'll upload it on the dedicated upload folder. You can even copy a file and ctrl+v into the app, I promise it will work!
+- **Pasting text** creates a new `.txt` file automatically
 - **Upload folders** You can literally drag a folder on the screen and it'll magically upload it in the right place, with all subfolders/files within it.
 - **Responsive Design:** Works seamlessly on desktop, tablet, and mobile devices.
 - **File-Based:** No database needed! Everything is stored in simple files and folders in a single data directory.

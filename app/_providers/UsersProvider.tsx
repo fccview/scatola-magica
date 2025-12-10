@@ -7,7 +7,7 @@ import {
   useEffect,
   useCallback,
 } from "react";
-import { readUsers } from "@/app/_server/actions/auth";
+import { readUsers } from "@/app/_server/actions/user";
 import { User } from "@/app/_types";
 
 interface UsersContextValue {

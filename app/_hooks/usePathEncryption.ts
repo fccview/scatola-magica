@@ -3,7 +3,7 @@
 import { useCallback } from "react";
 import { usePreferences } from "@/app/_providers/PreferencesProvider";
 
-export function usePathEncryption() {
+export const usePathEncryption = () => {
   const { encryptionKey } = usePreferences();
 
   const encryptPath = useCallback(

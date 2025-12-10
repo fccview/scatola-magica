@@ -5,7 +5,7 @@ import {
   createSession,
   readUsers,
   writeUsers,
-} from "@/app/_server/actions/auth";
+} from "@/app/_server/actions/user";
 import { COOKIE_NAME } from "@/app/_lib/auth-constants";
 
 export const dynamic = "force-dynamic";
@@ -21,6 +21,14 @@ function base64UrlEncode(buffer: Buffer) {
 async function ensureUser(username: string, isAdmin: boolean) {
   let users = await readUsers();
 
+  let encryptionKey: string;
+  if (process.env.ENCRYPTION_KEY) {
+    encryptionKey = process.env.ENCRYPTION_KEY;
+  } else {
+    const crypto = await import("crypto");
+    encryptionKey = crypto.randomUUID().slice(0, 13);
+  }
+
   if (users.length === 0) {
     users.push({
       username,
@@ -28,6 +36,7 @@ async function ensureUser(username: string, isAdmin: boolean) {
       isAdmin: true,
       isSuperAdmin: true,
       createdAt: new Date().toISOString(),
+      encryptionKey,
     });
     if (process.env.DEBUGGER) {
       console.log(
@@ -43,6 +52,7 @@ async function ensureUser(username: string, isAdmin: boolean) {
         passwordHash: "",
         isAdmin,
         createdAt: new Date().toISOString(),
+        encryptionKey,
       });
       if (process.env.DEBUGGER) {
         console.log("SSO CALLBACK - Created new user:", {
@@ -51,6 +61,9 @@ async function ensureUser(username: string, isAdmin: boolean) {
         });
       }
     } else {
+      if (!existing.encryptionKey) {
+        existing.encryptionKey = encryptionKey;
+      }
       const wasAdmin = existing.isAdmin;
       if (isAdmin && !existing.isAdmin) {
         existing.isAdmin = true;
@@ -201,6 +214,11 @@ export async function GET(request: NextRequest) {
   const users = await readUsers();
   const isFirstUser = users.length === 0;
   await ensureUser(username, isFirstUser ? true : isAdmin);
+
+  const { ensureEncryptionPassword } = await import(
+    "@/app/_server/actions/user"
+  );
+  await ensureEncryptionPassword(username);
 
   const sessionId = base64UrlEncode(crypto.randomBytes(32));
   const response = NextResponse.redirect(`${appUrl}/`);

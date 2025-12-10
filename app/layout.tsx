@@ -8,8 +8,10 @@ import UsersProvider from "@/app/_providers/UsersProvider";
 import ThemeProvider from "@/app/_providers/ThemeProvider";
 import ShortcutsProvider from "@/app/_providers/ShortcutsProvider";
 import ContextMenuProvider from "@/app/_providers/ContextMenuProvider";
+import FileViewerProvider from "@/app/_providers/FileViewerProvider";
+import FileViewer from "@/app/_components/FeatureComponents/Modals/FileViewer";
 import { PreferencesProvider } from "@/app/_providers/PreferencesProvider";
-import { getCurrentUser, readUsers } from "@/app/_server/actions/auth";
+import { getCurrentUser, readUsers } from "@/app/_server/actions/user";
 import { getUserPreferences } from "@/app/_lib/preferences";
 import "@/app/globals.css";
 
@@ -45,7 +47,11 @@ const RootLayout = async ({
     : { particlesEnabled: true, wandCursorEnabled: true, username: "" };
   const initialUsers = await readUsers();
 
-  const encryptionKey = process.env.ENCRYPTION_KEY || null;
+  let encryptionKey: string | null = null;
+  if (currentUser) {
+    const user = initialUsers.find((u) => u.username === currentUser.username);
+    encryptionKey = user?.encryptionKey || null;
+  }
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -86,13 +92,18 @@ const RootLayout = async ({
               wandCursorEnabled: preferences.wandCursorEnabled,
               user: currentUser,
               encryptionKey,
+              customKeysPath: preferences.customKeysPath,
+              e2eEncryptionOnTransfer: preferences.e2eEncryptionOnTransfer,
             }}
           >
             <UsersProvider initialUsers={initialUsers}>
               <FoldersProvider>
                 <ShortcutsProvider>
                   <ContextMenuProvider>
-                    <UploadOverlayProvider>{children}</UploadOverlayProvider>
+                    <FileViewerProvider>
+                      <UploadOverlayProvider>{children}</UploadOverlayProvider>
+                      <FileViewer />
+                    </FileViewerProvider>
                   </ContextMenuProvider>
                 </ShortcutsProvider>
               </FoldersProvider>

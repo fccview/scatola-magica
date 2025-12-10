@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
 
     if (body.folderPath) {
-      body.folderPath = decryptPath(body.folderPath);
+      body.folderPath = await decryptPath(body.folderPath);
     }
 
     const result = await initializeUpload(body);

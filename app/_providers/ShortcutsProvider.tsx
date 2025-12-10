@@ -15,6 +15,7 @@ interface ShortcutActions {
   onToggleRecursive?: () => void;
   onToggleSelect?: () => void;
   onToggleViewMode?: () => void;
+  onSave?: () => void;
 }
 
 interface ShortcutsContextValue {
@@ -57,6 +58,14 @@ export default function ShortcutsProvider({
         target.tagName === "INPUT" ||
         target.tagName === "TEXTAREA" ||
         target.isContentEditable;
+
+      if (controlKey && e.shiftKey && (e.key === "S" || e.key === "s")) {
+        e.preventDefault();
+        if (globalActions.onSave) {
+          globalActions.onSave();
+        }
+        return;
+      }
 
       if (isTyping) return;
 

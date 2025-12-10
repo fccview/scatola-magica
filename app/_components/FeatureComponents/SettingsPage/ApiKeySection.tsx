@@ -6,7 +6,7 @@ import {
   regenerateApiKey,
   deleteApiKey,
   getApiKey,
-} from "@/app/_server/actions/auth";
+} from "@/app/_server/actions/user";
 import Button from "@/app/_components/GlobalComponents/Buttons/Button";
 import IconButton from "@/app/_components/GlobalComponents/Buttons/IconButton";
 import Icon from "@/app/_components/GlobalComponents/Icons/Icon";

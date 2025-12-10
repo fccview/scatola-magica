@@ -5,7 +5,7 @@ import path from "path";
 import { ServerActionResponse } from "@/app/_types";
 import { revalidatePath } from "next/cache";
 import { unstable_cache } from "next/cache";
-import { getCurrentUser } from "@/app/_server/actions/auth";
+import { getCurrentUser } from "@/app/_server/actions/user";
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR || "./data/uploads";
 
@@ -21,19 +21,56 @@ export interface FolderMetadata {
   folderCount?: number;
 }
 
-function pathToId(relativePath: string): string {
+function _pathToId(relativePath: string): string {
   return relativePath;
 }
 
-function idToPath(id: string): string {
+function _idToPath(id: string): string {
   return id;
 }
 
-async function scanFolders(
+const _getAllFolders = unstable_cache(
+  async () => {
+    const folders = await _recursiveFolderScan(UPLOAD_DIR);
+
+    folders.sort((a, b) => {
+      if (a.parentId === b.parentId) {
+        return a.name.localeCompare(b.name);
+      }
+      return (a.parentId || "").localeCompare(b.parentId || "");
+    });
+
+    return folders;
+  },
+  ["all-folders"],
+  {
+    revalidate: CACHE_TTL,
+    tags: ["folders"],
+  }
+);
+
+const _getFolders = unstable_cache(
+  async (parentPath: string) => {
+    const scanPath = parentPath
+      ? path.join(UPLOAD_DIR, parentPath)
+      : UPLOAD_DIR;
+
+    const folders = await _scanFolders(scanPath, parentPath, parentPath || null);
+    folders.sort((a, b) => a.name.localeCompare(b.name));
+    return folders;
+  },
+  ["folders-by-path"],
+  {
+    revalidate: CACHE_TTL,
+    tags: ["folders"],
+  }
+);
+
+const _scanFolders = async (
   dirPath: string,
   relativePath: string = "",
   parentId: string | null = null
-): Promise<FolderMetadata[]> {
+): Promise<FolderMetadata[]> => {
   const folders: FolderMetadata[] = [];
 
   try {
@@ -51,7 +88,7 @@ async function scanFolders(
         const stats = await lstat(fullPath);
 
         if (stats.isDirectory()) {
-          const folderId = pathToId(entryRelativePath);
+          const folderId = _pathToId(entryRelativePath);
 
           let fileCount = 0;
           let folderCount = 0;
@@ -99,11 +136,11 @@ async function scanFolders(
   return folders;
 }
 
-async function scanFoldersRecursive(
+const _recursiveFolderScan = async (
   dirPath: string,
   relativePath: string = "",
   parentId: string | null = null
-): Promise<FolderMetadata[]> {
+): Promise<FolderMetadata[]> => {
   let allFolders: FolderMetadata[] = [];
 
   try {
@@ -121,7 +158,7 @@ async function scanFoldersRecursive(
         const stats = await lstat(fullPath);
 
         if (stats.isDirectory()) {
-          const folderId = pathToId(entryRelativePath);
+          const folderId = _pathToId(entryRelativePath);
 
           let fileCount = 0;
           let folderCount = 0;
@@ -156,7 +193,7 @@ async function scanFoldersRecursive(
             folderCount,
           });
 
-          const subFolders = await scanFoldersRecursive(
+          const subFolders = await _recursiveFolderScan(
             fullPath,
             entryRelativePath,
             folderId
@@ -174,29 +211,9 @@ async function scanFoldersRecursive(
   return allFolders;
 }
 
-const getAllFoldersCached = unstable_cache(
-  async () => {
-    const folders = await scanFoldersRecursive(UPLOAD_DIR);
-
-    folders.sort((a, b) => {
-      if (a.parentId === b.parentId) {
-        return a.name.localeCompare(b.name);
-      }
-      return (a.parentId || "").localeCompare(b.parentId || "");
-    });
-
-    return folders;
-  },
-  ["all-folders"],
-  {
-    revalidate: CACHE_TTL,
-    tags: ["folders"],
-  }
-);
-
-export async function getAllFolders(): Promise<
+export const getAllFolders = async (): Promise<
   ServerActionResponse<FolderMetadata[]>
-> {
+> => {
   try {
     const currentUser = await getCurrentUser();
     if (!currentUser) {
@@ -208,10 +225,10 @@ export async function getAllFolders(): Promise<
 
     let folders: FolderMetadata[];
     try {
-      folders = await getAllFoldersCached();
+      folders = await _getAllFolders();
     } catch (cacheError) {
       console.error("Cache error in getAllFolders:", cacheError);
-      folders = await scanFoldersRecursive(UPLOAD_DIR);
+      folders = await _recursiveFolderScan(UPLOAD_DIR);
       folders.sort((a, b) => {
         if (a.parentId === b.parentId) {
           return a.name.localeCompare(b.name);
@@ -253,26 +270,9 @@ export async function getAllFolders(): Promise<
   }
 }
 
-const getFoldersCached = unstable_cache(
-  async (parentPath: string) => {
-    const scanPath = parentPath
-      ? path.join(UPLOAD_DIR, parentPath)
-      : UPLOAD_DIR;
-
-    const folders = await scanFolders(scanPath, parentPath, parentPath || null);
-    folders.sort((a, b) => a.name.localeCompare(b.name));
-    return folders;
-  },
-  ["folders-by-path"],
-  {
-    revalidate: CACHE_TTL,
-    tags: ["folders"],
-  }
-);
-
-export async function getFolders(
+export const getFolders = async (
   parentId?: string | null
-): Promise<ServerActionResponse<FolderMetadata[]>> {
+): Promise<ServerActionResponse<FolderMetadata[]>> => {
   try {
     const currentUser = await getCurrentUser();
     if (!currentUser) {
@@ -282,7 +282,7 @@ export async function getFolders(
       };
     }
 
-    const parentPath = parentId ? idToPath(parentId) : "";
+    const parentPath = parentId ? _idToPath(parentId) : "";
 
     let folders: FolderMetadata[];
     let scanPath: string;
@@ -290,10 +290,10 @@ export async function getFolders(
     if (currentUser.isAdmin) {
       scanPath = parentPath ? path.join(UPLOAD_DIR, parentPath) : UPLOAD_DIR;
       try {
-        folders = await getFoldersCached(parentPath);
+        folders = await _getFolders(parentPath);
       } catch (cacheError) {
         console.error("Cache error in getFolders:", cacheError);
-        folders = await scanFolders(scanPath, parentPath, parentPath || null);
+        folders = await _scanFolders(scanPath, parentPath, parentPath || null);
         folders.sort((a, b) => a.name.localeCompare(b.name));
       }
       return {
@@ -308,10 +308,10 @@ export async function getFolders(
 
     scanPath = path.join(UPLOAD_DIR, actualParentPath);
     try {
-      folders = await getFoldersCached(actualParentPath);
+      folders = await _getFolders(actualParentPath);
     } catch (cacheError) {
       console.error("Cache error in getFolders:", cacheError);
-      folders = await scanFolders(
+      folders = await _scanFolders(
         scanPath,
         actualParentPath,
         actualParentPath || null
@@ -329,8 +329,8 @@ export async function getFolders(
         ? folder.parentId === currentUser.username
           ? null
           : folder.parentId.startsWith(userPrefix)
-          ? folder.parentId.slice(userPrefix.length)
-          : folder.parentId
+            ? folder.parentId.slice(userPrefix.length)
+            : folder.parentId
         : null,
     }));
 
@@ -347,11 +347,11 @@ export async function getFolders(
   }
 }
 
-export async function getFolderById(
+export const getFolderById = async (
   id: string
-): Promise<ServerActionResponse<FolderMetadata>> {
+): Promise<ServerActionResponse<FolderMetadata>> => {
   try {
-    const folderPath = idToPath(id);
+    const folderPath = _idToPath(id);
     const fullPath = path.join(UPLOAD_DIR, folderPath);
 
     try {
@@ -366,7 +366,7 @@ export async function getFolderById(
 
       const pathParts = folderPath.split("/").filter((p) => p);
       const parentPath = pathParts.slice(0, -1).join("/");
-      const parentId = parentPath ? pathToId(parentPath) : null;
+      const parentId = parentPath ? _pathToId(parentPath) : null;
 
       const entries = await readdir(fullPath);
       let fileCount = 0;
@@ -412,10 +412,10 @@ export async function getFolderById(
   }
 }
 
-export async function createFolder(
+export const createFolder = async (
   name: string,
   parentId?: string | null
-): Promise<ServerActionResponse<FolderMetadata>> {
+): Promise<ServerActionResponse<FolderMetadata>> => {
   try {
     const currentUser = await getCurrentUser();
     if (!currentUser) {
@@ -434,7 +434,7 @@ export async function createFolder(
 
     const sanitizedName = name.trim();
 
-    const parentPath = parentId ? idToPath(parentId) : "";
+    const parentPath = parentId ? _idToPath(parentId) : "";
     const actualParentPath = !currentUser.isAdmin
       ? parentPath
         ? `${currentUser.username}/${parentPath}`
@@ -455,12 +455,12 @@ export async function createFolder(
           error: "A folder with this name already exists",
         };
       }
-    } catch {}
+    } catch { }
 
     await mkdir(fullPath, { recursive: true });
 
     const stats = await lstat(fullPath);
-    const folderId = pathToId(newFolderPath);
+    const folderId = _pathToId(newFolderPath);
 
     const folderMetadata: FolderMetadata = {
       id: folderId,
@@ -487,10 +487,10 @@ export async function createFolder(
   }
 }
 
-export async function updateFolder(
+export const updateFolder = async (
   id: string,
   name: string
-): Promise<ServerActionResponse<FolderMetadata>> {
+): Promise<ServerActionResponse<FolderMetadata>> => {
   try {
     const currentUser = await getCurrentUser();
     if (!currentUser) {
@@ -507,7 +507,7 @@ export async function updateFolder(
       };
     }
 
-    const oldPath = idToPath(id);
+    const oldPath = _idToPath(id);
     const actualOldPath = !currentUser.isAdmin
       ? `${currentUser.username}/${oldPath}`
       : oldPath;
@@ -536,7 +536,7 @@ export async function updateFolder(
           error: "A folder with this name already exists",
         };
       }
-    } catch {}
+    } catch { }
 
     try {
       await fsRename(oldFullPath, newFullPath);
@@ -549,8 +549,8 @@ export async function updateFolder(
     }
 
     const stats = await lstat(newFullPath);
-    let newId = pathToId(newPath);
-    let responseParentId = parentPath ? pathToId(parentPath) : null;
+    let newId = _pathToId(newPath);
+    let responseParentId = parentPath ? _pathToId(parentPath) : null;
 
     if (!currentUser.isAdmin) {
       const userPrefix = `${currentUser.username}/`;
@@ -606,7 +606,7 @@ export async function updateFolder(
   }
 }
 
-export async function deleteFolder(id: string): Promise<ServerActionResponse> {
+export const deleteFolder = async (id: string): Promise<ServerActionResponse> => {
   try {
     const currentUser = await getCurrentUser();
     if (!currentUser) {
@@ -616,7 +616,7 @@ export async function deleteFolder(id: string): Promise<ServerActionResponse> {
       };
     }
 
-    const folderPath = idToPath(id);
+    const folderPath = _idToPath(id);
     const actualFolderPath = !currentUser.isAdmin
       ? `${currentUser.username}/${folderPath}`
       : folderPath;
@@ -657,24 +657,24 @@ export async function deleteFolder(id: string): Promise<ServerActionResponse> {
   }
 }
 
-export async function getFolderPath(
+export const getFolderPath = async (
   folderId: string
-): Promise<ServerActionResponse<FolderMetadata[]>> {
+): Promise<ServerActionResponse<FolderMetadata[]>> => {
   try {
-    const folderPath = idToPath(folderId);
+    const folderPath = _idToPath(folderId);
     const pathParts = folderPath.split("/").filter((p) => p);
 
     const breadcrumbs: FolderMetadata[] = [];
 
     for (let i = 0; i < pathParts.length; i++) {
       const currentPath = pathParts.slice(0, i + 1).join("/");
-      const currentId = pathToId(currentPath);
+      const currentId = _pathToId(currentPath);
       const fullPath = path.join(UPLOAD_DIR, currentPath);
 
       try {
         const stats = await lstat(fullPath);
         const parentPath = pathParts.slice(0, i).join("/");
-        const parentId = parentPath ? pathToId(parentPath) : null;
+        const parentId = parentPath ? _pathToId(parentPath) : null;
 
         breadcrumbs.push({
           id: currentId,

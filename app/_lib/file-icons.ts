@@ -3,18 +3,20 @@ export interface FileIconInfo {
   extension?: string;
 }
 
-export function getFileIcon(fileName: string): string {
+export const getFileIcon = (fileName: string): string => {
   const info = getFileIconInfo(fileName);
   return info.materialIcon;
 }
 
-export function getFileIconInfo(fileName: string): FileIconInfo {
+export const getFileIconInfo = (fileName: string): FileIconInfo => {
   const parts = fileName.split(".");
   const ext = parts.length > 1 ? parts[parts.length - 1].toLowerCase() : "";
 
   if (!ext) {
     return { materialIcon: "insert_drive_file" };
   }
+
+  const useMaterialIcon = ["gpg"];
 
   const materialIconMap: Record<string, string> = {
     pdf: "picture_as_pdf",
@@ -104,9 +106,16 @@ export function getFileIconInfo(fileName: string): FileIconInfo {
     woff: "text_fields",
     woff2: "text_fields",
     eot: "text_fields",
+    gpg: "lock",
   };
 
   const materialIcon = materialIconMap[ext] || "insert_drive_file";
+
+  if (useMaterialIcon.includes(ext)) {
+    return {
+      materialIcon,
+    };
+  }
 
   return {
     materialIcon,

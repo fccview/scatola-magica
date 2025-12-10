@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { getFiles } from "@/app/_server/actions/files";
 import { getFolders, getFolderPath } from "@/app/_server/actions/folders";
-import { readUsers } from "@/app/_server/actions/auth";
+import { readUsers } from "@/app/_server/actions/user";
 import { SortBy } from "@/app/_types/enums";
 import FileListClient from "@/app/_components/GlobalComponents/Files/FileListClient";
 import Breadcrumb from "@/app/_components/FeatureComponents/FilesPage/Breadcrumb";
@@ -29,7 +29,7 @@ export default async function FilesContent({
     const decodedSegments = folder.map(decodeURIComponent);
     const joinedPath = decodedSegments.join("/");
 
-    const decrypted = decryptPath(joinedPath);
+    const decrypted = await decryptPath(joinedPath);
 
     if (decrypted !== joinedPath || folder.length === 1) {
       folderPath = decrypted;
@@ -134,3 +134,6 @@ export default async function FilesContent({
     </div>
   );
 }
+
+
+

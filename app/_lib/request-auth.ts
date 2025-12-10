@@ -10,9 +10,9 @@ export interface AuthenticatedUser {
   authMethod: "session" | "apikey";
 }
 
-export async function validateRequest(
+export const validateRequest = async (
   request: NextRequest
-): Promise<AuthenticatedUser | null> {
+): Promise<AuthenticatedUser | null> => {
   const authHeader = request.headers.get("Authorization");
 
   if (authHeader?.startsWith("Bearer ")) {
@@ -59,9 +59,9 @@ export async function validateRequest(
   return null;
 }
 
-export async function isInternalRequest(
+export const isInternalRequest = async (
   request: NextRequest
-): Promise<boolean> {
+): Promise<boolean> => {
   const cookieStore = await cookies();
   const sessionCookie =
     cookieStore.get("session") || cookieStore.get("__Host-session");

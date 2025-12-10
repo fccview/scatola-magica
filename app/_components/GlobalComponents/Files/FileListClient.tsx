@@ -1,23 +1,21 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
 import { FileMetadata, User } from "@/app/_types";
 import { FileViewMode, SortBy } from "@/app/_types/enums";
-import { deleteFile, getFiles, renameFile } from "@/app/_server/actions/files";
-import {
-  deleteFolder,
-  updateFolder,
-  type FolderMetadata,
-} from "@/app/_server/actions/folders";
+import { type FolderMetadata } from "@/app/_server/actions/folders";
 import FileCard from "@/app/_components/GlobalComponents/Cards/FileCard";
 import FileListSelectionBar from "@/app/_components/GlobalComponents/Files/FileListSelectionBar";
 import FileListToolbar from "@/app/_components/GlobalComponents/Files/FileListToolbar";
 import Icon from "@/app/_components/GlobalComponents/Icons/Icon";
 import MoveFileDialog from "@/app/_components/FeatureComponents/FilesPage/MoveFileDialog";
+import EncryptFileModal from "@/app/_components/FeatureComponents/Modals/EncryptFileModal";
+import DecryptFileModal from "@/app/_components/FeatureComponents/Modals/DecryptFileModal";
+import ConfirmDeleteFileModal from "@/app/_components/FeatureComponents/Modals/ConfirmDeleteFileModal";
+import ConfirmDeleteFolderModal from "@/app/_components/FeatureComponents/Modals/ConfirmDeleteFolderModal";
+import ConfirmBulkDeleteModal from "@/app/_components/FeatureComponents/Modals/ConfirmBulkDeleteModal";
+import ErrorModal from "@/app/_components/FeatureComponents/Modals/ErrorModal";
 import Progress from "@/app/_components/GlobalComponents/Layout/Progress";
-import { useShortcuts } from "@/app/_providers/ShortcutsProvider";
-import { useContextMenu } from "@/app/_providers/ContextMenuProvider";
+import { useFileList } from "@/app/_hooks/useFileList";
 
 interface FileListClientProps {
   files: FileMetadata[];
@@ -42,339 +40,71 @@ export default function FileListClient({
   total: initialTotal = 0,
   allUsers = [],
 }: FileListClientProps) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const { registerActions } = useShortcuts();
-  const { showContextMenu } = useContextMenu();
-  const currentFolderId = searchParams.get("folderId");
-  const [viewMode, setViewMode] = useState<FileViewMode>(FileViewMode.GRID);
-  const [isMounted, setIsMounted] = useState(false);
-  const [allFiles, setAllFiles] = useState<FileMetadata[]>(initialFiles);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [hasMore, setHasMore] = useState(initialHasMore);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const sentinelRef = useRef<HTMLDivElement>(null);
-  const searchInputRef = useRef<HTMLInputElement | null>(null);
-
-  useEffect(() => {
-    setIsMounted(true);
-    const saved = localStorage.getItem("view-mode");
-    if (saved === "list") {
-      setViewMode(FileViewMode.LIST);
-    }
-  }, []);
-
-  useEffect(() => {
-    setAllFiles(initialFiles);
-    setCurrentPage(1);
-    setHasMore(initialHasMore);
-  }, [initialFiles, initialHasMore, folderPath, search, sortBy]);
-
-  const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
-  const [deletingFolderId, setDeletingFolderId] = useState<string | null>(null);
-  const [moveFileIds, setMoveFileIds] = useState<string[]>([]);
-  const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(
-    new Set()
-  );
-  const [selectedFolderIds, setSelectedFolderIds] = useState<Set<string>>(
-    new Set()
-  );
-  const [isSelectionMode, setIsSelectionMode] = useState(false);
-  const [isRecursive, setIsRecursive] = useState(initialRecursive);
-
-  const loadMore = useCallback(async () => {
-    if (isLoadingMore || !hasMore) return;
-
-    setIsLoadingMore(true);
-    try {
-      const nextPage = currentPage + 1;
-      const result = await getFiles({
-        page: nextPage,
-        pageSize: 15,
-        search,
-        sortBy,
-        folderPath,
-        recursive: isRecursive || !!search,
-      });
-
-      if (result.success && result.data) {
-        const data = result.data;
-        setAllFiles((prev) => [...prev, ...data.items]);
-        setCurrentPage(nextPage);
-        setHasMore(data.hasMore);
-      }
-    } catch (error) {
-      console.error("Failed to load more files:", error);
-    } finally {
-      setIsLoadingMore(false);
-    }
-  }, [
-    currentPage,
-    hasMore,
+  const {
+    viewMode,
+    allFiles,
     isLoadingMore,
+    currentFolderId,
+    sentinelRef,
+    deletingFileId,
+    deletingFolderId,
+    moveFileIds,
+    setMoveFileIds,
+    encryptingFileId,
+    setEncryptingFileId,
+    decryptingFileId,
+    setDecryptingFileId,
+    encryptingFolderId,
+    setEncryptingFolderId,
+    decryptingFolderId,
+    setDecryptingFolderId,
+    selectedFileIds,
+    selectedFolderIds,
+    isSelectionMode,
+    setIsSelectionMode,
+    isRecursive,
+    totalSelected,
+    confirmDeleteFileId,
+    setConfirmDeleteFileId,
+    confirmDeleteFolderId,
+    setConfirmDeleteFolderId,
+    showBulkDeleteConfirm,
+    setShowBulkDeleteConfirm,
+    errorModal,
+    setErrorModal,
+    toggleRecursive,
+    handleDeleteFile,
+    confirmDeleteFile,
+    handleDeleteFolder,
+    confirmDeleteFolder,
+    handleRenameFolder,
+    handleRenameFile,
+    handleDownload,
+    handleFileOpen,
+    handleEncrypt,
+    handleDecrypt,
+    handleEncryptFolder,
+    handleDecryptFolder,
+    handleFolderDownload,
+    handleBulkDownload,
+    toggleFileSelection,
+    toggleFolderSelection,
+    selectAll,
+    clearSelection,
+    exitSelectionMode,
+    handleBulkDelete,
+    confirmBulkDelete,
+    handleBulkMove,
+    handleViewModeChange,
+  } = useFileList({
+    initialFiles,
+    folders,
+    initialRecursive,
+    folderPath,
     search,
     sortBy,
-    folderPath,
-    isRecursive,
-  ]);
-
-  useEffect(() => {
-    const sentinel = sentinelRef.current;
-    if (!sentinel) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting && hasMore && !isLoadingMore) {
-          loadMore();
-        }
-      },
-      {
-        rootMargin: "100px",
-        threshold: 0.1,
-      }
-    );
-
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [hasMore, isLoadingMore, loadMore]);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      if (!hasMore || isLoadingMore) return;
-
-      const sentinel = sentinelRef.current;
-      if (!sentinel) return;
-
-      const rect = sentinel.getBoundingClientRect();
-      const windowHeight = window.innerHeight;
-
-      if (rect.top <= windowHeight + 200) {
-        loadMore();
-      }
-    };
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [hasMore, isLoadingMore, loadMore]);
-
-  const totalSelected = selectedFileIds.size + selectedFolderIds.size;
-
-  const toggleRecursive = () => {
-    const newRecursive = !isRecursive;
-    setIsRecursive(newRecursive);
-
-    document.cookie = `recursive-view=${newRecursive}; path=/; max-age=31536000`;
-
-    router.refresh();
-  };
-
-  const handleDeleteFile = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this file?")) return;
-
-    setDeletingFileId(id);
-    try {
-      const result = await deleteFile(id);
-      if (result.success) {
-        router.refresh();
-      } else {
-        alert(result.error || "Failed to delete file");
-      }
-    } catch (error) {
-      console.error("Delete failed:", error);
-      alert("Failed to delete file");
-    } finally {
-      setDeletingFileId(null);
-    }
-  };
-
-  const handleDeleteFolder = async (id: string) => {
-    if (
-      !confirm(
-        "Are you sure you want to delete this folder and all its contents?"
-      )
-    )
-      return;
-
-    setDeletingFolderId(id);
-    try {
-      const result = await deleteFolder(id);
-      if (result.success) {
-        router.refresh();
-      } else {
-        alert(result.error || "Failed to delete folder");
-      }
-    } catch (error) {
-      console.error("Delete failed:", error);
-      alert("Failed to delete folder");
-    } finally {
-      setDeletingFolderId(null);
-    }
-  };
-
-  const handleRenameFolder = async (id: string, newName: string) => {
-    try {
-      const result = await updateFolder(id, newName);
-      if (result.success) {
-        router.refresh();
-      } else {
-        alert(result.error || "Failed to rename folder");
-      }
-    } catch (error) {
-      console.error("Rename failed:", error);
-      alert("Failed to rename folder");
-    }
-  };
-
-  const handleRenameFile = async (id: string, newName: string) => {
-    try {
-      const result = await renameFile(id, newName);
-      if (result.success) {
-        router.refresh();
-      } else {
-        alert(result.error || "Failed to rename file");
-      }
-    } catch (error) {
-      console.error("Rename failed:", error);
-      alert("Failed to rename file");
-    }
-  };
-
-  const handleDownload = (id: string) => {
-    window.open(`/api/download/${id}`, "_blank");
-  };
-
-  const handleDownloadArchive = async (paths: string[]) => {
-    try {
-      const response = await fetch("/api/download/archive", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ paths }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to download archive");
-      }
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-
-      const contentDisposition = response.headers.get("Content-Disposition");
-      const filenameMatch = contentDisposition?.match(/filename="(.+)"/);
-      const filename = filenameMatch
-        ? decodeURIComponent(filenameMatch[1])
-        : "download.zip";
-
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch (error) {
-      console.error("Download archive failed:", error);
-      alert("Failed to download archive");
-    }
-  };
-
-  const handleFolderDownload = (id: string) => {
-    handleDownloadArchive([id]);
-  };
-
-  const handleBulkDownload = () => {
-    if (totalSelected === 0) return;
-
-    const paths = [
-      ...Array.from(selectedFileIds),
-      ...Array.from(selectedFolderIds),
-    ];
-
-    handleDownloadArchive(paths);
-  };
-
-  const toggleFileSelection = (id: string) => {
-    setSelectedFileIds((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(id)) {
-        newSet.delete(id);
-      } else {
-        newSet.add(id);
-      }
-      if (newSet.size === 0 && selectedFolderIds.size === 0) {
-        setIsSelectionMode(false);
-      }
-      return newSet;
-    });
-  };
-
-  const toggleFolderSelection = (id: string) => {
-    setSelectedFolderIds((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(id)) {
-        newSet.delete(id);
-      } else {
-        newSet.add(id);
-      }
-      if (newSet.size === 0 && selectedFileIds.size === 0) {
-        setIsSelectionMode(false);
-      }
-      return newSet;
-    });
-  };
-
-  const selectAll = () => {
-    setSelectedFileIds(new Set(allFiles.map((f) => f.id)));
-    setSelectedFolderIds(new Set(folders.map((f) => f.id)));
-    setIsSelectionMode(true);
-  };
-
-  const clearSelection = () => {
-    setSelectedFileIds(new Set());
-    setSelectedFolderIds(new Set());
-    setIsSelectionMode(false);
-  };
-
-  const exitSelectionMode = () => {
-    clearSelection();
-  };
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isSelectionMode) {
-        exitSelectionMode();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isSelectionMode]);
-
-  const handleBulkDelete = async () => {
-    if (totalSelected === 0) return;
-
-    if (!confirm(`Are you sure you want to delete ${totalSelected} item(s)?`))
-      return;
-
-    try {
-      await Promise.all([
-        ...Array.from(selectedFileIds).map((id) => deleteFile(id)),
-        ...Array.from(selectedFolderIds).map((id) => deleteFolder(id)),
-      ]);
-      clearSelection();
-      router.refresh();
-    } catch (error) {
-      console.error("Bulk delete failed:", error);
-      alert("Failed to delete some items");
-    }
-  };
-
-  const handleBulkMove = () => {
-    if (selectedFileIds.size === 0) return;
-    setMoveFileIds(Array.from(selectedFileIds));
-  };
+    initialHasMore,
+  });
 
   if (allFiles.length === 0 && folders.length === 0 && !isLoadingMore) {
     return (
@@ -393,49 +123,6 @@ export default function FileListClient({
       </div>
     );
   }
-
-  const handleViewModeChange = (mode: FileViewMode) => {
-    setViewMode(mode);
-    localStorage.setItem(
-      "view-mode",
-      mode === FileViewMode.LIST ? "list" : "grid"
-    );
-  };
-
-  const toggleViewMode = () => {
-    const newMode =
-      viewMode === FileViewMode.GRID ? FileViewMode.LIST : FileViewMode.GRID;
-    handleViewModeChange(newMode);
-  };
-
-  useEffect(() => {
-    registerActions({
-      onSearch: () => {
-        const input = document.getElementById(
-          "files-search-input"
-        ) as HTMLInputElement | null;
-        input?.focus();
-      },
-      onToggleRecursive: () => {
-        const newRecursive = !isRecursive;
-        setIsRecursive(newRecursive);
-        document.cookie = `recursive-view=${newRecursive}; path=/; max-age=31536000`;
-        router.refresh();
-      },
-      onToggleSelect: () => setIsSelectionMode((prev) => !prev),
-      onToggleViewMode: () => {
-        const newMode =
-          viewMode === FileViewMode.GRID
-            ? FileViewMode.LIST
-            : FileViewMode.GRID;
-        setViewMode(newMode);
-        localStorage.setItem(
-          "view-mode",
-          newMode === FileViewMode.LIST ? "list" : "grid"
-        );
-      },
-    });
-  }, [registerActions, isRecursive, viewMode, router]);
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
@@ -477,11 +164,11 @@ export default function FileListClient({
               key={folder.id}
               folder={folder}
               viewMode={viewMode === FileViewMode.GRID ? "grid" : "list"}
-              onDelete={
-                deletingFolderId === folder.id ? undefined : handleDeleteFolder
-              }
+              onDelete={handleDeleteFolder}
               onDownload={handleFolderDownload}
               onRename={handleRenameFolder}
+              onEncrypt={() => setEncryptingFolderId(folder.id)}
+              onDecrypt={() => setDecryptingFolderId(folder.id)}
               isSelectionMode={isSelectionMode}
               isSelected={selectedFolderIds.has(folder.id)}
               onToggleSelect={() => toggleFolderSelection(folder.id)}
@@ -495,10 +182,13 @@ export default function FileListClient({
             key={file.id}
             file={file}
             viewMode={viewMode === FileViewMode.GRID ? "grid" : "list"}
-            onDelete={deletingFileId === file.id ? undefined : handleDeleteFile}
+            onDelete={handleDeleteFile}
             onDownload={handleDownload}
             onMove={() => setMoveFileIds([file.id])}
             onRename={handleRenameFile}
+            onOpen={handleFileOpen}
+            onEncrypt={() => setEncryptingFileId(file.id)}
+            onDecrypt={() => setDecryptingFileId(file.id)}
             isSelectionMode={isSelectionMode}
             isSelected={selectedFileIds.has(file.id)}
             onToggleSelect={() => toggleFileSelection(file.id)}
@@ -532,6 +222,95 @@ export default function FileListClient({
           }}
         />
       )}
+
+      {encryptingFileId && (
+        <EncryptFileModal
+          isOpen={true}
+          onClose={() => setEncryptingFileId(null)}
+          fileName={
+            allFiles.find((f) => f.id === encryptingFileId)?.originalName || ""
+          }
+          fileId={encryptingFileId}
+          onEncrypt={handleEncrypt}
+        />
+      )}
+
+      {decryptingFileId && (
+        <DecryptFileModal
+          isOpen={true}
+          onClose={() => setDecryptingFileId(null)}
+          fileName={
+            allFiles.find((f) => f.id === decryptingFileId)?.originalName || ""
+          }
+          fileId={decryptingFileId}
+          onDecrypt={handleDecrypt}
+        />
+      )}
+
+      {encryptingFolderId && (
+        <EncryptFileModal
+          isOpen={true}
+          onClose={() => setEncryptingFolderId(null)}
+          fileName={
+            folders.find((f) => f.id === encryptingFolderId)?.name || ""
+          }
+          fileId={encryptingFolderId}
+          onEncrypt={handleEncryptFolder}
+        />
+      )}
+
+      {decryptingFolderId && (
+        <DecryptFileModal
+          isOpen={true}
+          onClose={() => setDecryptingFolderId(null)}
+          fileName={
+            folders.find((f) => f.id === decryptingFolderId)?.name || ""
+          }
+          fileId={decryptingFolderId}
+          onDecrypt={handleDecryptFolder}
+        />
+      )}
+
+      {confirmDeleteFileId && (
+        <ConfirmDeleteFileModal
+          isOpen={true}
+          onClose={() => setConfirmDeleteFileId(null)}
+          fileName={
+            allFiles.find((f) => f.id === confirmDeleteFileId)?.originalName ||
+            ""
+          }
+          onConfirm={confirmDeleteFile}
+        />
+      )}
+
+      {confirmDeleteFolderId && (
+        <ConfirmDeleteFolderModal
+          isOpen={true}
+          onClose={() => setConfirmDeleteFolderId(null)}
+          folderName={
+            folders.find((f) => f.id === confirmDeleteFolderId)?.name || ""
+          }
+          onConfirm={confirmDeleteFolder}
+        />
+      )}
+
+      {showBulkDeleteConfirm && (
+        <ConfirmBulkDeleteModal
+          isOpen={true}
+          onClose={() => setShowBulkDeleteConfirm(false)}
+          itemCount={totalSelected}
+          onConfirm={confirmBulkDelete}
+        />
+      )}
+
+      <ErrorModal
+        isOpen={errorModal.isOpen}
+        onClose={() =>
+          setErrorModal({ isOpen: false, message: "", variant: "error" })
+        }
+        message={errorModal.message}
+        variant={errorModal.variant}
+      />
     </div>
   );
 }

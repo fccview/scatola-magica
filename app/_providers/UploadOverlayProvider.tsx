@@ -133,12 +133,6 @@ export default function UploadOverlayProvider({
         const { files: filesWithPaths, rootFolderName: folderName } =
           await readFilesFromDataTransfer(e.dataTransfer);
 
-        console.log("Dropped files:", {
-          count: filesWithPaths.length,
-          fileNames: filesWithPaths.map((f) => f.file.name),
-          hasFolderName: !!folderName,
-        });
-
         if (filesWithPaths.length > 0) {
           if (folderName) {
             setUploadFilesWithPaths(filesWithPaths);
@@ -146,13 +140,7 @@ export default function UploadOverlayProvider({
             setUploadFiles(null);
           } else {
             const allFiles = filesWithPaths.map((f) => f.file);
-            console.log(
-              "Creating FileList with files:",
-              allFiles.length,
-              allFiles.map((f) => f.name)
-            );
             const fileList = createFileList(allFiles);
-            console.log("FileList created with length:", fileList.length);
             setUploadFiles(fileList);
             setUploadFilesWithPaths(null);
             setRootFolderName("");
@@ -187,14 +175,61 @@ export default function UploadOverlayProvider({
       if (!items || items.length === 0) return;
 
       const files: File[] = [];
+      let hasFiles = false;
+
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
         if (item.kind === "file") {
+          hasFiles = true;
           const file = item.getAsFile();
           if (file) {
             files.push(file);
           }
         }
+      }
+
+      if (!hasFiles) {
+        const textItem = Array.from(items).find(
+          (item) => item.kind === "string" && item.type === "text/plain"
+        );
+
+        if (textItem) {
+          e.preventDefault();
+
+          textItem.getAsString((text) => {
+            if (!text.trim()) return;
+
+            const timestamp = new Date()
+              .toISOString()
+              .replace(/[:.]/g, "-")
+              .slice(0, -5);
+            const filename = `pasted-text-${timestamp}.txt`;
+            const blob = new Blob([text], { type: "text/plain" });
+            const file = new File([blob], filename, { type: "text/plain" });
+
+            let currentFolderId: string | null = null;
+            if (pathname.startsWith("/files/")) {
+              const pathAfterFiles = pathname.slice(7);
+              if (pathAfterFiles) {
+                const pathParts = pathAfterFiles
+                  .split("/")
+                  .map(decodeURIComponent);
+                currentFolderId = pathParts.join("/");
+              }
+            } else if (pathname === "/files") {
+              currentFolderId = null;
+            }
+
+            const fileList = createFileList([file]);
+            setUploadFiles(fileList);
+            setUploadFilesWithPaths(null);
+            setRootFolderName("");
+            setUploadFolderPath(currentFolderId || "");
+            setIsUploadModalOpen(true);
+            isModalOpenRef.current = true;
+          });
+        }
+        return;
       }
 
       if (files.length === 0) return;
@@ -237,7 +272,13 @@ export default function UploadOverlayProvider({
       window.removeEventListener("drop", handleDrop, true);
       window.removeEventListener("paste", handlePaste, true);
     };
-  }, [handleDragEnter, handleDragOver, handleDragLeave, handleDrop, handlePaste]);
+  }, [
+    handleDragEnter,
+    handleDragOver,
+    handleDragLeave,
+    handleDrop,
+    handlePaste,
+  ]);
 
   useEffect(() => {
     const handleMouseUp = () => {
