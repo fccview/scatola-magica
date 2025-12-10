@@ -18,7 +18,7 @@ Each method serves a different purpose and can be used independently or together
 
 ### What is it?
 
-PGP (Pretty Good Privacy) encryption lets you permanently encrypt files on your server. Once encrypted, files remain protected and can only be decrypted with your private key password.
+[PGP (Pretty Good Privacy) encryption](https://en.wikipedia.org/wiki/Pretty_Good_Privacy) lets you permanently encrypt files on your server. Once encrypted, files remain protected and can only be decrypted with your private key password.
 
 **Key features:**
 
@@ -89,7 +89,7 @@ Transfer Encryption encryption protects your files during upload. Files are encr
 
 **Key features:**
 
-- Uses AES-256-GCM encryption (industry standard)
+- Uses [AES-256-GCM encryption](https://en.wikipedia.org/wiki/Advanced_Encryption_Standard) (industry standard)
 - Encrypts each file chunk before it leaves your device
 - Server never sees unencrypted data during transfer
 - Files are stored unencrypted on the server after upload
