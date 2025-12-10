@@ -39,7 +39,7 @@ const POKEMON_THEMES = {
 type PokemonState = "IDLE" | "WALKING";
 
 export default function AnimatedPokemon() {
-  const { resolvedTheme } = useTheme();
+  const { resolvedPokemonTheme } = useTheme();
 
   // Only use State for things that actually need to re-render the DOM (changing the image source)
   const [visualState, setVisualState] = useState<PokemonState>("IDLE");
@@ -53,8 +53,8 @@ export default function AnimatedPokemon() {
   const facingRef = useRef<"left" | "right">("right"); // Moved from State to Ref to prevent re-renders
 
   const pokemon =
-    resolvedTheme && resolvedTheme in POKEMON_THEMES
-      ? POKEMON_THEMES[resolvedTheme as keyof typeof POKEMON_THEMES]
+    resolvedPokemonTheme && resolvedPokemonTheme in POKEMON_THEMES
+      ? POKEMON_THEMES[resolvedPokemonTheme as keyof typeof POKEMON_THEMES]
       : null;
 
   useEffect(() => {

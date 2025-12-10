@@ -25,8 +25,8 @@ export default function FileIconComponent({
   className = "",
   style,
 }: FileIconComponentProps) {
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === "dark";
+  const { resolvedColorMode } = useTheme();
+  const isDark = resolvedColorMode === "dark";
   const iconSize = sizeMap[size] || sizeMap.md;
 
   const extensionLower = extension.toLowerCase();

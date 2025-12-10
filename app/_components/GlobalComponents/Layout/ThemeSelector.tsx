@@ -1,6 +1,6 @@
 "use client";
 
-import { Theme, useTheme } from "@/app/_providers/ThemeProvider";
+import { PokemonTheme, useTheme } from "@/app/_providers/ThemeProvider";
 import DropdownMenu, {
   DropdownMenuItem,
 } from "@/app/_components/GlobalComponents/Form/DropdownMenu";
@@ -8,6 +8,7 @@ import IconButton from "@/app/_components/GlobalComponents/Buttons/IconButton";
 import { usePathname, useRouter } from "next/navigation";
 import { usePreferences } from "@/app/_providers/PreferencesProvider";
 import { useEffect } from "react";
+import Pokeball from "@/app/_components/GlobalComponents/Icons/Pokeball";
 
 const POKEMON_SPRITES = [
   "/pokemon/animations/pikachu/idle.gif",
@@ -27,7 +28,14 @@ const PokemonSprite = ({ src, name }: { src: string; name: string }) => (
 );
 
 export default function ThemeSelector() {
-  const { theme, resolvedTheme, setTheme } = useTheme();
+  const {
+    pokemonTheme,
+    colorMode,
+    resolvedColorMode,
+    setPokemonTheme,
+    setColorMode,
+    toggleColorMode,
+  } = useTheme();
   const router = useRouter();
   const pathname = usePathname();
   const { pokemonThemesEnabled = false } = usePreferences();
@@ -44,9 +52,8 @@ export default function ThemeSelector() {
     }
   }, [pokemonThemesEnabled]);
 
-  const themeSetter = (newTheme: Theme) => {
-    setTheme(newTheme);
-
+  const handlePokemonChange = (newPokemon: PokemonTheme) => {
+    setPokemonTheme(newPokemon);
     if (pathname === "/") {
       window?.location.reload();
     } else {
@@ -54,24 +61,34 @@ export default function ThemeSelector() {
     }
   };
 
-  const handleToggle = () => {
-    const currentTheme = resolvedTheme === "light" ? "dark" : "light";
-    themeSetter(currentTheme);
+  const handleColorModeToggle = () => {
+    toggleColorMode();
+    if (pathname === "/") {
+      window?.location.reload();
+    } else {
+      router.refresh();
+    }
   };
 
   if (!pokemonThemesEnabled) {
     return (
       <IconButton
-        icon={resolvedTheme === "dark" ? "light_mode" : "dark_mode"}
-        onClick={handleToggle}
+        icon={resolvedColorMode === "dark" ? "light_mode" : "dark_mode"}
+        onClick={handleColorModeToggle}
         aria-label={`Switch to ${
-          resolvedTheme === "dark" ? "light" : "dark"
+          resolvedColorMode === "dark" ? "light" : "dark"
         } mode`}
       />
     );
   }
 
   const pokemonThemes: DropdownMenuItem[] = [
+    {
+      label: "None",
+      icon: "close",
+      onClick: () => handlePokemonChange(null),
+      isActive: pokemonTheme === null,
+    },
     {
       label: "Pikachu",
       iconElement: (
@@ -80,8 +97,8 @@ export default function ThemeSelector() {
           name="Pikachu"
         />
       ),
-      onClick: () => themeSetter("pikachu"),
-      isActive: theme === "pikachu",
+      onClick: () => handlePokemonChange("pikachu"),
+      isActive: pokemonTheme === "pikachu",
     },
     {
       label: "Bulbasaur",
@@ -91,8 +108,8 @@ export default function ThemeSelector() {
           name="Bulbasaur"
         />
       ),
-      onClick: () => themeSetter("bulbasaur"),
-      isActive: theme === "bulbasaur",
+      onClick: () => handlePokemonChange("bulbasaur"),
+      isActive: pokemonTheme === "bulbasaur",
     },
     {
       label: "Charmander",
@@ -102,8 +119,8 @@ export default function ThemeSelector() {
           name="Charmander"
         />
       ),
-      onClick: () => themeSetter("charmander"),
-      isActive: theme === "charmander",
+      onClick: () => handlePokemonChange("charmander"),
+      isActive: pokemonTheme === "charmander",
     },
     {
       label: "Squirtle",
@@ -113,8 +130,8 @@ export default function ThemeSelector() {
           name="Squirtle"
         />
       ),
-      onClick: () => themeSetter("squirtle"),
-      isActive: theme === "squirtle",
+      onClick: () => handlePokemonChange("squirtle"),
+      isActive: pokemonTheme === "squirtle",
     },
     {
       label: "Gengar",
@@ -124,31 +141,31 @@ export default function ThemeSelector() {
           name="Gengar"
         />
       ),
-      onClick: () => themeSetter("gengar"),
-      isActive: theme === "gengar",
+      onClick: () => handlePokemonChange("gengar"),
+      isActive: pokemonTheme === "gengar",
     },
-  ];
-
-  const themeOptions: DropdownMenuItem[] = [
-    {
-      label: "Light",
-      icon: "light_mode",
-      onClick: () => themeSetter("light"),
-      isActive: theme === "light",
-    },
-    {
-      label: "Dark",
-      icon: "dark_mode",
-      onClick: () => themeSetter("dark"),
-      isActive: theme === "dark",
-    },
-    ...pokemonThemes,
   ];
 
   return (
-    <DropdownMenu
-      items={themeOptions}
-      triggerElement={<IconButton icon="palette" aria-label="Select theme" />}
-    />
+    <div className="flex items-center gap-2">
+      <DropdownMenu
+        items={pokemonThemes}
+        triggerElement={
+          <button
+            className="rounded-full aspect-square inline-flex items-center justify-center transition-colors p-2 text-on-surface hover:bg-surface-variant active:bg-surface-variant/80 focus:outline-none"
+            aria-label="Select pokemon theme"
+          >
+            <Pokeball className="w-4 h-4" />
+          </button>
+        }
+      />
+      <IconButton
+        icon={resolvedColorMode === "dark" ? "light_mode" : "dark_mode"}
+        onClick={handleColorModeToggle}
+        aria-label={`Switch to ${
+          resolvedColorMode === "dark" ? "light" : "dark"
+        } mode`}
+      />
+    </div>
   );
 }

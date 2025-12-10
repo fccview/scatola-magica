@@ -51,9 +51,9 @@ export default function PreferencesTab() {
     });
 
     if (!newValue && typeof window !== "undefined") {
-      const currentTheme = localStorage.getItem("theme");
-      if (currentTheme && currentTheme !== "light" && currentTheme !== "dark") {
-        localStorage.removeItem("theme");
+      const currentPokemonTheme = localStorage.getItem("pokemonTheme");
+      if (currentPokemonTheme) {
+        localStorage.removeItem("pokemonTheme");
         window.location.reload();
       }
     }

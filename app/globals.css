@@ -53,7 +53,7 @@
     --on-error: #ffffff;
   }
 
-  .pikachu {
+  .pikachu.dark {
     --primary: #f9d139;
     --on-primary: #161f2b;
     --primary-container: #f9d139;
@@ -76,96 +76,105 @@
     --on-error: #0d131a;
   }
 
-  .bulbasaur {
+  .pikachu.light {
+    --primary: #f9d139;
+    --on-primary: #161f2b;
+    --primary-container: #f9d139;
+    --on-primary-container: #1C1B1F;
+    --logo-box-1: #1176ac;
+    --logo-box-2: #0488d1;
+    --logo-box-3: #177fb7;
+    --logo-box-4: #0488d1;
+    --logo-star: #f4c430;
+    --outline: #f9d139;
+  }
+
+  .bulbasaur.dark {
+    --primary: #78C850;
+    --on-primary: #0d131a;
+    --primary-container: #5a9a3a;
+    --on-primary-container: #dfedfe;
+    --logo-star: #78C850;
+    --outline: #78C850;
+  }
+
+  .bulbasaur.light {
     --primary: #78C850;
     --on-primary: #FFFFFF;
     --primary-container: #E8F5E0;
     --on-primary-container: #1C1B1F;
-    --surface: #FFFFFF;
-    --on-surface: #1C1B1F;
-    --surface-variant: #E8F5E0;
-    --on-surface-variant: #49454F;
-    --surface-container: #F5F7FA;
-    --sidebar-background: #FAFAFA;
-    --sidebar-active: #F0F0F0;
-    --logo-box-1: #353438;
-    --logo-box-2: #434343;
-    --logo-box-3: #535353;
-    --logo-box-4: #3E3E3E;
     --logo-star: #78C850;
-    --outline: #79747E;
-    --outline-variant: #CAC4D0;
-    --error: #b3261e;
-    --on-error: #ffffff;
+    --outline: #78C850;
   }
 
-  .charmander {
+  .charmander.dark {
     --primary: #F08030;
     --on-primary: #0d131a;
     --primary-container: #d66a1a;
     --on-primary-container: #dfedfe;
-    --surface: #0d131a;
-    --on-surface: #dfedfe;
-    --surface-variant: #161f2b;
-    --on-surface-variant: #dfedfe;
-    --surface-container: #161f2b;
-    --sidebar-background: #161f2b;
-    --sidebar-active: #0d131a;
     --logo-box-1: #d66a1a;
     --logo-box-2: #e67525;
     --logo-box-3: #F08030;
     --logo-box-4: #e67525;
     --logo-star: #dfedfe;
     --outline: #F08030;
-    --outline-variant: #0d131a;
-    --error: #ff6b6b;
-    --on-error: #0d131a;
   }
 
-  .squirtle {
+  .charmander.light {
+    --primary: #F08030;
+    --on-primary: #FFFFFF;
+    --primary-container: #FFE0C4;
+    --on-primary-container: #1C1B1F;
+    --logo-box-1: #d66a1a;
+    --logo-box-2: #e67525;
+    --logo-box-3: #F08030;
+    --logo-box-4: #e67525;
+    --logo-star: #F08030;
+    --outline: #F08030;
+  }
+
+  .squirtle.dark {
+    --primary: #6890F0;
+    --on-primary: #0d131a;
+    --primary-container: #4a6fc8;
+    --on-primary-container: #dfedfe;
+    --logo-star: #6890F0;
+    --outline: #6890F0;
+  }
+
+  .squirtle.light {
     --primary: #6890F0;
     --on-primary: #FFFFFF;
     --primary-container: #E8F0FF;
     --on-primary-container: #1C1B1F;
-    --surface: #FFFFFF;
-    --on-surface: #1C1B1F;
-    --surface-variant: #E8F0FF;
-    --on-surface-variant: #49454F;
-    --surface-container: #F5F7FA;
-    --sidebar-background: #FAFAFA;
-    --sidebar-active: #F0F0F0;
-    --logo-box-1: #353438;
-    --logo-box-2: #434343;
-    --logo-box-3: #535353;
-    --logo-box-4: #3E3E3E;
     --logo-star: #6890F0;
-    --outline: #79747E;
-    --outline-variant: #CAC4D0;
-    --error: #b3261e;
-    --on-error: #ffffff;
+    --outline: #6890F0;
   }
 
-  .gengar {
+  .gengar.dark {
     --primary: #705898;
     --on-primary: #0d131a;
     --primary-container: #5a4878;
     --on-primary-container: #dfedfe;
-    --surface: #0d131a;
-    --on-surface: #dfedfe;
-    --surface-variant: #161f2b;
-    --on-surface-variant: #dfedfe;
-    --surface-container: #161f2b;
-    --sidebar-background: #161f2b;
-    --sidebar-active: #0d131a;
     --logo-box-1: #5a4878;
     --logo-box-2: #655088;
     --logo-box-3: #705898;
     --logo-box-4: #655088;
     --logo-star: #dfedfe;
     --outline: #705898;
-    --outline-variant: #0d131a;
-    --error: #ff6b6b;
-    --on-error: #0d131a;
+  }
+
+  .gengar.light {
+    --primary: #705898;
+    --on-primary: #FFFFFF;
+    --primary-container: #E8E0F0;
+    --on-primary-container: #1C1B1F;
+    --logo-box-1: #5a4878;
+    --logo-box-2: #655088;
+    --logo-box-3: #705898;
+    --logo-box-4: #655088;
+    --logo-star: #705898;
+    --outline: #705898;
   }
 
   * {
@@ -269,14 +278,19 @@
 }
 
 .cursor-wand,
-.bulbasaur .cursor-wand,
-.squirtle .cursor-wand {
+.bulbasaur.light .cursor-wand,
+.pikachu.light .cursor-wand,
+.charmander.light .cursor-wand,
+.gengar.light .cursor-wand,
+.squirtle.light .cursor-wand {
   cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 1024 1024' transform='scale(-1,1)'%3E%3Cpath d='M1020.51 429.376L917.727 275.698l51.152-178.816c3.184-11.216.064-23.28-8.224-31.504-8.256-8.256-20.256-11.311-31.536-8.031l-178.512 52.128L596.319 5.57c-9.712-6.529-22.16-7.313-32.464-1.937-10.369 5.312-17.025 15.871-17.409 27.503l-5.536 185.936-146.496 114.592c-9.183 7.184-13.712 18.816-11.872 30.32s9.808 21.087 20.816 25.023l137.456 49.28c-.928.736-1.904 1.393-2.768 2.257L7.294 969.297c-12.496 12.496-12.496 32.752 0 45.248 6.256 6.256 14.432 9.376 22.624 9.376 8.192 0 16.368-3.12 22.624-9.376l530.752-530.752c2.065-2.064 3.664-4.4 5.04-6.816l53.792 147.552a32.058 32.058 0 0 0 25.152 20.656c1.631.256 3.28.368 4.912.368A32.044 32.044 0 0 0 697.5 633.12l113.776-147.168 183.904-6.56c11.664-.4 22.16-7.12 27.44-17.535 5.264-10.384 4.448-22.848-2.112-32.48zm-226.461-6.83c-9.504.32-18.368 4.882-24.192 12.401l-87.472 113.104-48.976-134.32c-3.248-8.944-10.32-15.936-19.28-19.152l-134.592-48.256 112.624-88.064c7.504-5.872 11.968-14.752 12.288-24.256l4.256-142.944 118.592 79.872a32.192 32.192 0 0 0 26.849 4.191l137.248-40.095-39.344 137.472a32.18 32.18 0 0 0 4.336 26.848l80.56 118.128z' fill='%231C1B1F'/%3E%3C/svg%3E") 16 16, auto;
 }
 
 .dark .cursor-wand,
-.pikachu .cursor-wand,
-.charmander .cursor-wand,
-.gengar .cursor-wand {
+.pikachu.dark .cursor-wand,
+.charmander.dark .cursor-wand,
+.gengar.dark .cursor-wand,
+.bulbasaur.dark .cursor-wand,
+.squirtle.dark .cursor-wand {
   cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 1024 1024' transform='scale(-1,1)'%3E%3Cpath d='M1020.51 429.376L917.727 275.698l51.152-178.816c3.184-11.216.064-23.28-8.224-31.504-8.256-8.256-20.256-11.311-31.536-8.031l-178.512 52.128L596.319 5.57c-9.712-6.529-22.16-7.313-32.464-1.937-10.369 5.312-17.025 15.871-17.409 27.503l-5.536 185.936-146.496 114.592c-9.183 7.184-13.712 18.816-11.872 30.32s9.808 21.087 20.816 25.023l137.456 49.28c-.928.736-1.904 1.393-2.768 2.257L7.294 969.297c-12.496 12.496-12.496 32.752 0 45.248 6.256 6.256 14.432 9.376 22.624 9.376 8.192 0 16.368-3.12 22.624-9.376l530.752-530.752c2.065-2.064 3.664-4.4 5.04-6.816l53.792 147.552a32.058 32.058 0 0 0 25.152 20.656c1.631.256 3.28.368 4.912.368A32.044 32.044 0 0 0 697.5 633.12l113.776-147.168 183.904-6.56c11.664-.4 22.16-7.12 27.44-17.535 5.264-10.384 4.448-22.848-2.112-32.48zm-226.461-6.83c-9.504.32-18.368 4.882-24.192 12.401l-87.472 113.104-48.976-134.32c-3.248-8.944-10.32-15.936-19.28-19.152l-134.592-48.256 112.624-88.064c7.504-5.872 11.968-14.752 12.288-24.256l4.256-142.944 118.592 79.872a32.192 32.192 0 0 0 26.849 4.191l137.248-40.095-39.344 137.472a32.18 32.18 0 0 0 4.336 26.848l80.56 118.128z' fill='%23E6E1E5'/%3E%3C/svg%3E") 16 16, auto;
 }

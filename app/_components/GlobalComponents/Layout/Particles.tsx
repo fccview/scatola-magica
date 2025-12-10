@@ -11,7 +11,7 @@ import { useTheme } from "@/app/_providers/ThemeProvider";
 const Particles = () => {
   const [isReady, setIsReady] = useState(false);
   const { particlesEnabled } = usePreferences();
-  const { theme } = useTheme();
+  const { resolvedColorMode, resolvedPokemonTheme } = useTheme();
 
   useEffect(() => {
     if (particlesEnabled) {
@@ -28,7 +28,7 @@ const Particles = () => {
     return (
       getComputedStyle(root).getPropertyValue("--primary").trim() || "#A91D52"
     );
-  }, [theme]);
+  }, [resolvedColorMode, resolvedPokemonTheme]);
 
   const options = useMemo(
     () =>
@@ -91,7 +91,7 @@ const Particles = () => {
           },
         },
       } as unknown as ISourceOptions),
-    [particleColor, theme]
+    [particleColor]
   );
 
   return (
