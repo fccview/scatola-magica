@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { useFolderTree } from "@/app/_hooks/useFolderTree";
+import { usePathEncryption } from "@/app/_hooks/usePathEncryption";
 import Icon from "@/app/_components/GlobalComponents/Icons/Icon";
 import FolderTreeNode from "@/app/_components/GlobalComponents/Folders/FolderTreeNode";
 
@@ -19,13 +20,23 @@ export default function FolderTreeSidebar({
 }: FolderTreeSidebarProps) {
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const pathname = usePathname();
+  const { decryptPath } = usePathEncryption();
 
   useEffect(() => {
-    const folderId = pathname.startsWith("/files/")
-      ? decodeURIComponent(pathname.slice(7)) || null
-      : null;
-    setCurrentFolderId(folderId);
-  }, [pathname]);
+    if (pathname.startsWith("/files/")) {
+      const encodedPath = pathname.slice(7);
+      if (encodedPath) {
+        const segments = encodedPath.split("/").map(decodeURIComponent);
+        const joinedPath = segments.join("/");
+        const decryptedPath = decryptPath(joinedPath);
+        setCurrentFolderId(decryptedPath || null);
+      } else {
+        setCurrentFolderId(null);
+      }
+    } else {
+      setCurrentFolderId(null);
+    }
+  }, [pathname, decryptPath]);
 
   const folderTreeHook =
     providedHook ||

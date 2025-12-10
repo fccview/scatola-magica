@@ -2,7 +2,7 @@
 
 import { ReactNode } from "react";
 import { useUploadOverlay } from "@/app/_providers/UploadOverlayProvider";
-import ThemeToggle from "@/app/_components/GlobalComponents/Layout/ThemeToggle";
+import ThemeSelector from "@/app/_components/GlobalComponents/Layout/ThemeSelector";
 
 interface HomePageClientProps {
   children: ReactNode;
@@ -19,7 +19,7 @@ const HomePageClient = ({ children, userMenu }: HomePageClientProps) => {
       }`}
     >
       <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
-        <ThemeToggle />
+        <ThemeSelector />
         {userMenu}
       </div>
       {children}

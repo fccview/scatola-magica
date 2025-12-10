@@ -193,8 +193,8 @@ export default function ItemActionsMenu({
                   onDownload ||
                   onEncrypt ||
                   onDecrypt) && (
-                    <div className="h-px bg-outline-variant my-2" />
-                  )}
+                  <div className="h-px bg-outline-variant my-2" />
+                )}
                 <button
                   onClick={(e) => {
                     e.preventDefault();
@@ -219,10 +219,11 @@ export default function ItemActionsMenu({
         ref={menuRef}
       >
         <div
-          className={`rounded-full p-1 transition-all duration-200 ease-out overflow-hidden ${showMenu
-            ? "max-w-[300px] bg-surface"
-            : "max-w-[48px] bg-surface-variant/30"
-            }`}
+          className={`rounded-full p-1 transition-all duration-200 ease-out overflow-hidden ${
+            showMenu
+              ? "max-w-[300px] bg-surface"
+              : "max-w-[48px] bg-surface-variant/30"
+          }`}
         >
           <div className="flex items-center gap-2.5 whitespace-nowrap px-1">
             {!showMenu ? (

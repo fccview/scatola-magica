@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { SortBy } from "@/app/_types/enums";
 import TopAppBar from "@/app/_components/GlobalComponents/Layout/TopAppBar";
-import ThemeToggle from "@/app/_components/GlobalComponents/Layout/ThemeToggle";
+import ThemeSelector from "@/app/_components/GlobalComponents/Layout/ThemeSelector";
 import HelpButton from "@/app/_components/GlobalComponents/Layout/HelpButton";
 import UserMenu from "@/app/_components/FeatureComponents/User/UserMenu";
 import Logo from "@/app/_components/GlobalComponents/Layout/Logo";
@@ -59,7 +59,7 @@ export default async function FilesPage(props: PageProps) {
               trailing={
                 <div className="flex items-center gap-2">
                   <HelpButton />
-                  <ThemeToggle />
+                  <ThemeSelector />
                   <UserMenu />
                 </div>
               }

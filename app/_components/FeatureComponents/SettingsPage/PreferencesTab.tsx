@@ -11,6 +11,7 @@ export default function PreferencesTab() {
   const {
     particlesEnabled: initialParticles,
     wandCursorEnabled: initialWand,
+    pokemonThemesEnabled: initialPokemonThemes,
     user,
   } = usePreferences();
 
@@ -20,6 +21,9 @@ export default function PreferencesTab() {
 
   const [particlesEnabled, setParticlesEnabled] = useState(initialParticles);
   const [wandCursorEnabled, setWandCursorEnabled] = useState(initialWand);
+  const [pokemonThemesEnabled, setPokemonThemesEnabled] = useState(
+    initialPokemonThemes ?? false
+  );
 
   const handleParticlesToggle = async () => {
     const newValue = !particlesEnabled;
@@ -36,6 +40,24 @@ export default function PreferencesTab() {
     await updateUserPreferences(user?.username ?? "", {
       wandCursorEnabled: newValue,
     });
+    router.refresh();
+  };
+
+  const handlePokemonThemesToggle = async () => {
+    const newValue = !pokemonThemesEnabled;
+    setPokemonThemesEnabled(newValue);
+    await updateUserPreferences(user?.username ?? "", {
+      pokemonThemesEnabled: newValue,
+    });
+
+    if (!newValue && typeof window !== "undefined") {
+      const currentTheme = localStorage.getItem("theme");
+      if (currentTheme && currentTheme !== "light" && currentTheme !== "dark") {
+        localStorage.removeItem("theme");
+        window.location.reload();
+      }
+    }
+
     router.refresh();
   };
 
@@ -58,6 +80,19 @@ export default function PreferencesTab() {
             onChange={handleWandCursorToggle}
             label="Magic Wand Cursor"
             description="Show magic wand cursor on the home page"
+          />
+        </div>
+      </div>
+
+      <div>
+        <h2 className="text-xl font-medium text-on-surface mb-6">Themes</h2>
+        <div className="space-y-6">
+          <Switch
+            id="pokemon-themes"
+            checked={pokemonThemesEnabled}
+            onChange={handlePokemonThemesToggle}
+            label="Pokemon Themes"
+            description="Show Pokemon-themed color schemes in theme selector"
           />
         </div>
       </div>

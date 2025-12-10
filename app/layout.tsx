@@ -90,6 +90,7 @@ const RootLayout = async ({
             preferences={{
               particlesEnabled: preferences.particlesEnabled,
               wandCursorEnabled: preferences.wandCursorEnabled,
+              pokemonThemesEnabled: preferences.pokemonThemesEnabled,
               user: currentUser,
               encryptionKey,
               customKeysPath: preferences.customKeysPath,

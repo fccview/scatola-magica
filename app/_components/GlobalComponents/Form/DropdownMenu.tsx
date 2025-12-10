@@ -7,6 +7,7 @@ import IconButton from "@/app/_components/GlobalComponents/Buttons/IconButton";
 export interface DropdownMenuItem {
   label: string;
   icon?: string;
+  iconElement?: React.ReactNode;
   onClick: () => void;
   variant?: "default" | "danger";
   disabled?: boolean;
@@ -74,7 +75,7 @@ export default function DropdownMenu({
         <div
           className={`absolute right-0 ${
             position === "top" ? "bottom-full mb-2" : "top-full mt-2"
-          } min-w-[180px] bg-surface rounded-lg elevation-3 py-2 z-50 shadow-lg`}
+          } min-w-[180px] bg-surface-container rounded-lg elevation-3 py-2 z-50 shadow-lg max-h-[230px] custom-scrollbar`}
         >
           {items.map((item, index) => (
             <button
@@ -92,13 +93,17 @@ export default function DropdownMenu({
                 item.disabled
                   ? "opacity-50 cursor-not-allowed text-on-surface-variant"
                   : item.isActive
-                  ? "bg-primary/10 text-primary font-medium"
+                  ? "bg-sidebar-active font-medium"
                   : item.variant === "danger"
                   ? "hover:bg-error/10 text-error"
-                  : "hover:bg-surface-variant text-on-surface"
+                  : "hover:bg-sidebar-active text-on-surface"
               }`}
             >
-              {item.icon && <Icon icon={item.icon} size="sm" />}
+              {item.iconElement ? (
+                item.iconElement
+              ) : item.icon ? (
+                <Icon icon={item.icon} size="sm" />
+              ) : null}
               <span>{item.label}</span>
             </button>
           ))}

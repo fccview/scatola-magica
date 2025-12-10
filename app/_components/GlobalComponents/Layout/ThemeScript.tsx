@@ -21,13 +21,17 @@ export default function ThemeScript() {
             
             const applyTheme = (theme) => {
               const root = document.documentElement;
-              const resolved = theme === 'system' ? getSystemTheme() : theme;
-              root.classList.remove('light', 'dark');
-              root.classList.add(resolved);
+              const validThemes = ['light', 'dark', 'pikachu', 'bulbasaur', 'charmander', 'squirtle', 'gengar'];
+              root.classList.remove(...validThemes);
+              if (validThemes.includes(theme)) {
+                root.classList.add(theme);
+              } else {
+                root.classList.add('light');
+              }
             };
             
             const stored = getStoredTheme();
-            const theme = stored || 'system';
+            const theme = stored || getSystemTheme();
             applyTheme(theme);
           })();
         `,

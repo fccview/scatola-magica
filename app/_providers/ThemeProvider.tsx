@@ -8,11 +8,18 @@ import {
   useCallback,
 } from "react";
 
-type Theme = "light" | "dark" | "system";
+export type Theme =
+  | "light"
+  | "dark"
+  | "pikachu"
+  | "bulbasaur"
+  | "charmander"
+  | "squirtle"
+  | "gengar";
 
 interface ThemeContextValue {
   theme: Theme;
-  resolvedTheme: "light" | "dark";
+  resolvedTheme: Theme;
   setTheme: (theme: Theme) => void;
   toggleTheme: () => void;
 }
@@ -32,28 +39,31 @@ export default function ThemeProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const [theme, setThemeState] = useState<Theme>("system");
-  const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">("light");
-  const [mounted, setMounted] = useState(false);
-
-  const getSystemTheme = useCallback((): "light" | "dark" => {
+  const getSystemTheme = useCallback((): Theme => {
     if (typeof window === "undefined") return "light";
     return window.matchMedia("(prefers-color-scheme: dark)").matches
       ? "dark"
       : "light";
   }, []);
 
-  const applyTheme = useCallback(
-    (newTheme: Theme) => {
-      const root = document.documentElement;
-      const resolved = newTheme === "system" ? getSystemTheme() : newTheme;
+  const [theme, setThemeState] = useState<Theme>("light");
+  const [resolvedTheme, setResolvedTheme] = useState<Theme>("light");
+  const [mounted, setMounted] = useState(false);
 
-      root.classList.remove("light", "dark");
-      root.classList.add(resolved);
-      setResolvedTheme(resolved);
-    },
-    [getSystemTheme]
-  );
+  const applyTheme = useCallback((newTheme: Theme) => {
+    const root = document.documentElement;
+    root.classList.remove(
+      "light",
+      "dark",
+      "pikachu",
+      "bulbasaur",
+      "charmander",
+      "squirtle",
+      "gengar"
+    );
+    root.classList.add(newTheme);
+    setResolvedTheme(newTheme);
+  }, []);
 
   const setTheme = useCallback(
     (newTheme: Theme) => {
@@ -68,26 +78,22 @@ export default function ThemeProvider({
 
   const toggleTheme = useCallback(() => {
     const currentResolved = resolvedTheme;
-    setTheme(currentResolved === "light" ? "dark" : "light");
+    if (currentResolved === "light") {
+      setTheme("dark");
+    } else if (currentResolved === "dark") {
+      setTheme("pikachu");
+    } else {
+      setTheme("light");
+    }
   }, [resolvedTheme, setTheme]);
 
   useEffect(() => {
     setMounted(true);
     const stored = localStorage.getItem("theme") as Theme | null;
-    const initialTheme = stored || "system";
+    const initialTheme = stored || getSystemTheme();
     setThemeState(initialTheme);
     applyTheme(initialTheme);
-
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-    const handleChange = () => {
-      if (theme === "system") {
-        applyTheme("system");
-      }
-    };
-
-    mediaQuery.addEventListener("change", handleChange);
-    return () => mediaQuery.removeEventListener("change", handleChange);
-  }, [applyTheme, theme]);
+  }, [applyTheme, getSystemTheme]);
 
   return (
     <ThemeContext.Provider

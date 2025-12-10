@@ -8,7 +8,7 @@ import EncryptionTab from "@/app/_components/FeatureComponents/SettingsPage/Encr
 import UsersTab from "@/app/_components/FeatureComponents/SettingsPage/UsersTab";
 import AuditLogsTab from "@/app/_components/FeatureComponents/SettingsPage/AuditLogsTab";
 import TopAppBar from "@/app/_components/GlobalComponents/Layout/TopAppBar";
-import ThemeToggle from "@/app/_components/GlobalComponents/Layout/ThemeToggle";
+import ThemeSelector from "@/app/_components/GlobalComponents/Layout/ThemeSelector";
 import UserMenu from "@/app/_components/FeatureComponents/User/UserMenu";
 import Logo from "@/app/_components/GlobalComponents/Layout/Logo";
 import FilesPageBorderWrapper from "@/app/_components/GlobalComponents/Files/FilesPageBorderWrapper";
@@ -56,7 +56,7 @@ export default function SettingsPage() {
               }
               trailing={
                 <div className="flex items-center gap-2">
-                  <ThemeToggle />
+                  <ThemeSelector />
                   <UserMenu />
                 </div>
               }

@@ -8,6 +8,7 @@ export interface UserPreferences {
   username: string;
   particlesEnabled: boolean;
   wandCursorEnabled: boolean;
+  pokemonThemesEnabled?: boolean;
   customKeysPath?: string;
   e2eEncryptionOnTransfer?: boolean;
 }
@@ -51,6 +52,7 @@ export const getUserPreferences = async (
       username,
       particlesEnabled: true,
       wandCursorEnabled: true,
+      pokemonThemesEnabled: false,
       customKeysPath: undefined,
       e2eEncryptionOnTransfer: true,
     }
@@ -79,6 +81,11 @@ export const updateUserPreferences = async (
         (existingIndex >= 0
           ? allPreferences[existingIndex].wandCursorEnabled
           : true),
+      pokemonThemesEnabled:
+        updates.pokemonThemesEnabled ??
+        (existingIndex >= 0
+          ? allPreferences[existingIndex].pokemonThemesEnabled
+          : false),
       customKeysPath:
         updates.customKeysPath ??
         (existingIndex >= 0

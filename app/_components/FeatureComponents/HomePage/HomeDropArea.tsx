@@ -1,94 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import Particles from "@tsparticles/react";
-import { loadFireflyPreset } from "@tsparticles/preset-firefly";
-import type { ISourceOptions } from "@tsparticles/engine";
-import { initParticlesEngine } from "@tsparticles/react";
 import Logo from "@/app/_components/GlobalComponents/Layout/Logo";
 import { useUploadOverlay } from "@/app/_providers/UploadOverlayProvider";
 import { usePreferences } from "@/app/_providers/PreferencesProvider";
 import { useRouter } from "next/navigation";
+import Particles from "@/app/_components/GlobalComponents/Layout/Particles";
 
 export default function HomeDropArea() {
-  const [isReady, setIsReady] = useState(false);
   const { isDragging } = useUploadOverlay();
-  const { particlesEnabled, wandCursorEnabled } = usePreferences();
+  const { wandCursorEnabled } = usePreferences();
   const router = useRouter();
-
-  useEffect(() => {
-    if (particlesEnabled) {
-      initParticlesEngine(async (engine) => {
-        await loadFireflyPreset(engine);
-        setIsReady(true);
-      });
-    }
-  }, [particlesEnabled]);
-
-  const options = useMemo(
-    () =>
-      ({
-        preset: "firefly",
-        particles: {
-          number: {
-            value: 0,
-          },
-          color: {
-            value: "#A91D52",
-          },
-          reduceDuplicates: true,
-          size: {
-            value: { min: 2, max: 4 },
-          },
-          opacity: {
-            value: { min: 0, max: 1 },
-            animation: {
-              enable: true,
-              speed: 1.2,
-              sync: false,
-              destroy: "min",
-              startValue: "max",
-            },
-          },
-          life: {
-            count: 1,
-            delay: {
-              value: 0,
-            },
-            duration: {
-              value: { min: 1, max: 1.8 },
-            },
-          },
-          move: {
-            enable: true,
-            speed: { min: 0.6, max: 1.4 },
-            direction: "none",
-            random: true,
-            straight: false,
-            outModes: {
-              default: "destroy",
-            },
-          },
-        },
-        interactivity: {
-          events: {
-            onHover: {
-              enable: true,
-              mode: "trail",
-            },
-          },
-          modes: {
-            trail: {
-              delay: 0.2,
-              quantity: 1,
-              pauseOnStop: false,
-            },
-          },
-        },
-      } as unknown as ISourceOptions),
-    []
-  );
 
   return (
     <main
@@ -96,18 +19,7 @@ export default function HomeDropArea() {
         wandCursorEnabled ? "cursor-wand" : ""
       }`}
     >
-      {particlesEnabled && isReady && (
-        <div
-          className="absolute inset-0"
-          style={{ zIndex: 0, background: "transparent" }}
-        >
-          <Particles
-            id="tsparticles"
-            options={options}
-            className="w-full h-full"
-          />
-        </div>
-      )}
+      <Particles />
       <div className="text-center space-y-12 max-w-lg relative z-10">
         <div
           className="flex items-center justify-center"

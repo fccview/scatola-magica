@@ -6,6 +6,7 @@ import { User } from "@/app/_types";
 interface PreferencesContextType {
   particlesEnabled: boolean;
   wandCursorEnabled: boolean;
+  pokemonThemesEnabled?: boolean;
   user: Partial<User> | null;
   encryptionKey: string | null;
   customKeysPath?: string;
@@ -15,6 +16,7 @@ interface PreferencesContextType {
 const PreferencesContext = createContext<PreferencesContextType>({
   particlesEnabled: true,
   wandCursorEnabled: true,
+  pokemonThemesEnabled: false,
   user: null,
   encryptionKey: null,
   customKeysPath: undefined,
