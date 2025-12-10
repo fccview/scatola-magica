@@ -298,7 +298,7 @@ export default function EncryptionTab() {
   }
 
   return (
-    <div className="p-8 space-y-8">
+    <div className="lg:p-8 space-y-8">
       {message && (
         <div
           className={`p-4 rounded-lg ${

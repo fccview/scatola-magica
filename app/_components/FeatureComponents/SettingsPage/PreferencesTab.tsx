@@ -65,7 +65,7 @@ export default function PreferencesTab() {
     <div className="space-y-12">
       <div>
         <h2 className="text-xl font-medium text-on-surface mb-6">Home Page</h2>
-        <div className="space-y-6">
+        <div className="p-6 bg-surface-container rounded-lg space-y-6">
           <Switch
             id="particles"
             checked={particlesEnabled}
@@ -86,7 +86,7 @@ export default function PreferencesTab() {
 
       <div>
         <h2 className="text-xl font-medium text-on-surface mb-6">Themes</h2>
-        <div className="space-y-6">
+        <div className="p-6 bg-surface-container rounded-lg space-y-6">
           <Switch
             id="pokemon-themes"
             checked={pokemonThemesEnabled}

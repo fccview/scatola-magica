@@ -35,7 +35,7 @@ const Switch = forwardRef<HTMLDivElement, SwitchProps>(
         className={`flex items-center justify-between cursor-pointer select-none ${className}`}
         onClick={handleClick}
       >
-        <div>
+        <div className="w-[90%]">
           {label && (
             <h3 className="text-base font-medium text-on-surface">{label}</h3>
           )}
@@ -47,7 +47,7 @@ const Switch = forwardRef<HTMLDivElement, SwitchProps>(
           id={id}
           type="button"
           className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-            checked ? "bg-primary" : "bg-surface-variant"
+            checked ? "bg-primary" : "bg-surface"
           } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
           disabled={disabled}
           onClick={(e) => {
@@ -56,8 +56,10 @@ const Switch = forwardRef<HTMLDivElement, SwitchProps>(
           }}
         >
           <span
-            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-              checked ? "translate-x-6" : "translate-x-1"
+            className={`inline-block h-4 w-4 transform rounded-full transition-transform ${
+              checked
+                ? "translate-x-6 bg-on-primary"
+                : "translate-x-1 bg-on-surface"
             }`}
           />
         </button>
