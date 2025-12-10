@@ -92,7 +92,21 @@ export default function PreferencesTab() {
             checked={pokemonThemesEnabled}
             onChange={handlePokemonThemesToggle}
             label="Pokemon Themes"
-            description="Show Pokemon-themed color schemes in theme selector"
+            description={
+              <>
+                Show Pokemon-themed color schemes in theme selector. Animations
+                by{" "}
+                <a
+                  href="https://github.com/jakobhoeg/vscode-pokemon"
+                  target="_blank"
+                  className="text-primary underline"
+                  rel="noopener noreferrer"
+                >
+                  vscode-pokemon
+                </a>{" "}
+                dev.
+              </>
+            }
           />
         </div>
       </div>

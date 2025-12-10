@@ -258,6 +258,9 @@ This project is licensed under [GNU LESSER GENERAL PUBLIC LICENSE](LICENSE).
 I debated going for MIT, but I really want to protect this project and keep it open source.
 This means private corporations can use it, but they MUST keep their improvements open source as well.
 
+All image contents within this project are protected by Copyright and owned by The Pokémon Company.
+All animations for the Pokémon images have been created by the [vscode-pokemon](https://github.com/jakobhoeg/vscode-pokemon) dev.
+
 ## Support
 
 For issues and questions, please open an issue on the GitHub repository.

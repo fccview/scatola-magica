@@ -7,16 +7,22 @@ import DropdownMenu, {
 import IconButton from "@/app/_components/GlobalComponents/Buttons/IconButton";
 import { usePathname, useRouter } from "next/navigation";
 import { usePreferences } from "@/app/_providers/PreferencesProvider";
+import { useEffect } from "react";
+
+const POKEMON_SPRITES = [
+  "/pokemon/animations/pikachu/idle.gif",
+  "/pokemon/animations/bulbasaur/idle.gif",
+  "/pokemon/animations/charmander/idle.gif",
+  "/pokemon/animations/squirtle/idle.gif",
+  "/pokemon/animations/gengar/idle.gif",
+];
 
 const PokemonSprite = ({ src, name }: { src: string; name: string }) => (
   <img
     src={src}
     alt={name}
-    className="w-5 h-5 object-contain"
-    onError={(e) => {
-      const target = e.target as HTMLImageElement;
-      target.style.display = "none";
-    }}
+    className="w-10 h-10 -mt-4 -ml-2.5 -mr-2.5 object-contain"
+    loading="eager"
   />
 );
 
@@ -25,6 +31,18 @@ export default function ThemeSelector() {
   const router = useRouter();
   const pathname = usePathname();
   const { pokemonThemesEnabled = false } = usePreferences();
+
+  useEffect(() => {
+    if (pokemonThemesEnabled) {
+      POKEMON_SPRITES.forEach((src) => {
+        const link = document.createElement("link");
+        link.rel = "preload";
+        link.as = "image";
+        link.href = src;
+        document.head.appendChild(link);
+      });
+    }
+  }, [pokemonThemesEnabled]);
 
   const themeSetter = (newTheme: Theme) => {
     setTheme(newTheme);
@@ -56,14 +74,22 @@ export default function ThemeSelector() {
   const pokemonThemes: DropdownMenuItem[] = [
     {
       label: "Pikachu",
-      iconElement: <PokemonSprite src="/pokemon/pikachu.png" name="Pikachu" />,
+      iconElement: (
+        <PokemonSprite
+          src="/pokemon/animations/pikachu/idle.gif"
+          name="Pikachu"
+        />
+      ),
       onClick: () => themeSetter("pikachu"),
       isActive: theme === "pikachu",
     },
     {
       label: "Bulbasaur",
       iconElement: (
-        <PokemonSprite src="/pokemon/bulbasaur.png" name="Bulbasaur" />
+        <PokemonSprite
+          src="/pokemon/animations/bulbasaur/idle.gif"
+          name="Bulbasaur"
+        />
       ),
       onClick: () => themeSetter("bulbasaur"),
       isActive: theme === "bulbasaur",
@@ -71,7 +97,10 @@ export default function ThemeSelector() {
     {
       label: "Charmander",
       iconElement: (
-        <PokemonSprite src="/pokemon/charmander.png" name="Charmander" />
+        <PokemonSprite
+          src="/pokemon/animations/charmander/idle.gif"
+          name="Charmander"
+        />
       ),
       onClick: () => themeSetter("charmander"),
       isActive: theme === "charmander",
@@ -79,14 +108,22 @@ export default function ThemeSelector() {
     {
       label: "Squirtle",
       iconElement: (
-        <PokemonSprite src="/pokemon/squirtle.png" name="Squirtle" />
+        <PokemonSprite
+          src="/pokemon/animations/squirtle/idle.gif"
+          name="Squirtle"
+        />
       ),
       onClick: () => themeSetter("squirtle"),
       isActive: theme === "squirtle",
     },
     {
       label: "Gengar",
-      iconElement: <PokemonSprite src="/pokemon/gengar.png" name="Gengar" />,
+      iconElement: (
+        <PokemonSprite
+          src="/pokemon/animations/gengar/idle.gif"
+          name="Gengar"
+        />
+      ),
       onClick: () => themeSetter("gengar"),
       isActive: theme === "gengar",
     },

@@ -13,6 +13,7 @@ import FileViewer from "@/app/_components/FeatureComponents/Modals/FileViewer";
 import { PreferencesProvider } from "@/app/_providers/PreferencesProvider";
 import { getCurrentUser, readUsers } from "@/app/_server/actions/user";
 import { getUserPreferences } from "@/app/_lib/preferences";
+import AnimatedPokemon from "@/app/_components/GlobalComponents/Layout/AnimatedPokemon";
 import "@/app/globals.css";
 
 export const metadata: Metadata = {
@@ -104,6 +105,7 @@ const RootLayout = async ({
                     <FileViewerProvider>
                       <UploadOverlayProvider>{children}</UploadOverlayProvider>
                       <FileViewer />
+                      <AnimatedPokemon />
                     </FileViewerProvider>
                   </ContextMenuProvider>
                 </ShortcutsProvider>

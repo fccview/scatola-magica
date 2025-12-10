@@ -6,7 +6,7 @@ interface SwitchProps {
   onChange: (checked: boolean) => void;
   disabled?: boolean;
   label?: string;
-  description?: string;
+  description?: React.ReactNode;
   className?: string;
 }
 
@@ -40,7 +40,7 @@ const Switch = forwardRef<HTMLDivElement, SwitchProps>(
             <h3 className="text-base font-medium text-on-surface">{label}</h3>
           )}
           {description && (
-            <p className="text-sm text-on-surface-variant">{description}</p>
+            <div className="text-sm text-on-surface-variant">{description}</div>
           )}
         </div>
         <button
