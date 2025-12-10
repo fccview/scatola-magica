@@ -2,9 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTheme } from "@/app/_providers/ThemeProvider";
+import { usePreferences } from "@/app/_providers/PreferencesProvider";
+import { updateUserPreferences } from "@/app/_lib/preferences";
+import { useRouter } from "next/navigation";
+import { getKeyStatus } from "@/app/_server/actions/pgp";
 
 const POKEMON_SIZE = 64;
-const SPEED_BASE = 0.5; // Lowered speed for a more natural walk
+const SPEED_BASE = 0.5;
 const IDLE_MIN = 2000;
 const IDLE_MAX = 5000;
 
@@ -40,7 +44,10 @@ type PokemonState = "IDLE" | "WALKING";
 
 export default function AnimatedPokemon() {
   const { resolvedPokemonTheme } = useTheme();
+  const { user, e2eEncryptionOnTransfer } = usePreferences();
+  const router = useRouter();
   const [visualState, setVisualState] = useState<PokemonState>("IDLE");
+  const [isHovered, setIsHovered] = useState(false);
 
   const elementRef = useRef<HTMLDivElement>(null);
   const positionRef = useRef(-1);
@@ -48,6 +55,20 @@ export default function AnimatedPokemon() {
   const timerRef = useRef(0);
   const frameRef = useRef<number>(0);
   const facingRef = useRef<"left" | "right">("right");
+
+
+  const handleE2EToggle = async () => {
+    if (!user?.username) return;
+    const hasKey = await getKeyStatus().then((status) => status.hasKeys);
+    if (!hasKey) {
+      router.push("/settings");
+    }
+
+    await updateUserPreferences(user.username, {
+      e2eEncryptionOnTransfer: !e2eEncryptionOnTransfer,
+    });
+    router.refresh();
+  }
 
   const pokemon =
     resolvedPokemonTheme && resolvedPokemonTheme in POKEMON_THEMES
@@ -67,6 +88,12 @@ export default function AnimatedPokemon() {
 
     const tick = () => {
       if (!elementRef.current) return;
+
+      if (isHovered) {
+        setVisualState("IDLE");
+        frameRef.current = requestAnimationFrame(tick);
+        return;
+      }
 
       const now = Date.now();
       const currentPos = positionRef.current;
@@ -117,20 +144,26 @@ export default function AnimatedPokemon() {
     frameRef.current = requestAnimationFrame(tick);
 
     return () => cancelAnimationFrame(frameRef.current);
-  }, [pokemon]);
+  }, [pokemon, isHovered]);
 
   if (!pokemon) return null;
 
   return (
     <div
       ref={elementRef}
-      className="fixed bottom-0 z-40 pointer-events-none will-change-transform"
+      className="fixed bottom-0 z-50 will-change-transform group cursor-pointer"
       style={{
         width: POKEMON_SIZE,
         height: POKEMON_SIZE,
         left: 0,
       }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      onClick={handleE2EToggle}
     >
+      <div className="absolute -top-2 left-[50%] -translate-x-1/2 group-hover:opacity-100 opacity-0 transition-opacity duration-300">
+        <img className="w-6 h-6" style={{ imageRendering: "pixelated" }} src={`/pokemon/speech/${e2eEncryptionOnTransfer ? 'closed-lock' : 'open-lock'}.png`} />
+      </div>
       <img
         src={visualState === "WALKING" ? pokemon.walk : pokemon.idle}
         alt={pokemon.name}
