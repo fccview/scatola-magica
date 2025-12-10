@@ -36,12 +36,14 @@ export const encryptFile = async (
   deleteOriginal: boolean = false,
   customPublicKey?: string
 ): Promise<EncryptResult> => {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return { success: false, message: "Not authenticated" };
-    }
+  const user = await getCurrentUser();
+  if (!user) {
+    return { success: false, message: "Not authenticated" };
+  }
 
+  const userScopeFileID = user.isAdmin ? fileId : `${user.username}/${fileId}`;
+
+  try {
     if (!customPublicKey) {
       const keyStatus = await getKeyStatus();
       if (!keyStatus.hasKeys) {
@@ -52,7 +54,7 @@ export const encryptFile = async (
       }
     }
 
-    const filePath = path.join(UPLOAD_DIR, fileId);
+    const filePath = path.join(UPLOAD_DIR, userScopeFileID);
 
     try {
       await fs.access(filePath);
@@ -61,7 +63,7 @@ export const encryptFile = async (
     }
 
     const fileBuffer = await fs.readFile(filePath);
-    const fileName = path.basename(fileId);
+    const fileName = path.basename(userScopeFileID);
     const encryptResult = await encryptFileData(
       new Uint8Array(fileBuffer),
       fileName,
@@ -81,8 +83,11 @@ export const encryptFile = async (
     }
 
     await auditLog("file:encrypt", {
-      resource: fileId,
-      details: { customKey: !!customPublicKey, deletedOriginal: deleteOriginal },
+      resource: userScopeFileID,
+      details: {
+        customKey: !!customPublicKey,
+        deletedOriginal: deleteOriginal,
+      },
       success: true,
     });
 
@@ -92,14 +97,15 @@ export const encryptFile = async (
     return {
       success: true,
       message: "File encrypted successfully",
-      encryptedFilePath: `${fileId}.gpg`,
+      encryptedFilePath: `${userScopeFileID}.gpg`,
     };
   } catch (error) {
     console.error("Error encrypting file:", error);
     await auditLog("file:encrypt", {
-      resource: fileId,
+      resource: userScopeFileID,
       success: false,
-      errorMessage: error instanceof Error ? error.message : "Failed to encrypt file",
+      errorMessage:
+        error instanceof Error ? error.message : "Failed to encrypt file",
     });
     return {
       success: false,
@@ -107,7 +113,7 @@ export const encryptFile = async (
         error instanceof Error ? error.message : "Failed to encrypt file",
     };
   }
-}
+};
 
 export const decryptFile = async (
   fileId: string,
@@ -116,12 +122,14 @@ export const decryptFile = async (
   deleteEncrypted: boolean = false,
   customPrivateKey?: string
 ): Promise<DecryptResult> => {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return { success: false, message: "Not authenticated" };
-    }
+  const user = await getCurrentUser();
+  if (!user) {
+    return { success: false, message: "Not authenticated" };
+  }
 
+  const userScopeFileID = user.isAdmin ? fileId : `${user.username}/${fileId}`;
+
+  try {
     if (!customPrivateKey) {
       const keyStatus = await getKeyStatus();
       if (!keyStatus.hasKeys) {
@@ -132,7 +140,7 @@ export const decryptFile = async (
       }
     }
 
-    const filePath = path.join(UPLOAD_DIR, fileId);
+    const filePath = path.join(UPLOAD_DIR, userScopeFileID);
 
     try {
       await fs.access(filePath);
@@ -140,7 +148,7 @@ export const decryptFile = async (
       return { success: false, message: "File not found" };
     }
 
-    if (!fileId.endsWith(".gpg")) {
+    if (!userScopeFileID.endsWith(".gpg")) {
       return { success: false, message: "File is not encrypted" };
     }
 
@@ -157,7 +165,7 @@ export const decryptFile = async (
       return { success: false, message: decryptResult.message };
     }
 
-    const folderPath = path.dirname(fileId);
+    const folderPath = path.dirname(userScopeFileID);
     const isEncryptedFolder = fileId.endsWith(".folder.gpg");
 
     if (isEncryptedFolder) {
@@ -181,7 +189,7 @@ export const decryptFile = async (
         }
 
         await auditLog("folder:decrypt", {
-          resource: fileId,
+          resource: userScopeFileID,
           details: { outputName, deletedEncrypted: deleteEncrypted },
           success: true,
         });
@@ -195,8 +203,8 @@ export const decryptFile = async (
           decryptedFilePath: path.join(folderPath, outputName),
         };
       } catch (error) {
-        await fs.unlink(tempArchivePath).catch(() => { });
-        await fs.rmdir(outputDir, { recursive: true }).catch(() => { });
+        await fs.unlink(tempArchivePath).catch(() => {});
+        await fs.rmdir(outputDir, { recursive: true }).catch(() => {});
         throw error;
       }
     }
@@ -213,7 +221,7 @@ export const decryptFile = async (
     }
 
     await auditLog("file:decrypt", {
-      resource: fileId,
+      resource: userScopeFileID,
       details: { outputName, deletedEncrypted: deleteEncrypted },
       success: true,
     });
@@ -229,9 +237,10 @@ export const decryptFile = async (
   } catch (error) {
     console.error("Error decrypting file:", error);
     await auditLog("file:decrypt", {
-      resource: fileId,
+      resource: userScopeFileID,
       success: false,
-      errorMessage: error instanceof Error ? error.message : "Failed to decrypt file",
+      errorMessage:
+        error instanceof Error ? error.message : "Failed to decrypt file",
     });
     return {
       success: false,
@@ -239,7 +248,7 @@ export const decryptFile = async (
         error instanceof Error ? error.message : "Failed to decrypt file",
     };
   }
-}
+};
 
 export const encryptFolder = async (
   folderId: string,
@@ -295,7 +304,7 @@ export const encryptFolder = async (
       );
 
       if (!encryptResult.success || !encryptResult.encryptedData) {
-        await fs.unlink(tempArchivePath).catch(() => { });
+        await fs.unlink(tempArchivePath).catch(() => {});
         return { success: false, message: encryptResult.message };
       }
 
@@ -323,7 +332,7 @@ export const encryptFolder = async (
         ),
       };
     } catch (error) {
-      await fs.unlink(tempArchivePath).catch(() => { });
+      await fs.unlink(tempArchivePath).catch(() => {});
       throw error;
     }
   } catch (error) {
@@ -334,7 +343,7 @@ export const encryptFolder = async (
         error instanceof Error ? error.message : "Failed to encrypt folder",
     };
   }
-}
+};
 
 export const decryptFolder = async (
   folderId: string,
@@ -416,8 +425,8 @@ export const decryptFolder = async (
         decryptedFilePath: path.join(path.dirname(folderId), outputName),
       };
     } catch (error) {
-      await fs.unlink(tempArchivePath).catch(() => { });
-      await fs.rmdir(outputDir, { recursive: true }).catch(() => { });
+      await fs.unlink(tempArchivePath).catch(() => {});
+      await fs.rmdir(outputDir, { recursive: true }).catch(() => {});
       throw error;
     }
   } catch (error) {
@@ -428,4 +437,4 @@ export const decryptFolder = async (
         error instanceof Error ? error.message : "Failed to decrypt folder",
     };
   }
-}
+};
