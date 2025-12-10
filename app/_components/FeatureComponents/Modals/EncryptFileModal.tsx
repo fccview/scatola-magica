@@ -6,6 +6,7 @@ import Modal from "@/app/_components/GlobalComponents/Layout/Modal";
 import Button from "@/app/_components/GlobalComponents/Buttons/Button";
 import Icon from "@/app/_components/GlobalComponents/Icons/Icon";
 import Switch from "@/app/_components/GlobalComponents/Form/Switch";
+import RadioGroup from "@/app/_components/GlobalComponents/Form/RadioGroup";
 import Progress from "@/app/_components/GlobalComponents/Layout/Progress";
 import { getKeyStatus } from "@/app/_server/actions/pgp";
 
@@ -115,57 +116,29 @@ export default function EncryptFileModal({
               </p>
             </div>
 
-            <div className="space-y-3">
-              {hasOwnKeys && (
-                <div
-                  className="flex items-start gap-3 p-4 bg-surface-container rounded-lg cursor-pointer hover:bg-surface-container-high transition-colors"
-                  onClick={() => setUseOwnKey(true)}
-                >
-                  <input
-                    type="radio"
-                    id="own-key-encrypt"
-                    checked={useOwnKey}
-                    onChange={() => setUseOwnKey(true)}
-                    className="w-4 h-4 mt-0.5"
-                  />
-                  <div className="flex-1">
-                    <label
-                      htmlFor="own-key-encrypt"
-                      className="text-on-surface font-medium cursor-pointer block"
-                    >
-                      Use my public key
-                    </label>
-                    <p className="text-xs text-on-surface-variant mt-1">
-                      Encrypt with your PGP public key. Only you can decrypt.
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              <div
-                className="flex items-start gap-3 p-4 bg-surface-container rounded-lg cursor-pointer hover:bg-surface-container-high transition-colors"
-                onClick={() => setUseOwnKey(false)}
-              >
-                <input
-                  type="radio"
-                  id="custom-key-encrypt"
-                  checked={!useOwnKey}
-                  onChange={() => setUseOwnKey(false)}
-                  className="w-4 h-4 mt-0.5"
-                />
-                <div className="flex-1">
-                  <label
-                    htmlFor="custom-key-encrypt"
-                    className="text-on-surface font-medium cursor-pointer block"
-                  >
-                    Use a custom public key
-                  </label>
-                  <p className="text-xs text-on-surface-variant mt-1">
-                    Encrypt for someone else by providing their public key.
-                  </p>
-                </div>
-              </div>
-            </div>
+            <RadioGroup
+              options={[
+                ...(hasOwnKeys
+                  ? [
+                      {
+                        value: "own",
+                        label: "Use my public key",
+                        description:
+                          "Encrypt with your PGP public key. Only you can decrypt.",
+                      },
+                    ]
+                  : []),
+                {
+                  value: "custom",
+                  label: "Use a custom public key",
+                  description:
+                    "Encrypt for someone else by providing their public key.",
+                },
+              ]}
+              value={useOwnKey ? "own" : "custom"}
+              onChange={(value) => setUseOwnKey(value === "own")}
+              disabled={encrypting}
+            />
 
             {!useOwnKey && (
               <div>

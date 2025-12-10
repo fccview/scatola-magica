@@ -14,6 +14,7 @@ import {
   hasStoredE2EPassword,
 } from "@/app/_lib/chunk-encryption";
 import { E2EEncryptionOptions } from "@/app/_lib/chunked-uploader";
+import E2EInfoCard from "../../GlobalComponents/Cards/E2EInfoCard";
 
 interface UploadProgressModalProps {
   isOpen: boolean;
@@ -86,7 +87,14 @@ export default function UploadProgressModal({
       }
       setPendingUpload(null);
     },
-    [initialFiles, initialFilesWithPaths, rootFolderName, initialFolderPath, handleFilesWithPathsSelect, handleFileSelect]
+    [
+      initialFiles,
+      initialFilesWithPaths,
+      rootFolderName,
+      initialFolderPath,
+      handleFilesWithPathsSelect,
+      handleFileSelect,
+    ]
   );
 
   const handlePasswordSubmit = useCallback(
@@ -109,28 +117,31 @@ export default function UploadProgressModal({
   useEffect(() => {
     if (!isOpen || !keyStatusLoaded || uploadStartedRef.current) return;
 
-        if (initialFolderPath) {
-          setSelectedFolderPath(initialFolderPath);
-      }
+    if (initialFolderPath) {
+      setSelectedFolderPath(initialFolderPath);
+    }
 
-      const filesKey = initialFiles
-        ? Array.from(initialFiles)
-            .map((f) => `${f.name}-${f.size}-${f.lastModified}`)
-            .join("|")
-        : initialFilesWithPaths
-        ? initialFilesWithPaths
-            .map((f) => `${f.file.name}-${f.file.size}-${f.file.lastModified}`)
-            .join("|")
-        : "";
+    const filesKey = initialFiles
+      ? Array.from(initialFiles)
+          .map((f) => `${f.name}-${f.size}-${f.lastModified}`)
+          .join("|")
+      : initialFilesWithPaths
+      ? initialFilesWithPaths
+          .map((f) => `${f.file.name}-${f.file.size}-${f.file.lastModified}`)
+          .join("|")
+      : "";
 
     if (!filesKey || filesKey === processedFilesRef.current) return;
-        processedFilesRef.current = filesKey;
+    processedFilesRef.current = filesKey;
 
     if (shouldUseE2E) {
       if (encryptionKey && hasStoredE2EPassword()) {
         const storedPassword = getStoredE2EPassword(encryptionKey);
         if (storedPassword) {
-          const encryption: E2EEncryptionOptions = { enabled: true, password: storedPassword };
+          const encryption: E2EEncryptionOptions = {
+            enabled: true,
+            password: storedPassword,
+          };
           setE2eEncryption(encryption);
           startUploadWithFiles(encryption);
           return;
@@ -187,27 +198,22 @@ export default function UploadProgressModal({
 
   return (
     <>
-    <Modal
-      isOpen={isOpen}
-      onClose={handleClose}
-      title="Uploading Files"
-      size="md"
-    >
-      <div className="p-6">
-          {shouldUseE2E && (
-            <div className="mb-4 p-3 bg-primary-container text-on-primary-container rounded-lg text-sm flex items-center gap-2">
-              <span className="material-symbols-outlined text-lg">lock</span>
-              <span>E2E encryption enabled - files will be encrypted during transfer</span>
-            </div>
-          )}
-        <UploadFileList
-          files={files}
-          onCancel={cancelUpload}
-          onRemove={removeFile}
-          onClose={onClose}
-        />
-      </div>
-    </Modal>
+      <Modal
+        isOpen={isOpen}
+        onClose={handleClose}
+        title="Uploading Files"
+        size="md"
+      >
+        <div className="p-6">
+          <E2EInfoCard shouldUseE2E={shouldUseE2E} />
+          <UploadFileList
+            files={files}
+            onCancel={cancelUpload}
+            onRemove={removeFile}
+            onClose={onClose}
+          />
+        </div>
+      </Modal>
 
       <E2EPasswordModal
         isOpen={showPasswordModal}

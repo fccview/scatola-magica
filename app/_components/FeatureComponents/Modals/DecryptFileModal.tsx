@@ -7,6 +7,7 @@ import Input from "@/app/_components/GlobalComponents/Form/Input";
 import Button from "@/app/_components/GlobalComponents/Buttons/Button";
 import Icon from "@/app/_components/GlobalComponents/Icons/Icon";
 import Switch from "@/app/_components/GlobalComponents/Form/Switch";
+import RadioGroup from "@/app/_components/GlobalComponents/Form/RadioGroup";
 import Progress from "@/app/_components/GlobalComponents/Layout/Progress";
 import { getKeyStatus } from "@/app/_server/actions/pgp";
 
@@ -148,57 +149,27 @@ export default function DecryptFileModal({
               disabled={decrypting}
             />
 
-            <div className="space-y-3">
-              {hasOwnKeys && (
-                <div
-                  className="flex items-start gap-3 p-4 bg-surface-container rounded-lg cursor-pointer hover:bg-surface-container-high transition-colors"
-                  onClick={() => setUseOwnKey(true)}
-                >
-                  <input
-                    type="radio"
-                    id="own-key-decrypt"
-                    checked={useOwnKey}
-                    onChange={() => setUseOwnKey(true)}
-                    className="w-4 h-4 mt-0.5"
-                  />
-                  <div className="flex-1">
-                    <label
-                      htmlFor="own-key-decrypt"
-                      className="text-on-surface font-medium cursor-pointer block"
-                    >
-                      Use my private key
-                    </label>
-                    <p className="text-xs text-on-surface-variant mt-1">
-                      Decrypt with your PGP private key.
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              <div
-                className="flex items-start gap-3 p-4 bg-surface-container rounded-lg cursor-pointer hover:bg-surface-container-high transition-colors"
-                onClick={() => setUseOwnKey(false)}
-              >
-                <input
-                  type="radio"
-                  id="custom-key-decrypt"
-                  checked={!useOwnKey}
-                  onChange={() => setUseOwnKey(false)}
-                  className="w-4 h-4 mt-0.5"
-                />
-                <div className="flex-1">
-                  <label
-                    htmlFor="custom-key-decrypt"
-                    className="text-on-surface font-medium cursor-pointer block"
-                  >
-                    Use a custom private key
-                  </label>
-                  <p className="text-xs text-on-surface-variant mt-1">
-                    Provide a custom private key for decryption.
-                  </p>
-                </div>
-              </div>
-            </div>
+            <RadioGroup
+              options={[
+                ...(hasOwnKeys
+                  ? [
+                      {
+                        value: "own",
+                        label: "Use my private key",
+                        description: "Decrypt with your PGP private key.",
+                      },
+                    ]
+                  : []),
+                {
+                  value: "custom",
+                  label: "Use a custom private key",
+                  description: "Provide a custom private key for decryption.",
+                },
+              ]}
+              value={useOwnKey ? "own" : "custom"}
+              onChange={(value) => setUseOwnKey(value === "own")}
+              disabled={decrypting}
+            />
 
             {!useOwnKey && (
               <div>

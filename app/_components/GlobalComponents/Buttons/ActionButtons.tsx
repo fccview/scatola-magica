@@ -79,12 +79,12 @@ export default function ActionButtons({
 
   const uploadMenuItems: DropdownMenuItem[] = [
     {
-      label: "Upload Files",
+      label: "Files",
       icon: "upload",
       onClick: handleNormalUpload,
     },
     {
-      label: "Upload Encrypted Files",
+      label: "Encrypted Files",
       icon: "lock",
       onClick: handleEncryptedUpload,
     },

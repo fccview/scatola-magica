@@ -18,7 +18,7 @@ export default function FilesPageWrapper({
     return (
       <div className="flex items-center justify-center min-h-screen bg-surface">
         <div className="flex flex-col items-center gap-4">
-          <Logo className="w-32 h-32 loading-animation" />
+          <Logo className="w-80 h-80" hoverEffect={true} />
         </div>
       </div>
     );

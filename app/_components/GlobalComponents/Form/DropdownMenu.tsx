@@ -16,8 +16,6 @@ export interface DropdownMenuItem {
 interface DropdownMenuProps {
   items: DropdownMenuItem[];
   triggerIcon?: string;
-  triggerClassName?: string;
-  triggerLabel?: string;
   triggerElement?: React.ReactNode;
   position?: "top" | "bottom";
 }
@@ -25,8 +23,6 @@ interface DropdownMenuProps {
 export default function DropdownMenu({
   items,
   triggerIcon = "more_vert",
-  triggerClassName = "",
-  triggerLabel,
   triggerElement,
   position = "bottom",
 }: DropdownMenuProps) {
@@ -75,7 +71,11 @@ export default function DropdownMenu({
       )}
 
       {isOpen && (
-        <div className={`absolute right-0 ${position === "top" ? "bottom-full mb-2" : "top-full mt-2"} min-w-[160px] bg-surface rounded-lg elevation-3 py-2 z-50 shadow-lg`}>
+        <div
+          className={`absolute right-0 ${
+            position === "top" ? "bottom-full mb-2" : "top-full mt-2"
+          } min-w-[180px] bg-surface rounded-lg elevation-3 py-2 z-50 shadow-lg`}
+        >
           {items.map((item, index) => (
             <button
               key={index}

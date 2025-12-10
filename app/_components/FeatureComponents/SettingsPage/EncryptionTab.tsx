@@ -32,7 +32,11 @@ interface KeyInfo {
 
 export default function EncryptionTab() {
   const router = useRouter();
-  const { user, customKeysPath, e2eEncryptionOnTransfer: initialE2E } = usePreferences();
+  const {
+    user,
+    customKeysPath,
+    e2eEncryptionOnTransfer: initialE2E,
+  } = usePreferences();
   const [hasKeys, setHasKeys] = useState(false);
   const [e2eEncryptionOnTransfer, setE2eEncryptionOnTransfer] = useState(
     initialE2E ?? true
@@ -297,10 +301,11 @@ export default function EncryptionTab() {
     <div className="p-8 space-y-8">
       {message && (
         <div
-          className={`p-4 rounded-lg ${message.type === "success"
-            ? "bg-success-container text-on-success-container"
-            : "bg-error-container text-on-error-container"
-            }`}
+          className={`p-4 rounded-lg ${
+            message.type === "success"
+              ? "bg-success-container text-on-success-container"
+              : "bg-error-container text-on-error-container"
+          }`}
         >
           {message.text}
         </div>
@@ -314,8 +319,8 @@ export default function EncryptionTab() {
         <div className="p-6 bg-surface-container rounded-lg space-y-4">
           <div className="space-y-2">
             <p className="text-sm text-on-surface-variant">
-              This key is used to encrypt folder paths in URLs and for encrypting
-              stored passwords. It is unique to your account.
+              This key is used to encrypt folder paths in URLs and for
+              encrypting stored passwords. It is unique to your account.
             </p>
             {encryptionKey && (
               <div className="space-y-2">
@@ -414,14 +419,14 @@ export default function EncryptionTab() {
 
             <div className="p-6 bg-surface-container rounded-lg space-y-4">
               <h3 className="text-lg font-semibold text-on-surface">
-                Transfer Encryption
+                Transfer Encryption during file upload
               </h3>
               <Switch
                 id="e2e-encryption"
                 checked={e2eEncryptionOnTransfer}
                 onChange={handleE2EToggle}
-                label="End-to-End Encryption on Transfer"
-                description="Files will be encrypted on your device before upload and decrypted on the server. This ensures your files remain encrypted during transfer."
+                label="Enable Transfer Encryption"
+                description="Files will be encrypted on your browser before upload and decrypted on the server. This ensures your files remain encrypted during transfer."
               />
             </div>
           </div>
@@ -445,7 +450,7 @@ export default function EncryptionTab() {
                   label="Email (optional)"
                   value={generateEmail}
                   onChange={(e) => setGenerateEmail(e.target.value)}
-                  placeholder={`${user.username}@scatola.local`}
+                  placeholder={`${user.username}@scatola.magica`}
                   disabled={generating}
                 />
 
@@ -494,7 +499,7 @@ export default function EncryptionTab() {
                   disabled={generating}
                   error={
                     generateError &&
-                      generatePassword === generatePasswordConfirm
+                    generatePassword === generatePasswordConfirm
                       ? undefined
                       : generateError
                   }

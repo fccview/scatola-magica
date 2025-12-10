@@ -16,6 +16,7 @@ import {
   getStoredE2EPassword,
   hasStoredE2EPassword,
 } from "@/app/_lib/chunk-encryption";
+import E2EInfoCard from "../../GlobalComponents/Cards/E2EInfoCard";
 
 interface UploadModalProps {
   isOpen: boolean;
@@ -159,41 +160,36 @@ const UploadModal = ({
 
   return (
     <>
-    <Modal isOpen={isOpen} onClose={onClose} title="Upload Files" size="lg">
-      <div className="p-6">
-        {hadInterruptedUploads && (
-          <Warning
-            variant="error"
-            title="Uploads Interrupted"
-            message="Your uploads were interrupted by a page refresh. Please upload your files again."
-            onDismiss={dismissInterruptedWarning}
-          />
-        )}
-
-          {shouldUseE2E && (
-            <div className="mb-4 p-3 bg-primary-container text-on-primary-container rounded-lg text-sm flex items-center gap-2">
-              <span className="material-symbols-outlined text-lg">lock</span>
-              <span>E2E encryption enabled - files will be encrypted during transfer</span>
-            </div>
+      <Modal isOpen={isOpen} onClose={onClose} title="Upload Files" size="lg">
+        <div className="p-6">
+          {hadInterruptedUploads && (
+            <Warning
+              variant="error"
+              title="Uploads Interrupted"
+              message="Your uploads were interrupted by a page refresh. Please upload your files again."
+              onDismiss={dismissInterruptedWarning}
+            />
           )}
 
-        <UploadDropZone
-          isDragging={isDragging}
-          onDragEnter={handleDragEnter}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-            onFileSelect={handleE2EFileSelect}
-        />
+          <E2EInfoCard shouldUseE2E={shouldUseE2E} />
 
-        <UploadFileList
-          files={files}
-          onCancel={cancelUpload}
-          onRemove={removeFile}
-          onClose={onClose}
-        />
-      </div>
-    </Modal>
+          <UploadDropZone
+            isDragging={isDragging}
+            onDragEnter={handleDragEnter}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            onFileSelect={handleE2EFileSelect}
+          />
+
+          <UploadFileList
+            files={files}
+            onCancel={cancelUpload}
+            onRemove={removeFile}
+            onClose={onClose}
+          />
+        </div>
+      </Modal>
 
       <E2EPasswordModal
         isOpen={showPasswordModal}

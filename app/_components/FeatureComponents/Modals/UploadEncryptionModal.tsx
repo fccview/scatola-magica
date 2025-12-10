@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Modal from "@/app/_components/GlobalComponents/Layout/Modal";
 import Button from "@/app/_components/GlobalComponents/Buttons/Button";
 import Icon from "@/app/_components/GlobalComponents/Icons/Icon";
+import RadioGroup from "@/app/_components/GlobalComponents/Form/RadioGroup";
 import { getKeyStatus } from "@/app/_server/actions/pgp";
 
 interface UploadEncryptionModalProps {
@@ -67,63 +68,33 @@ export default function UploadEncryptionModal({
 
         <div>
           <p className="text-sm text-on-surface-variant mb-4">
-            Files will be encrypted on your device before uploading, ensuring
-            end-to-end encryption.
+            Files will be encrypted on your browser before uploading, ensuring
+            transfer encryption.
           </p>
         </div>
 
-        <div className="space-y-3">
-          {hasOwnKeys && (
-            <div
-              className="flex items-start gap-3 p-4 bg-surface-container rounded-lg cursor-pointer hover:bg-surface-container-high transition-colors"
-              onClick={() => setUseOwnKey(true)}
-            >
-              <input
-                type="radio"
-                id="own-key-upload"
-                checked={useOwnKey}
-                onChange={() => setUseOwnKey(true)}
-                className="w-4 h-4 mt-0.5"
-              />
-              <div className="flex-1">
-                <label
-                  htmlFor="own-key-upload"
-                  className="text-on-surface font-medium cursor-pointer block"
-                >
-                  Use my public key
-                </label>
-                <p className="text-xs text-on-surface-variant mt-1">
-                  Encrypt files with your PGP public key. Only you can decrypt
-                  them.
-                </p>
-              </div>
-            </div>
-          )}
-
-          <div
-            className="flex items-start gap-3 p-4 bg-surface-container rounded-lg cursor-pointer hover:bg-surface-container-high transition-colors"
-            onClick={() => setUseOwnKey(false)}
-          >
-            <input
-              type="radio"
-              id="custom-key-upload"
-              checked={!useOwnKey}
-              onChange={() => setUseOwnKey(false)}
-              className="w-4 h-4 mt-0.5"
-            />
-            <div className="flex-1">
-              <label
-                htmlFor="custom-key-upload"
-                className="text-on-surface font-medium cursor-pointer block"
-              >
-                Use a custom public key
-              </label>
-              <p className="text-xs text-on-surface-variant mt-1">
-                Encrypt for someone else by providing their public key.
-              </p>
-            </div>
-          </div>
-        </div>
+        <RadioGroup
+          options={[
+            ...(hasOwnKeys
+              ? [
+                  {
+                    value: "own",
+                    label: "Use my public key",
+                    description:
+                      "Encrypt files with your PGP public key. Only you can decrypt them.",
+                  },
+                ]
+              : []),
+            {
+              value: "custom",
+              label: "Use a custom public key",
+              description:
+                "Encrypt for someone else by providing their public key.",
+            },
+          ]}
+          value={useOwnKey ? "own" : "custom"}
+          onChange={(value) => setUseOwnKey(value === "own")}
+        />
 
         {!useOwnKey && (
           <div>

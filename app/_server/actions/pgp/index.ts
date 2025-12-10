@@ -69,7 +69,7 @@ export const generateKeyPair = async (
     }
 
     const username = user.username;
-    const userEmail = email || `${username}@scatola.local`;
+    const userEmail = email || `${username}@scatola.magica`;
     const keysDir = _getUserKeysDir(username, customPath);
 
     await _ensureKeysDir(keysDir);
@@ -83,7 +83,7 @@ export const generateKeyPair = async (
         success: false,
         message: "Keys already exist. Delete existing keys first.",
       };
-    } catch { }
+    } catch {}
 
     const { privateKey, publicKey } = await openpgp.generateKey({
       type: "rsa",
@@ -233,7 +233,7 @@ export const importKeys = async (
     const userIDs = publicKey.getUserIDs();
     const keyInfo: KeyPairInfo = {
       username: user.username,
-      email: userIDs[0] || `${user.username}@scatola.local`,
+      email: userIDs[0] || `${user.username}@scatola.magica`,
       created: Date.now(),
       algorithm: publicKey.getAlgorithmInfo().algorithm,
       keySize: publicKey.getAlgorithmInfo().bits || 0,
@@ -270,19 +270,19 @@ export const deleteKeys = async (
 
     try {
       await fs.unlink(publicKeyPath);
-    } catch { }
+    } catch {}
 
     try {
       await fs.unlink(privateKeyPath);
-    } catch { }
+    } catch {}
 
     try {
       await fs.unlink(metadataPath);
-    } catch { }
+    } catch {}
 
     try {
       await fs.rmdir(keysDir);
-    } catch { }
+    } catch {}
 
     return { success: true, message: "Keys deleted successfully" };
   } catch (error) {
