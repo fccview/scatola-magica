@@ -79,7 +79,8 @@ export default function EncryptionTab() {
 
   async function loadKeyStatus() {
     setLoading(true);
-    const status = await getKeyStatus(customKeysPath);
+    const pathToCheck = useCustomPath ? customPath : undefined;
+    const status = await getKeyStatus(pathToCheck);
     setHasKeys(status.hasKeys);
     if (status.keyInfo) {
       setKeyInfo(status.keyInfo);
@@ -222,18 +223,16 @@ export default function EncryptionTab() {
   async function handleUpdateCustomPath() {
     if (!user?.username) return;
 
-    const result = await updateUserPreferences(user.username, {
-      customKeysPath: useCustomPath ? customPath || undefined : undefined,
-    });
+    const result = useCustomPath
+      ? await updateUserPreferences(user.username, { customKeysPath: customPath })
+      : await updateUserPreferences(user.username, {}, ["customKeysPath"]);
 
     if (result.success) {
       setMessage({ type: "success", text: "Settings updated" });
+      await loadKeyStatus();
       router.refresh();
     } else {
-      setMessage({
-        type: "error",
-        text: result.error || "Failed to update settings",
-      });
+      setMessage({ type: "error", text: result.error || "Failed to update settings" });
     }
   }
 
@@ -638,14 +637,12 @@ export default function EncryptionTab() {
                   onChange={(e) => setCustomPath(e.target.value)}
                   placeholder="/path/to/keys"
                 />
-                <Button variant="filled" onClick={handleUpdateCustomPath}>
-                  Save Path
-                </Button>
               </div>
             )}
           </div>
 
-          {!useCustomPath && customKeysPath && (
+          {/* Show save button when changing from custom to default, or when custom path changes */}
+          {((!useCustomPath && customKeysPath) || (useCustomPath && customPath !== customKeysPath)) && (
             <Button variant="filled" onClick={handleUpdateCustomPath}>
               Save Path
             </Button>

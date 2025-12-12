@@ -96,6 +96,7 @@ const RootLayout = async ({
               encryptionKey,
               customKeysPath: preferences.customKeysPath,
               e2eEncryptionOnTransfer: preferences.e2eEncryptionOnTransfer,
+              torrentPreferences: preferences.torrentPreferences,
             }}
           >
             <UsersProvider initialUsers={initialUsers}>

@@ -26,11 +26,13 @@ interface ContextMenuActions {
   onFileEncrypt?: (fileId: string) => void;
   onFileDecrypt?: (fileId: string) => void;
   onFileDelete?: (fileId: string) => void;
+  onFileCreateTorrent?: (fileId: string, fileName: string) => void;
   onFolderRename?: (folderId: string, folderName: string) => void;
   onFolderDownload?: (folderId: string) => void;
   onFolderEncrypt?: (folderId: string) => void;
   onFolderDecrypt?: (folderId: string) => void;
   onFolderDelete?: (folderId: string) => void;
+  onFolderCreateTorrent?: (folderId: string, folderName: string) => void;
   onCreateFolder?: () => void;
   onUpload?: () => void;
 }
@@ -165,6 +167,14 @@ export default function ContextMenuProvider({
           });
         }
 
+        if (actions.onFileCreateTorrent && target.id && target.name) {
+          items.push({
+            label: "Create Torrent",
+            icon: "hub",
+            onClick: () => actions.onFileCreateTorrent!(target.id!, target.name!),
+          });
+        }
+
         if (isEncrypted && actions.onFileDecrypt && target.id) {
           if (items.length > 0) {
             items.push({
@@ -234,6 +244,14 @@ export default function ContextMenuProvider({
             label: "Download Folder",
             icon: "download",
             onClick: () => actions.onFolderDownload!(target.id!),
+          });
+        }
+
+        if (actions.onFolderCreateTorrent && target.id && target.name) {
+          items.push({
+            label: "Create Torrent",
+            icon: "hub",
+            onClick: () => actions.onFolderCreateTorrent!(target.id!, target.name!),
           });
         }
 

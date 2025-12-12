@@ -99,6 +99,11 @@ export const useFileList = ({
     message: "",
     variant: "error",
   });
+  const [createdTorrent, setCreatedTorrent] = useState<{
+    magnetURI: string;
+    torrentFile: Buffer;
+    fileName: string;
+  } | null>(null);
 
   const loadMore = useCallback(async () => {
     if (isLoadingMore || !hasMore) return;
@@ -298,6 +303,40 @@ export const useFileList = ({
 
   const handleDownload = (id: string) => {
     window.open(`/api/download/${encodeURIComponent(id)}`, "_blank");
+  };
+
+  const handleCreateTorrent = async (id: string, name: string) => {
+    const isFolder = folders.some((f) => f.id === id);
+    const { createTorrentFromFile, createTorrentFromFolder } = await import(
+      "@/app/_server/actions/torrents/create"
+    );
+
+    try {
+      const result = isFolder
+        ? await createTorrentFromFolder(id)
+        : await createTorrentFromFile(id);
+
+      if (result.success && result.data) {
+        setCreatedTorrent({
+          magnetURI: result.data.magnetURI,
+          torrentFile: result.data.torrentFile,
+          fileName: name,
+        });
+      } else {
+        setErrorModal({
+          isOpen: true,
+          message: result.error || "Failed to create torrent",
+          variant: "error",
+        });
+      }
+    } catch (error) {
+      console.error("Error creating torrent:", error);
+      setErrorModal({
+        isOpen: true,
+        message: "Failed to create torrent",
+        variant: "error",
+      });
+    }
   };
 
   const handleFileOpen = (id: string) => {
@@ -660,6 +699,8 @@ export const useFileList = ({
     setShowBulkDeleteConfirm,
     errorModal,
     setErrorModal,
+    createdTorrent,
+    setCreatedTorrent,
     toggleRecursive,
     handleDeleteFile,
     confirmDeleteFile,
@@ -669,6 +710,7 @@ export const useFileList = ({
     handleRenameFile,
     handleDownload,
     handleFileOpen,
+    handleCreateTorrent,
     handleEncrypt,
     handleDecrypt,
     handleEncryptFolder,

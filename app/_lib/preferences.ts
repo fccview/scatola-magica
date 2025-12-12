@@ -3,6 +3,7 @@
 import fs from "fs/promises";
 import path from "path";
 import { lock, unlock } from "proper-lockfile";
+import { TorrentPreferences } from "@/app/_types/torrent";
 
 export interface UserPreferences {
   username: string;
@@ -11,6 +12,7 @@ export interface UserPreferences {
   pokemonThemesEnabled?: boolean;
   customKeysPath?: string;
   e2eEncryptionOnTransfer?: boolean;
+  torrentPreferences?: TorrentPreferences;
 }
 
 const _getPreferencesFile = (): string => {
@@ -55,13 +57,19 @@ export const getUserPreferences = async (
       pokemonThemesEnabled: false,
       customKeysPath: undefined,
       e2eEncryptionOnTransfer: true,
+      torrentPreferences: {
+        seedRatio: 1.0,
+        autoStartTorrents: true,
+        maxActiveTorrents: 5,
+      },
     }
   );
 }
 
 export const updateUserPreferences = async (
   username: string,
-  updates: Partial<Omit<UserPreferences, "username">>
+  updates: Partial<Omit<UserPreferences, "username">>,
+  keysToRemove?: string[]
 ): Promise<{ success: boolean; error?: string }> => {
   try {
     const allPreferences = await _readPreferences();
@@ -86,17 +94,35 @@ export const updateUserPreferences = async (
         (existingIndex >= 0
           ? allPreferences[existingIndex].pokemonThemesEnabled
           : false),
-      customKeysPath:
-        updates.customKeysPath ??
-        (existingIndex >= 0
-          ? allPreferences[existingIndex].customKeysPath
-          : undefined),
       e2eEncryptionOnTransfer:
         updates.e2eEncryptionOnTransfer ??
         (existingIndex >= 0
           ? allPreferences[existingIndex].e2eEncryptionOnTransfer
           : true),
+      torrentPreferences:
+        updates.torrentPreferences ??
+        (existingIndex >= 0
+          ? allPreferences[existingIndex].torrentPreferences
+          : {
+              seedRatio: 1.0,
+              autoStartTorrents: true,
+              maxActiveTorrents: 5,
+            }),
     };
+
+    // Handle customKeysPath
+    if ("customKeysPath" in updates && updates.customKeysPath) {
+      updatedPref.customKeysPath = updates.customKeysPath;
+    } else if (existingIndex >= 0 && allPreferences[existingIndex].customKeysPath && !keysToRemove?.includes("customKeysPath")) {
+      updatedPref.customKeysPath = allPreferences[existingIndex].customKeysPath;
+    }
+
+    // Remove keys explicitly marked for removal
+    if (keysToRemove) {
+      keysToRemove.forEach((key) => {
+        delete (updatedPref as any)[key];
+      });
+    }
 
     if (existingIndex >= 0) {
       allPreferences[existingIndex] = updatedPref;

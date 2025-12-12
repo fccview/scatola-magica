@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, ReactNode } from "react";
-import { User } from "@/app/_types";
+import { User, TorrentPreferences } from "@/app/_types";
 
 interface PreferencesContextType {
   particlesEnabled: boolean;
@@ -11,6 +11,7 @@ interface PreferencesContextType {
   encryptionKey: string | null;
   customKeysPath?: string;
   e2eEncryptionOnTransfer?: boolean;
+  torrentPreferences?: TorrentPreferences;
 }
 
 const PreferencesContext = createContext<PreferencesContextType>({
@@ -21,6 +22,11 @@ const PreferencesContext = createContext<PreferencesContextType>({
   encryptionKey: null,
   customKeysPath: undefined,
   e2eEncryptionOnTransfer: true,
+  torrentPreferences: {
+    seedRatio: 1.0,
+    autoStartTorrents: true,
+    maxActiveTorrents: 5,
+  },
 });
 
 export const PreferencesProvider = ({

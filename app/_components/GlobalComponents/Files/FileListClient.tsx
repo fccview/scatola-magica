@@ -14,6 +14,7 @@ import ConfirmDeleteFileModal from "@/app/_components/FeatureComponents/Modals/C
 import ConfirmDeleteFolderModal from "@/app/_components/FeatureComponents/Modals/ConfirmDeleteFolderModal";
 import ConfirmBulkDeleteModal from "@/app/_components/FeatureComponents/Modals/ConfirmBulkDeleteModal";
 import ErrorModal from "@/app/_components/FeatureComponents/Modals/ErrorModal";
+import TorrentCreatedModal from "@/app/_components/FeatureComponents/Modals/TorrentCreatedModal";
 import Progress from "@/app/_components/GlobalComponents/Layout/Progress";
 import { useFileList } from "@/app/_hooks/useFileList";
 
@@ -72,6 +73,8 @@ export default function FileListClient({
     setShowBulkDeleteConfirm,
     errorModal,
     setErrorModal,
+    createdTorrent,
+    setCreatedTorrent,
     toggleRecursive,
     handleDeleteFile,
     confirmDeleteFile,
@@ -81,6 +84,7 @@ export default function FileListClient({
     handleRenameFile,
     handleDownload,
     handleFileOpen,
+    handleCreateTorrent,
     handleEncrypt,
     handleDecrypt,
     handleEncryptFolder,
@@ -169,6 +173,7 @@ export default function FileListClient({
               onRename={handleRenameFolder}
               onEncrypt={() => setEncryptingFolderId(folder.id)}
               onDecrypt={() => setDecryptingFolderId(folder.id)}
+              onCreateTorrent={handleCreateTorrent}
               isSelectionMode={isSelectionMode}
               isSelected={selectedFolderIds.has(folder.id)}
               onToggleSelect={() => toggleFolderSelection(folder.id)}
@@ -189,6 +194,7 @@ export default function FileListClient({
             onOpen={handleFileOpen}
             onEncrypt={() => setEncryptingFileId(file.id)}
             onDecrypt={() => setDecryptingFileId(file.id)}
+            onCreateTorrent={handleCreateTorrent}
             isSelectionMode={isSelectionMode}
             isSelected={selectedFileIds.has(file.id)}
             onToggleSelect={() => toggleFileSelection(file.id)}
@@ -311,6 +317,15 @@ export default function FileListClient({
         message={errorModal.message}
         variant={errorModal.variant}
       />
+
+      {createdTorrent && (
+        <TorrentCreatedModal
+          onClose={() => setCreatedTorrent(null)}
+          magnetURI={createdTorrent.magnetURI}
+          torrentFile={createdTorrent.torrentFile}
+          fileName={createdTorrent.fileName}
+        />
+      )}
     </div>
   );
 }

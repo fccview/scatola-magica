@@ -23,6 +23,7 @@ interface ListCardProps {
   onOpen?: (id: string) => void;
   onEncrypt?: (id: string) => void;
   onDecrypt?: (id: string) => void;
+  onCreateTorrent?: (id: string, name: string) => void;
   isSelectionMode?: boolean;
   isSelected?: boolean;
   onToggleSelect?: () => void;
@@ -41,6 +42,7 @@ export default function ListCard({
   onOpen,
   onEncrypt,
   onDecrypt,
+  onCreateTorrent,
   isSelectionMode = false,
   isSelected = false,
   onToggleSelect,
@@ -114,11 +116,13 @@ export default function ListCard({
         onFileDownload: isFolder ? undefined : onDownload,
         onFileEncrypt: isFolder ? undefined : onEncrypt,
         onFileDecrypt: isFolder ? undefined : onDecrypt,
+        onFileCreateTorrent: isFolder ? undefined : onCreateTorrent,
         onFileDelete: isFolder ? undefined : onDelete,
         onFolderRename: isFolder && onRename ? handleRenameStart : undefined,
         onFolderDownload: isFolder ? onDownload : undefined,
         onFolderEncrypt: isFolder ? onEncrypt : undefined,
         onFolderDecrypt: isFolder ? onDecrypt : undefined,
+        onFolderCreateTorrent: isFolder ? onCreateTorrent : undefined,
         onFolderDelete: isFolder ? onDelete : undefined,
       }
     );

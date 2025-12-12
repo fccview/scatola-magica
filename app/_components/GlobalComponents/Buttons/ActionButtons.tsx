@@ -1,15 +1,18 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { useRouter } from "next/navigation";
 import IconButton from "@/app/_components/GlobalComponents/Buttons/IconButton";
 import CreateFolderModal from "@/app/_components/FeatureComponents/Modals/CreateFolderModal";
 import UploadEncryptionModal from "@/app/_components/FeatureComponents/Modals/UploadEncryptionModal";
+import AddMagnetModal from "@/app/_components/FeatureComponents/Modals/AddMagnetModal";
 import DropdownMenu, {
   DropdownMenuItem,
 } from "@/app/_components/GlobalComponents/Form/DropdownMenu";
 import { useClientEncryption } from "@/app/_hooks/useClientEncryption";
 import { useUploadOverlay } from "@/app/_providers/UploadOverlayProvider";
 import Progress from "@/app/_components/GlobalComponents/Layout/Progress";
+import { addTorrent } from "@/app/_server/actions/torrents";
 
 interface ActionButtonsProps {
   onCreateFolder: (name: string, parentId?: string | null) => Promise<void>;
@@ -22,14 +25,17 @@ export default function ActionButtons({
   onUpload,
   parentId = null,
 }: ActionButtonsProps) {
+  const router = useRouter();
   const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
   const [isEncryptionModalOpen, setIsEncryptionModalOpen] = useState(false);
+  const [isMagnetModalOpen, setIsMagnetModalOpen] = useState(false);
   const [encryptionConfig, setEncryptionConfig] = useState<{
     useOwnKey: boolean;
     customPublicKey?: string;
   } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const torrentFileInputRef = useRef<HTMLInputElement>(null);
   const { encryptFiles, isEncrypting } = useClientEncryption();
   const { openUploadWithFiles } = useUploadOverlay();
 
@@ -77,6 +83,46 @@ export default function ActionButtons({
     }
   };
 
+  const handleTorrentUpload = () => {
+    torrentFileInputRef.current?.click();
+  };
+
+  const handleTorrentFileSelect = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const file = files[0];
+    const arrayBuffer = await file.arrayBuffer();
+    const uint8Array = new Uint8Array(arrayBuffer);
+
+    try {
+      const result = await addTorrent(
+        uint8Array as any,
+        undefined,
+        parentId || undefined
+      );
+
+      if (result.success) {
+        if (confirm("Torrent added successfully! View torrents page?")) {
+          router.push("/torrents");
+        }
+      } else {
+        alert(result.error || "Failed to add torrent");
+      }
+    } catch (error) {
+      console.error("Error adding torrent:", error);
+      alert("Failed to add torrent");
+    } finally {
+      e.target.value = "";
+    }
+  };
+
+  const handleMagnetLink = () => {
+    setIsMagnetModalOpen(true);
+  };
+
   const uploadMenuItems: DropdownMenuItem[] = [
     {
       label: "Files",
@@ -87,6 +133,16 @@ export default function ActionButtons({
       label: "Encrypted Files",
       icon: "lock",
       onClick: handleEncryptedUpload,
+    },
+    {
+      label: "Torrent File",
+      icon: "hub",
+      onClick: handleTorrentUpload,
+    },
+    {
+      label: "Magnet Link",
+      icon: "link",
+      onClick: handleMagnetLink,
     },
   ];
 
@@ -141,6 +197,14 @@ export default function ActionButtons({
         className="hidden"
       />
 
+      <input
+        ref={torrentFileInputRef}
+        type="file"
+        accept=".torrent"
+        onChange={handleTorrentFileSelect}
+        className="hidden"
+      />
+
       <CreateFolderModal
         isOpen={isCreateFolderModalOpen}
         onClose={() => setIsCreateFolderModalOpen(false)}
@@ -152,6 +216,12 @@ export default function ActionButtons({
         isOpen={isEncryptionModalOpen}
         onClose={() => setIsEncryptionModalOpen(false)}
         onConfirm={handleEncryptionConfirm}
+      />
+
+      <AddMagnetModal
+        isOpen={isMagnetModalOpen}
+        onClose={() => setIsMagnetModalOpen(false)}
+        folderPath={parentId || undefined}
       />
     </>
   );

@@ -15,6 +15,7 @@ interface FileCardProps {
   onOpen?: (id: string) => void;
   onEncrypt?: (id: string) => void;
   onDecrypt?: (id: string) => void;
+  onCreateTorrent?: (id: string, name: string) => void;
   viewMode?: "grid" | "list";
   isSelectionMode?: boolean;
   isSelected?: boolean;
@@ -34,6 +35,7 @@ export default function FileCard({
   onOpen,
   onEncrypt,
   onDecrypt,
+  onCreateTorrent,
   viewMode = "grid",
   isSelectionMode = false,
   isSelected = false,
@@ -54,6 +56,7 @@ export default function FileCard({
         onOpen={onOpen}
         onEncrypt={onEncrypt}
         onDecrypt={onDecrypt}
+        onCreateTorrent={onCreateTorrent}
         isSelectionMode={isSelectionMode}
         isSelected={isSelected}
         onToggleSelect={onToggleSelect}
@@ -75,6 +78,7 @@ export default function FileCard({
       onOpen={onOpen}
       onEncrypt={onEncrypt}
       onDecrypt={onDecrypt}
+      onCreateTorrent={onCreateTorrent}
       isSelectionMode={isSelectionMode}
       isSelected={isSelected}
       onToggleSelect={onToggleSelect}

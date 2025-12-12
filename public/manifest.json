@@ -37,5 +37,15 @@
       "type": "image/png"
     }
   ],
-  "categories": ["productivity", "utilities"]
+  "categories": ["productivity", "utilities"],
+  "protocol_handlers": [
+    {
+      "protocol": "magnet",
+      "url": "/torrents?magnet=%s"
+    },
+    {
+      "protocol": "web+scatolamagica",
+      "url": "/torrents?torrent=%s"
+    }
+  ]
 }

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import ProfileTab from "@/app/_components/FeatureComponents/SettingsPage/ProfileTab";
 import PreferencesTab from "@/app/_components/FeatureComponents/SettingsPage/PreferencesTab";
@@ -17,21 +18,35 @@ import Icon from "@/app/_components/GlobalComponents/Icons/Icon";
 import Select from "@/app/_components/GlobalComponents/Form/Select";
 import { SidebarProvider } from "@/app/_providers/SidebarProvider";
 import { usePreferences } from "@/app/_providers/PreferencesProvider";
+import TorrentsTab from "@/app/_components/FeatureComponents/SettingsPage/TorrentsTab";
 
-type Tab = "profile" | "preferences" | "encryption" | "users" | "audit-logs";
+type Tab = "profile" | "preferences" | "encryption" | "users" | "audit-logs" | "torrents";
 
 export default function SettingsPage() {
   const { user } = usePreferences();
+  const searchParams = useSearchParams();
+  const [activeTab, setActiveTab] = useState<Tab>("profile");
+
+  // Read tab from URL query parameter
+  useEffect(() => {
+    const tabParam = searchParams.get("tab");
+    if (tabParam) {
+      const validTabs: Tab[] = ["profile", "preferences", "encryption", "users", "audit-logs", "torrents"];
+      if (validTabs.includes(tabParam as Tab)) {
+        setActiveTab(tabParam as Tab);
+      }
+    }
+  }, [searchParams]);
 
   if (!user) {
     return null;
   }
-  const [activeTab, setActiveTab] = useState<Tab>("profile");
 
   const tabs: { id: Tab; label: string; icon: string }[] = [
     { id: "profile", label: "Profile", icon: "person" },
     { id: "preferences", label: "Preferences", icon: "tune" },
     { id: "encryption", label: "Encryption", icon: "lock" },
+    { id: "torrents", label: "Torrents", icon: "hub" },
     ...(user.isAdmin
       ? [
           { id: "users" as Tab, label: "Users", icon: "group" },
@@ -102,6 +117,7 @@ export default function SettingsPage() {
                 {activeTab === "encryption" && <EncryptionTab />}
                 {activeTab === "users" && <UsersTab />}
                 {activeTab === "audit-logs" && <AuditLogsTab />}
+                {activeTab === "torrents" && <TorrentsTab />}
               </div>
             </main>
           </div>

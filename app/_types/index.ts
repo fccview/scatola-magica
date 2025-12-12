@@ -1,5 +1,7 @@
 import { UploadStatus } from "@/app/_types/enums";
 
+export * from "@/app/_types/torrent";
+
 export interface FileMetadata {
   id: string;
   name: string;
