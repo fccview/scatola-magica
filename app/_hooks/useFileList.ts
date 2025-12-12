@@ -17,7 +17,6 @@ import {
   decryptFolder,
 } from "@/app/_server/actions/files/encryption";
 import { useShortcuts } from "@/app/_providers/ShortcutsProvider";
-import { useContextMenu } from "@/app/_providers/ContextMenuProvider";
 import { useFileViewer } from "@/app/_providers/FileViewerProvider";
 
 interface UseFileListProps {

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { addTorrent } from "@/app/_server/actions/manage-torrents";
+import Button from "../../GlobalComponents/Buttons/Button";
 
 interface DeepLinkHandlerProps {
   onTorrentAdded?: () => void;
@@ -100,15 +101,16 @@ export default function DeepLinkHandler({
               <h3 className="text-lg font-medium text-on-surface">Error</h3>
             </div>
             <p className="text-on-surface/80 mb-4">{error}</p>
-            <button
+
+            <Button
+              variant="filled"
               onClick={() => {
                 setError(null);
                 router.replace("/torrents");
               }}
-              className="w-full py-3 px-4 bg-primary text-on-primary rounded-lg font-medium hover:bg-primary/90 transition-colors"
             >
               Close
-            </button>
+            </Button>
           </div>
         )}
       </div>

@@ -2,12 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
-import TopAppBar from "@/app/_components/GlobalComponents/Layout/TopAppBar";
-import Logo from "@/app/_components/GlobalComponents/Layout/Logo";
-import UserMenu from "@/app/_components/FeatureComponents/User/UserMenu";
-import ThemeSelector from "@/app/_components/GlobalComponents/Layout/ThemeSelector";
 import IconButton from "@/app/_components/GlobalComponents/Buttons/IconButton";
-import MyTorrentsList from "@/app/_components/FeatureComponents/TorrentsPage/MyTorrentsList";
+import MyTorrentsList from "@/app/_components/FeatureComponents/TorrentsPage/TorrentsList";
 import DownloadsList from "@/app/_components/FeatureComponents/TorrentsPage/DownloadsList";
 import AddMagnetModal from "@/app/_components/FeatureComponents/Modals/AddMagnetModal";
 import DeepLinkHandler from "@/app/_components/FeatureComponents/TorrentsPage/DeepLinkHandler";
@@ -16,8 +12,7 @@ import Select from "@/app/_components/GlobalComponents/Form/Select";
 import FilesPageBorderWrapper from "@/app/_components/GlobalComponents/Files/FilesPageBorderWrapper";
 import FilesPageWrapper from "@/app/_components/GlobalComponents/Files/FilesPageWrapper";
 import { SidebarProvider } from "@/app/_providers/SidebarProvider";
-import Link from "next/link";
-import Header from "../../GlobalComponents/Layout/Header";
+import Header from "@/app/_components/GlobalComponents/Layout/Header";
 
 type Tab = "my-torrents" | "downloads";
 
