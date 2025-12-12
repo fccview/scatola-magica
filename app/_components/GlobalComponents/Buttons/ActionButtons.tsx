@@ -12,7 +12,7 @@ import DropdownMenu, {
 import { useClientEncryption } from "@/app/_hooks/useClientEncryption";
 import { useUploadOverlay } from "@/app/_providers/UploadOverlayProvider";
 import Progress from "@/app/_components/GlobalComponents/Layout/Progress";
-import { addTorrent } from "@/app/_server/actions/torrents";
+import { addTorrent } from "@/app/_server/actions/manage-torrents";
 
 interface ActionButtonsProps {
   onCreateFolder: (name: string, parentId?: string | null) => Promise<void>;
@@ -136,7 +136,7 @@ export default function ActionButtons({
     },
     {
       label: "Torrent File",
-      icon: "hub",
+      icon: "p2p",
       onClick: handleTorrentUpload,
     },
     {

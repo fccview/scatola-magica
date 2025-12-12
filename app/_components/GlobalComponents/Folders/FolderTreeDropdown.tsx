@@ -20,13 +20,12 @@ export default function FolderTreeDropdown({
   const folderTreeHook =
     providedHook ||
     useFolderTree({
-      currentFolderId: null,
+      currentFolderId: selectedFolderId ?? null,
       onFolderSelect: onFolderSelect || (() => {}),
       variant: "dropdown",
     });
 
-  const { filteredTree, isExpanded, isActive, toggleFolder, currentFolderId } =
-    folderTreeHook;
+  const { filteredTree } = folderTreeHook;
 
   return (
     <div className={`overflow-y-auto ${maxHeight || "max-h-80"}`}>

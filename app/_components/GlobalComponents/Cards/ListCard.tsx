@@ -30,6 +30,7 @@ interface ListCardProps {
   currentUser?: User;
   allUsers?: User[];
   recursive?: boolean;
+  hasTorrent?: boolean;
 }
 
 export default function ListCard({
@@ -49,6 +50,7 @@ export default function ListCard({
   currentUser,
   allUsers = [],
   recursive = false,
+  hasTorrent = false,
 }: ListCardProps) {
   const { showContextMenu } = useContextMenu();
   const { encryptPath } = usePathEncryption();
@@ -111,7 +113,11 @@ export default function ListCard({
       },
       {
         onFileOpen: isFolder ? undefined : onOpen,
-        onFileRename: isFolder ? undefined : onRename ? handleRenameStart : undefined,
+        onFileRename: isFolder
+          ? undefined
+          : onRename
+          ? handleRenameStart
+          : undefined,
         onFileMove: isFolder ? undefined : onMove,
         onFileDownload: isFolder ? undefined : onDownload,
         onFileEncrypt: isFolder ? undefined : onEncrypt,
@@ -178,7 +184,7 @@ export default function ListCard({
 
       if (folderUser) {
         return (
-          <UserAvatar user={folderUser} size="md" className="flex-shrink-0" />
+          <UserAvatar user={folderUser} size="lg" className="flex-shrink-0" />
         );
       }
 
@@ -187,7 +193,7 @@ export default function ListCard({
       return (
         <Icon
           icon={hasItems ? "folder_open" : "folder"}
-          size="md"
+          size="lg"
           className="flex-shrink-0"
         />
       );
@@ -197,13 +203,13 @@ export default function ListCard({
     return iconInfo.extension ? (
       <FileIconComponent
         extension={iconInfo.extension}
-        size="md"
+        size="lg"
         className="flex-shrink-0"
       />
     ) : (
       <Icon
         icon={iconInfo.materialIcon}
-        size="md"
+        size="lg"
         className="text-on-surface-variant flex-shrink-0"
       />
     );
@@ -296,9 +302,11 @@ export default function ListCard({
             {file.folderPath}/
           </span>
         )}
-        <span className="text-base font-normal text-on-surface break-all">
-          {itemName}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-base font-normal text-on-surface break-all">
+            {itemName}
+          </span>
+        </div>
       </div>
     );
   };
@@ -326,7 +334,15 @@ export default function ListCard({
         </div>
       )}
 
-      {renderItemIcon()}
+      <div className="relative">
+        {renderItemIcon()}
+
+        {hasTorrent && (
+          <div className="absolute -top-2 -left-3 bg-sidebar-active border border-dashed border-outline-variant rounded-full flex items-center justify-center p-1">
+            <Icon icon="p2p" size="xxs" className="text-on-primary text-xs" />
+          </div>
+        )}
+      </div>
 
       <div className="flex-1 min-w-0">
         {isRenaming ? (

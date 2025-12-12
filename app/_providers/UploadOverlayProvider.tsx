@@ -70,43 +70,59 @@ export default function UploadOverlayProvider({
     []
   );
 
-  const handleDragEnter = useCallback((e: DragEvent) => {
-    if (isModalOpenRef.current) return;
-
-    e.preventDefault();
-
-    if (e.dataTransfer?.types?.includes("Files")) {
-      setDragCounter((prev) => prev + 1);
-      setIsDragging(true);
-    }
+  const isAnyModalOpen = useCallback(() => {
+    if (isModalOpenRef.current) return true;
+    return document.querySelector(".modal-overlay") !== null;
   }, []);
 
-  const handleDragOver = useCallback((e: DragEvent) => {
-    if (isModalOpenRef.current) return;
+  const handleDragEnter = useCallback(
+    (e: DragEvent) => {
+      if (isAnyModalOpen()) return;
 
-    e.preventDefault();
+      e.preventDefault();
 
-    if (e.dataTransfer) {
-      e.dataTransfer.dropEffect = "copy";
-    }
-  }, []);
-
-  const handleDragLeave = useCallback((e: DragEvent) => {
-    if (isModalOpenRef.current) return;
-
-    e.preventDefault();
-
-    setDragCounter((prev) => {
-      const newCount = prev - 1;
-      if (newCount === 0) {
-        setIsDragging(false);
+      if (e.dataTransfer?.types?.includes("Files")) {
+        setDragCounter((prev) => prev + 1);
+        setIsDragging(true);
       }
-      return newCount;
-    });
-  }, []);
+    },
+    [isAnyModalOpen]
+  );
+
+  const handleDragOver = useCallback(
+    (e: DragEvent) => {
+      if (isAnyModalOpen()) return;
+
+      e.preventDefault();
+
+      if (e.dataTransfer) {
+        e.dataTransfer.dropEffect = "copy";
+      }
+    },
+    [isAnyModalOpen]
+  );
+
+  const handleDragLeave = useCallback(
+    (e: DragEvent) => {
+      if (isAnyModalOpen()) return;
+
+      e.preventDefault();
+
+      setDragCounter((prev) => {
+        const newCount = prev - 1;
+        if (newCount === 0) {
+          setIsDragging(false);
+        }
+        return newCount;
+      });
+    },
+    [isAnyModalOpen]
+  );
 
   const handleDrop = useCallback(
     async (e: DragEvent) => {
+      if (isAnyModalOpen()) return;
+
       e.preventDefault();
       e.stopPropagation();
 
@@ -118,6 +134,35 @@ export default function UploadOverlayProvider({
       if (!e.dataTransfer) return;
 
       try {
+        const files = e.dataTransfer.files;
+        if (files && files.length > 0) {
+          for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            if (file.name.endsWith(".torrent")) {
+              const reader = new FileReader();
+              reader.onload = () => {
+                sessionStorage.setItem(
+                  "pendingTorrentFile",
+                  reader.result as string
+                );
+                sessionStorage.setItem("pendingTorrentFileName", file.name);
+                if (pathname === "/torrents") {
+                  window.dispatchEvent(
+                    new CustomEvent("torrent-paste", {
+                      detail: { torrentFile: file.name },
+                    })
+                  );
+                  router.replace("/torrents?tab=downloads&action=add");
+                } else {
+                  router.push("/torrents?tab=downloads&action=add");
+                }
+              };
+              reader.readAsDataURL(file);
+              return;
+            }
+          }
+        }
+
         let currentFolderId: string | null = null;
 
         if (pathname.startsWith("/files/")) {
@@ -161,7 +206,7 @@ export default function UploadOverlayProvider({
 
   const handlePaste = useCallback(
     (e: ClipboardEvent) => {
-      if (isModalOpenRef.current) return;
+      if (isAnyModalOpen()) return;
 
       const target = e.target as HTMLElement;
       const isTypingInInput =
@@ -183,6 +228,29 @@ export default function UploadOverlayProvider({
           hasFiles = true;
           const file = item.getAsFile();
           if (file) {
+            if (file.name.endsWith(".torrent")) {
+              e.preventDefault();
+              const reader = new FileReader();
+              reader.onload = () => {
+                sessionStorage.setItem(
+                  "pendingTorrentFile",
+                  reader.result as string
+                );
+                sessionStorage.setItem("pendingTorrentFileName", file.name);
+                if (pathname === "/torrents") {
+                  window.dispatchEvent(
+                    new CustomEvent("torrent-paste", {
+                      detail: { torrentFile: file.name },
+                    })
+                  );
+                  router.replace("/torrents?tab=downloads&action=add");
+                } else {
+                  router.push("/torrents?tab=downloads&action=add");
+                }
+              };
+              reader.readAsDataURL(file);
+              return;
+            }
             files.push(file);
           }
         }
@@ -198,6 +266,29 @@ export default function UploadOverlayProvider({
 
           textItem.getAsString((text) => {
             if (!text.trim()) return;
+
+            if (text.trim().startsWith("magnet:")) {
+              const magnet = text.trim();
+              if (pathname === "/torrents") {
+                sessionStorage.setItem("pendingMagnet", magnet);
+                window.dispatchEvent(
+                  new CustomEvent("torrent-paste", { detail: { magnet } })
+                );
+                router.replace(
+                  `/torrents?tab=downloads&action=add&magnet=${encodeURIComponent(
+                    magnet
+                  )}`
+                );
+              } else {
+                router.push(
+                  `/torrents?tab=downloads&action=add&magnet=${encodeURIComponent(
+                    magnet
+                  )}`
+                );
+              }
+              isModalOpenRef.current = true;
+              return;
+            }
 
             const timestamp = new Date()
               .toISOString()
@@ -255,7 +346,7 @@ export default function UploadOverlayProvider({
       setIsUploadModalOpen(true);
       isModalOpenRef.current = true;
     },
-    [pathname]
+    [pathname, router, isAnyModalOpen]
   );
 
   useEffect(() => {

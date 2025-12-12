@@ -1,11 +1,6 @@
-import Link from "next/link";
 import { Suspense } from "react";
 import { SortBy } from "@/app/_types/enums";
-import TopAppBar from "@/app/_components/GlobalComponents/Layout/TopAppBar";
-import ThemeSelector from "@/app/_components/GlobalComponents/Layout/ThemeSelector";
-import HelpButton from "@/app/_components/GlobalComponents/Layout/HelpButton";
-import UserMenu from "@/app/_components/FeatureComponents/User/UserMenu";
-import Logo from "@/app/_components/GlobalComponents/Layout/Logo";
+import Header from "@/app/_components/GlobalComponents/Layout/Header";
 import Progress from "@/app/_components/GlobalComponents/Layout/Progress";
 import FolderTreeSidebar from "@/app/_components/GlobalComponents/Folders/FolderTreeSidebar";
 import FilesPageClient from "@/app/_components/FeatureComponents/FilesPage/FilesPageClient";
@@ -13,7 +8,6 @@ import FilesContent from "@/app/_components/FeatureComponents/FilesPage/FilesCon
 import FilesPageWrapper from "@/app/_components/GlobalComponents/Files/FilesPageWrapper";
 import MobileSidebarWrapper from "@/app/_components/FeatureComponents/FilesPage/MobileSidebarWrapper";
 import { SidebarProvider } from "@/app/_providers/SidebarProvider";
-import { getCurrentUser } from "@/app/_server/actions/user";
 import FilesPageBorderWrapper from "@/app/_components/GlobalComponents/Files/FilesPageBorderWrapper";
 import { decryptPath } from "@/app/_lib/path-encryption";
 
@@ -47,23 +41,7 @@ export default async function FilesPage(props: PageProps) {
       <SidebarProvider>
         <FilesPageWrapper folderPath={folderPath}>
           <div className="flex-shrink-0">
-            <TopAppBar
-              leading={
-                <Link
-                  href="/"
-                  className="flex items-center justify-center leading-[0] gap-2 pt-8 pb-2 -ml-4"
-                >
-                  <Logo className="w-16 h-16 lg:w-20 lg:h-20" hideBox={true} />
-                </Link>
-              }
-              trailing={
-                <div className="flex items-center gap-2">
-                  <HelpButton />
-                  <ThemeSelector />
-                  <UserMenu />
-                </div>
-              }
-            />
+            <Header showFilesButton={false} />
           </div>
           <div className="flex flex-1 overflow-hidden min-h-0">
             <MobileSidebarWrapper

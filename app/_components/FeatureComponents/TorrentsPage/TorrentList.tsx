@@ -2,7 +2,13 @@
 
 import { useState } from "react";
 import { useTorrents } from "@/app/_hooks/useTorrents";
-import { pauseTorrent, resumeTorrent, removeTorrent } from "@/app/_server/actions/torrents";
+import {
+  pauseTorrent,
+  resumeTorrent,
+  removeTorrent,
+  stopTorrent,
+  startSeedingCreatedTorrent,
+} from "@/app/_server/actions/manage-torrents";
 import { TorrentStatus } from "@/app/_types/torrent";
 import Button from "@/app/_components/GlobalComponents/Buttons/Button";
 import IconButton from "@/app/_components/GlobalComponents/Buttons/IconButton";
@@ -43,6 +49,8 @@ const getStatusColor = (status: TorrentStatus): string => {
       return "text-on-surface/40";
     case TorrentStatus.ERROR:
       return "text-error";
+    case TorrentStatus.CREATED:
+      return "text-tertiary";
     default:
       return "text-on-surface/60";
   }
@@ -63,6 +71,8 @@ const getStatusIcon = (status: TorrentStatus): string => {
       return "pause_circle";
     case TorrentStatus.ERROR:
       return "error";
+    case TorrentStatus.CREATED:
+      return "link";
     default:
       return "help";
   }
@@ -71,8 +81,6 @@ const getStatusIcon = (status: TorrentStatus): string => {
 export default function TorrentList() {
   const { torrents, total, isLoading, error, refresh } = useTorrents();
   const [actioningTorrent, setActioningTorrent] = useState<string | null>(null);
-
-  console.log("TorrentList render:", { torrents, total, isLoading, error });
 
   const handlePause = async (infoHash: string) => {
     setActioningTorrent(infoHash);
@@ -106,6 +114,38 @@ export default function TorrentList() {
     }
   };
 
+  const handleStop = async (infoHash: string) => {
+    setActioningTorrent(infoHash);
+    try {
+      const result = await stopTorrent(infoHash);
+      if (!result.success) {
+        alert(result.error || "Failed to stop torrent");
+      }
+      await refresh();
+    } catch (error) {
+      console.error("Error stopping torrent:", error);
+      alert("Failed to stop torrent");
+    } finally {
+      setActioningTorrent(null);
+    }
+  };
+
+  const handleStartSeeding = async (infoHash: string) => {
+    setActioningTorrent(infoHash);
+    try {
+      const result = await startSeedingCreatedTorrent(infoHash);
+      if (!result.success) {
+        alert(result.error || "Failed to start seeding");
+      }
+      await refresh();
+    } catch (error) {
+      console.error("Error starting seeding:", error);
+      alert("Failed to start seeding");
+    } finally {
+      setActioningTorrent(null);
+    }
+  };
+
   const handleRemove = async (infoHash: string, name: string) => {
     if (!confirm(`Remove "${name}"? Files will not be deleted.`)) {
       return;
@@ -124,6 +164,11 @@ export default function TorrentList() {
     } finally {
       setActioningTorrent(null);
     }
+  };
+
+  const copyMagnetLink = (magnetURI: string | undefined) => {
+    if (!magnetURI) return;
+    navigator.clipboard.writeText(magnetURI);
   };
 
   if (isLoading) {
@@ -168,12 +213,20 @@ export default function TorrentList() {
       {torrents.map((torrent) => {
         const { metadata, state } = torrent;
         const isActioning = actioningTorrent === metadata.infoHash;
+        const isCreated = state.status === TorrentStatus.CREATED;
         const canPause =
-          state.status === TorrentStatus.DOWNLOADING ||
-          state.status === TorrentStatus.SEEDING;
+          !isCreated &&
+          (state.status === TorrentStatus.DOWNLOADING ||
+            state.status === TorrentStatus.SEEDING);
         const canResume =
-          state.status === TorrentStatus.PAUSED ||
-          state.status === TorrentStatus.STOPPED;
+          !isCreated &&
+          (state.status === TorrentStatus.PAUSED ||
+            state.status === TorrentStatus.STOPPED);
+        const canStop =
+          !isCreated &&
+          (state.status === TorrentStatus.DOWNLOADING ||
+            state.status === TorrentStatus.SEEDING ||
+            state.status === TorrentStatus.PAUSED);
 
         return (
           <div
@@ -205,10 +258,34 @@ export default function TorrentList() {
                     </>
                   )}
                 </div>
+
+                {metadata.magnetURI && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="text-xs text-on-surface/40">Magnet:</span>
+                    <code className="text-xs text-on-surface/60 bg-surface-container-highest px-2 py-1 rounded truncate max-w-md">
+                      {metadata.magnetURI}
+                    </code>
+                    <IconButton
+                      icon="content_copy"
+                      onClick={() => copyMagnetLink(metadata.magnetURI)}
+                      ariaLabel="Copy magnet link"
+                      size="sm"
+                      className="text-on-surface/60"
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center gap-2">
-                {canPause && (
+                {isCreated && (
+                  <IconButton
+                    icon="upload"
+                    onClick={() => handleStartSeeding(metadata.infoHash)}
+                    disabled={isActioning}
+                    ariaLabel="Start seeding"
+                  />
+                )}
+                {!isCreated && canPause && (
                   <IconButton
                     icon="pause"
                     onClick={() => handlePause(metadata.infoHash)}
@@ -216,7 +293,7 @@ export default function TorrentList() {
                     ariaLabel="Pause torrent"
                   />
                 )}
-                {canResume && (
+                {!isCreated && canResume && (
                   <IconButton
                     icon="play_arrow"
                     onClick={() => handleResume(metadata.infoHash)}
@@ -224,28 +301,54 @@ export default function TorrentList() {
                     ariaLabel="Resume torrent"
                   />
                 )}
+                {!isCreated && canStop && (
+                  <IconButton
+                    icon="stop"
+                    onClick={() => handleStop(metadata.infoHash)}
+                    disabled={isActioning}
+                    ariaLabel="Stop torrent"
+                  />
+                )}
                 <IconButton
                   icon="delete"
                   onClick={() => handleRemove(metadata.infoHash, metadata.name)}
                   disabled={isActioning}
-                  ariaLabel="Remove torrent"
+                  ariaLabel={
+                    isCreated ? "Delete created torrent" : "Remove torrent"
+                  }
                 />
               </div>
             </div>
 
-            {/* Progress bar */}
-            <div className="mb-3">
-              <div className="w-full bg-surface-container-highest rounded-full h-2 overflow-hidden">
-                <div
-                  className={`h-full transition-all duration-300 ${
-                    state.status === TorrentStatus.SEEDING
-                      ? "bg-tertiary"
-                      : "bg-primary"
-                  }`}
-                  style={{ width: `${Math.min(state.progress * 100, 100)}%` }}
-                />
+            {/* Progress bar - only show for non-created torrents */}
+            {!isCreated && (
+              <div className="mb-3">
+                <div className="w-full bg-surface-container-highest rounded-full h-2 overflow-hidden">
+                  <div
+                    className={`h-full transition-all duration-300 ${
+                      state.status === TorrentStatus.SEEDING
+                        ? "bg-tertiary"
+                        : "bg-primary"
+                    }`}
+                    style={{ width: `${Math.min(state.progress * 100, 100)}%` }}
+                  />
+                </div>
               </div>
-            </div>
+            )}
+
+            {isCreated && (
+              <div className="mb-3 p-3 bg-tertiary-container rounded text-sm text-on-tertiary-container">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-sm">
+                    info
+                  </span>
+                  <span>
+                    This is a torrent you created for sharing. Delete it to
+                    remove the record and .torrent file.
+                  </span>
+                </div>
+              </div>
+            )}
 
             {/* Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
@@ -280,14 +383,18 @@ export default function TorrentList() {
               {state.status === TorrentStatus.DOWNLOADING && (
                 <>
                   <div>
-                    <div className="text-on-surface/60 mb-1">Download Speed</div>
+                    <div className="text-on-surface/60 mb-1">
+                      Download Speed
+                    </div>
                     <div className="text-on-surface font-medium">
                       {formatSpeed(state.downloadSpeed)}
                     </div>
                   </div>
 
                   <div>
-                    <div className="text-on-surface/60 mb-1">Time Remaining</div>
+                    <div className="text-on-surface/60 mb-1">
+                      Time Remaining
+                    </div>
                     <div className="text-on-surface font-medium">
                       {formatTime(state.timeRemaining)}
                     </div>

@@ -48,6 +48,7 @@
     "remark-gfm": "^4.0.1",
     "ut_metadata": "^4.0.3",
     "ut_pex": "^4.0.4",
+    "utp-native": "^2.5.3",
     "webtorrent": "^2.8.5"
   },
   "devDependencies": {

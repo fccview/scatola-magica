@@ -14,9 +14,10 @@ import ConfirmDeleteFileModal from "@/app/_components/FeatureComponents/Modals/C
 import ConfirmDeleteFolderModal from "@/app/_components/FeatureComponents/Modals/ConfirmDeleteFolderModal";
 import ConfirmBulkDeleteModal from "@/app/_components/FeatureComponents/Modals/ConfirmBulkDeleteModal";
 import ErrorModal from "@/app/_components/FeatureComponents/Modals/ErrorModal";
-import TorrentCreatedModal from "@/app/_components/FeatureComponents/Modals/TorrentCreatedModal";
+import CreateTorrentModal from "@/app/_components/FeatureComponents/Modals/TorrentCreatedModal";
 import Progress from "@/app/_components/GlobalComponents/Layout/Progress";
 import { useFileList } from "@/app/_hooks/useFileList";
+import { useFileTorrents } from "@/app/_hooks/useFileTorrents";
 
 interface FileListClientProps {
   files: FileMetadata[];
@@ -75,6 +76,9 @@ export default function FileListClient({
     setErrorModal,
     createdTorrent,
     setCreatedTorrent,
+    createTorrentModal,
+    setCreateTorrentModal,
+    handleCreateTorrentConfirm,
     toggleRecursive,
     handleDeleteFile,
     confirmDeleteFile,
@@ -109,6 +113,8 @@ export default function FileListClient({
     sortBy,
     initialHasMore,
   });
+
+  const { hasTorrent, refresh: refreshTorrents } = useFileTorrents();
 
   if (allFiles.length === 0 && folders.length === 0 && !isLoadingMore) {
     return (
@@ -163,44 +169,54 @@ export default function FileListClient({
         }`}
       >
         {!isRecursive &&
-          folders.map((folder) => (
+          folders.map((folder) => {
+            const folderPath = folder.id;
+            return (
+              <FileCard
+                key={folder.id}
+                folder={folder}
+                viewMode={viewMode === FileViewMode.GRID ? "grid" : "list"}
+                onDelete={handleDeleteFolder}
+                onDownload={handleFolderDownload}
+                onRename={handleRenameFolder}
+                onEncrypt={() => setEncryptingFolderId(folder.id)}
+                onDecrypt={() => setDecryptingFolderId(folder.id)}
+                onCreateTorrent={handleCreateTorrent}
+                isSelectionMode={isSelectionMode}
+                isSelected={selectedFolderIds.has(folder.id)}
+                onToggleSelect={() => toggleFolderSelection(folder.id)}
+                allUsers={allUsers}
+                recursive={isRecursive}
+                hasTorrent={hasTorrent(folderPath)}
+              />
+            );
+          })}
+
+        {allFiles.map((file) => {
+          const filePath = file.folderPath
+            ? `${file.folderPath}/${file.originalName}`
+            : file.originalName;
+          return (
             <FileCard
-              key={folder.id}
-              folder={folder}
+              key={file.id}
+              file={file}
               viewMode={viewMode === FileViewMode.GRID ? "grid" : "list"}
-              onDelete={handleDeleteFolder}
-              onDownload={handleFolderDownload}
-              onRename={handleRenameFolder}
-              onEncrypt={() => setEncryptingFolderId(folder.id)}
-              onDecrypt={() => setDecryptingFolderId(folder.id)}
+              onDelete={handleDeleteFile}
+              onDownload={handleDownload}
+              onMove={() => setMoveFileIds([file.id])}
+              onRename={handleRenameFile}
+              onOpen={handleFileOpen}
+              onEncrypt={() => setEncryptingFileId(file.id)}
+              onDecrypt={() => setDecryptingFileId(file.id)}
               onCreateTorrent={handleCreateTorrent}
               isSelectionMode={isSelectionMode}
-              isSelected={selectedFolderIds.has(folder.id)}
-              onToggleSelect={() => toggleFolderSelection(folder.id)}
-              allUsers={allUsers}
+              isSelected={selectedFileIds.has(file.id)}
+              onToggleSelect={() => toggleFileSelection(file.id)}
               recursive={isRecursive}
+              hasTorrent={hasTorrent(filePath)}
             />
-          ))}
-
-        {allFiles.map((file) => (
-          <FileCard
-            key={file.id}
-            file={file}
-            viewMode={viewMode === FileViewMode.GRID ? "grid" : "list"}
-            onDelete={handleDeleteFile}
-            onDownload={handleDownload}
-            onMove={() => setMoveFileIds([file.id])}
-            onRename={handleRenameFile}
-            onOpen={handleFileOpen}
-            onEncrypt={() => setEncryptingFileId(file.id)}
-            onDecrypt={() => setDecryptingFileId(file.id)}
-            onCreateTorrent={handleCreateTorrent}
-            isSelectionMode={isSelectionMode}
-            isSelected={selectedFileIds.has(file.id)}
-            onToggleSelect={() => toggleFileSelection(file.id)}
-            recursive={isRecursive}
-          />
-        ))}
+          );
+        })}
 
         {isLoadingMore && (
           <div className="col-span-full flex items-center justify-center py-8">
@@ -318,12 +334,22 @@ export default function FileListClient({
         variant={errorModal.variant}
       />
 
-      {createdTorrent && (
-        <TorrentCreatedModal
-          onClose={() => setCreatedTorrent(null)}
-          magnetURI={createdTorrent.magnetURI}
-          torrentFile={createdTorrent.torrentFile}
-          fileName={createdTorrent.fileName}
+      {createTorrentModal && (
+        <CreateTorrentModal
+          isOpen={createTorrentModal.isOpen}
+          onClose={() => {
+            setCreateTorrentModal(null);
+            setCreatedTorrent(null);
+            refreshTorrents();
+          }}
+          fileName={createTorrentModal.fileName}
+          onCreate={async (options) => {
+            const result = await handleCreateTorrentConfirm(options);
+            if (result) {
+              refreshTorrents();
+            }
+            return result;
+          }}
         />
       )}
     </div>

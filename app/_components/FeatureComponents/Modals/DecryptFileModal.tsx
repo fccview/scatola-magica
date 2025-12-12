@@ -198,7 +198,7 @@ export default function DecryptFileModal({
                 required
                 disabled={decrypting}
                 placeholder="Enter your private key password"
-                helperText="This is the password that protects your private key."
+                description="This is the password that protects your private key."
               />
               <button
                 type="button"

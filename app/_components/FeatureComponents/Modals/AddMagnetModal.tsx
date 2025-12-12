@@ -1,40 +1,147 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Modal from "@/app/_components/GlobalComponents/Layout/Modal";
 import Input from "@/app/_components/GlobalComponents/Form/Input";
 import Button from "@/app/_components/GlobalComponents/Buttons/Button";
-import { addTorrent } from "@/app/_server/actions/torrents";
-import { fetchTorrentMetadata, TorrentMetadataInfo } from "@/app/_server/actions/torrents/metadata";
+import Checkbox from "@/app/_components/GlobalComponents/Form/Checkbox";
+import FolderTreeDropdown from "@/app/_components/GlobalComponents/Folders/FolderTreeDropdown";
+import { addTorrent } from "@/app/_server/actions/manage-torrents";
+import {
+  fetchTorrentMetadata,
+  TorrentMetadataInfo,
+} from "@/app/_lib/torrents/torrent-metadata";
 
 interface AddMagnetModalProps {
   isOpen: boolean;
   onClose: () => void;
   folderPath?: string;
+  initialMagnet?: string;
+  initialTorrentFile?: File;
 }
 
 export default function AddMagnetModal({
   isOpen,
   onClose,
   folderPath,
+  initialMagnet,
+  initialTorrentFile,
 }: AddMagnetModalProps) {
   const router = useRouter();
   const [magnetURI, setMagnetURI] = useState("");
+  const [torrentFile, setTorrentFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingStatus, setLoadingStatus] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [metadata, setMetadata] = useState<TorrentMetadataInfo | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<Set<number>>(new Set());
+  const [selectedFolder, setSelectedFolder] = useState<string | null>(
+    folderPath || null
+  );
+
+  useEffect(() => {
+    if (isOpen) {
+      if (initialMagnet) {
+        setMagnetURI(initialMagnet);
+        setTorrentFile(null);
+        setError(null);
+        setMetadata(null);
+        setSelectedFiles(new Set());
+      } else if (initialTorrentFile) {
+        setTorrentFile(initialTorrentFile);
+        setMagnetURI("");
+        setError(null);
+        setMetadata(null);
+        setSelectedFiles(new Set());
+      } else {
+        setMagnetURI("");
+        setTorrentFile(null);
+        setError(null);
+        setMetadata(null);
+        setSelectedFiles(new Set());
+        setSelectedFolder(folderPath || null);
+      }
+    }
+  }, [isOpen, initialMagnet, initialTorrentFile, folderPath]);
+
+  useEffect(() => {
+    if (
+      isOpen &&
+      (initialMagnet || initialTorrentFile) &&
+      !metadata &&
+      !isLoading
+    ) {
+      const fetchInitialMetadata = async () => {
+        if (!initialMagnet && !initialTorrentFile) return;
+
+        setIsLoading(true);
+        setError(null);
+        setLoadingStatus("Connecting to DHT...");
+
+        try {
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          setLoadingStatus("Finding peers...");
+
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          setLoadingStatus("Fetching metadata...");
+
+          let result;
+          if (initialTorrentFile) {
+            const buffer = await initialTorrentFile.arrayBuffer();
+            const uint8Array = new Uint8Array(buffer);
+            result = await fetchTorrentMetadata(uint8Array);
+          } else if (initialMagnet) {
+            result = await fetchTorrentMetadata(initialMagnet);
+          } else {
+            return;
+          }
+
+          if (result.success && result.data) {
+            setLoadingStatus("Metadata received!");
+            await new Promise((resolve) => setTimeout(resolve, 300));
+
+            setMetadata(result.data);
+            setSelectedFiles(new Set());
+            setLoadingStatus("");
+          } else {
+            setError(result.error || "Failed to fetch torrent metadata");
+            setLoadingStatus("");
+          }
+        } catch (err) {
+          console.error("Error fetching metadata:", err);
+          setError("Failed to fetch torrent metadata");
+          setLoadingStatus("");
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      fetchInitialMetadata();
+    }
+  }, [isOpen, initialMagnet, initialTorrentFile]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.name.endsWith(".torrent")) {
+        setError("Please select a .torrent file");
+        return;
+      }
+      setTorrentFile(file);
+      setMagnetURI("");
+      setError(null);
+    }
+  };
 
   const handleFetchMetadata = async () => {
-    if (!magnetURI.trim()) {
-      setError("Magnet URI is required");
+    if (!magnetURI.trim() && !torrentFile) {
+      setError("Provide a magnet URI or .torrent file");
       return;
     }
 
-    if (!magnetURI.startsWith("magnet:")) {
+    if (magnetURI && !magnetURI.startsWith("magnet:")) {
       setError("Invalid magnet URI format");
       return;
     }
@@ -44,21 +151,26 @@ export default function AddMagnetModal({
     setLoadingStatus("Connecting to DHT...");
 
     try {
-      // Simulate progressive loading states
       await new Promise((resolve) => setTimeout(resolve, 500));
       setLoadingStatus("Finding peers...");
 
       await new Promise((resolve) => setTimeout(resolve, 1000));
       setLoadingStatus("Fetching metadata...");
 
-      const result = await fetchTorrentMetadata(magnetURI);
+      let result;
+      if (torrentFile) {
+        const buffer = await torrentFile.arrayBuffer();
+        const uint8Array = new Uint8Array(buffer);
+        result = await fetchTorrentMetadata(uint8Array);
+      } else {
+        result = await fetchTorrentMetadata(magnetURI);
+      }
 
       if (result.success && result.data) {
         setLoadingStatus("Metadata received!");
         await new Promise((resolve) => setTimeout(resolve, 300));
 
         setMetadata(result.data);
-        // Select all files by default
         const allFiles = new Set(result.data.files.map((_, i) => i));
         setSelectedFiles(allFiles);
         setLoadingStatus("");
@@ -83,11 +195,27 @@ export default function AddMagnetModal({
     setSuccess(false);
 
     try {
-      const result = await addTorrent(magnetURI, undefined, folderPath);
+      let result;
+      if (torrentFile) {
+        const buffer = await torrentFile.arrayBuffer();
+        const uint8Array = new Uint8Array(buffer);
+        result = await addTorrent(
+          uint8Array,
+          undefined,
+          selectedFolder || undefined
+        );
+      } else {
+        result = await addTorrent(
+          magnetURI,
+          undefined,
+          selectedFolder || undefined
+        );
+      }
 
       if (result.success) {
         setSuccess(true);
         setMagnetURI("");
+        setTorrentFile(null);
         setMetadata(null);
         setSelectedFiles(new Set());
         setTimeout(() => {
@@ -127,10 +255,12 @@ export default function AddMagnetModal({
   const handleClose = () => {
     if (isLoading) return;
     setMagnetURI("");
+    setTorrentFile(null);
     setError(null);
     setSuccess(false);
     setMetadata(null);
     setSelectedFiles(new Set());
+    setSelectedFolder(folderPath || null);
     onClose();
   };
 
@@ -146,10 +276,10 @@ export default function AddMagnetModal({
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title={metadata ? "Select Files to Download" : "Add Magnet Link"}
-      actions={
+      title={metadata ? "Select Files to Download" : "Add Torrent"}
+      headerActions={
         <>
-          <Button onClick={handleClose} variant="text" disabled={isLoading}>
+          <Button onClick={handleClose} variant="outlined" disabled={isLoading}>
             Cancel
           </Button>
           {metadata ? (
@@ -158,13 +288,13 @@ export default function AddMagnetModal({
               variant="filled"
               disabled={isLoading || selectedFiles.size === 0}
             >
-              {isLoading ? "Adding..." : `Download (${selectedFiles.size} files)`}
+              {isLoading ? "Adding..." : `Download (${selectedFiles.size})`}
             </Button>
           ) : (
             <Button
               onClick={handleFetchMetadata}
               variant="filled"
-              disabled={isLoading || !magnetURI.trim()}
+              disabled={isLoading || (!magnetURI.trim() && !torrentFile)}
             >
               {isLoading ? "Fetching..." : "Next"}
             </Button>
@@ -172,7 +302,7 @@ export default function AddMagnetModal({
         </>
       }
     >
-      <div className="flex flex-col gap-4">
+      <div className="p-6 flex flex-col gap-6">
         {success && (
           <div className="flex flex-col gap-2 text-sm text-on-success-container bg-success-container p-3 rounded">
             <div className="flex items-center gap-2">
@@ -194,72 +324,129 @@ export default function AddMagnetModal({
             <Input
               label="Magnet URI"
               value={magnetURI}
-              onChange={(e) => setMagnetURI(e.target.value)}
+              onChange={(e) => {
+                setMagnetURI(e.target.value);
+                if (e.target.value) setTorrentFile(null);
+              }}
               placeholder="magnet:?xt=urn:btih:..."
-              disabled={isLoading || success}
+              disabled={isLoading || success || !!torrentFile}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && magnetURI.trim() && !isLoading && !success) {
+                if (
+                  e.key === "Enter" &&
+                  magnetURI.trim() &&
+                  !isLoading &&
+                  !success
+                ) {
                   handleFetchMetadata();
                 }
               }}
             />
 
+            <div className="flex items-center gap-4">
+              <div className="flex-1 h-px border-t border-dashed border-outline"></div>
+              <span className="text-sm text-on-surface/60">OR</span>
+              <div className="flex-1 h-px border-t border-dashed border-outline"></div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-on-surface mb-2">
+                Torrent File
+              </label>
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="outlined"
+                  onClick={() =>
+                    document.getElementById("torrent-file-input")?.click()
+                  }
+                  disabled={!!magnetURI || isLoading}
+                >
+                  Choose File
+                </Button>
+                {torrentFile && (
+                  <span className="text-sm text-on-surface">
+                    {torrentFile.name}
+                  </span>
+                )}
+              </div>
+              <input
+                id="torrent-file-input"
+                type="file"
+                accept=".torrent"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+            </div>
+
             {loadingStatus && (
               <div className="flex items-center gap-3 p-3 bg-surface-container rounded">
-                <div className="animate-spin">
-                  <span className="material-symbols-outlined text-primary">progress_activity</span>
-                </div>
+                <span className="material-symbols-outlined text-primary animate-spin inline-block">
+                  progress_activity
+                </span>
                 <span className="text-sm text-on-surface">{loadingStatus}</span>
-              </div>
-            )}
-
-            {folderPath && !success && !loadingStatus && (
-              <div className="flex items-center gap-2 text-xs text-on-surface-variant bg-surface-container p-2 rounded">
-                <span className="material-symbols-outlined text-sm">folder</span>
-                <span>Download to: {folderPath}</span>
               </div>
             )}
           </>
         ) : (
           <>
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm font-medium text-on-surface">{metadata.name}</div>
-                  <div className="text-xs text-on-surface-variant">{formatBytes(metadata.size)} • {metadata.files.length} files</div>
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="text" onClick={selectAll} size="sm">
-                    Select All
-                  </Button>
-                  <Button variant="text" onClick={deselectAll} size="sm">
-                    Deselect All
-                  </Button>
+            <div className="p-4 bg-surface-container rounded-lg">
+              <div className="flex items-start gap-3">
+                <span className="material-symbols-outlined text-primary text-2xl">
+                  folder_zip
+                </span>
+                <div className="flex-1">
+                  <div className="text-base font-medium text-on-surface mb-1">
+                    {metadata.name}
+                  </div>
+                  <div className="text-sm text-on-surface-variant">
+                    {formatBytes(metadata.size)} • {metadata.files.length} file
+                    {metadata.files.length !== 1 ? "s" : ""}
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="max-h-64 overflow-y-auto border border-outline rounded">
-              {metadata.files.map((file, index) => (
-                <div
-                  key={index}
-                  className={`flex items-center gap-3 p-2 cursor-pointer hover:bg-surface-container ${
-                    selectedFiles.has(index) ? "bg-surface-container" : ""
-                  }`}
-                  onClick={() => toggleFileSelection(index)}
-                >
-                  <input
-                    type="checkbox"
+            <div>
+              <label className="block text-sm font-medium text-on-surface mb-2">
+                Download Location
+              </label>
+              <div className="p-3 bg-surface-container rounded-lg max-h-60 overflow-y-auto">
+                <FolderTreeDropdown
+                  selectedFolderId={selectedFolder}
+                  onFolderSelect={setSelectedFolder}
+                />
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <label className="text-sm font-medium text-on-surface">
+                  Select Files
+                </label>
+                <div className="flex gap-2">
+                  <Button variant="filled" onClick={selectAll} size="sm">
+                    All
+                  </Button>
+                  <Button variant="outlined" onClick={deselectAll} size="sm">
+                    None
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                {metadata.files.map((file, index) => (
+                  <Checkbox
+                    key={index}
                     checked={selectedFiles.has(index)}
                     onChange={() => toggleFileSelection(index)}
-                    className="cursor-pointer"
+                    label={file.path}
+                    description={formatBytes(file.length)}
                   />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm text-on-surface truncate">{file.path}</div>
-                    <div className="text-xs text-on-surface-variant">{formatBytes(file.length)}</div>
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
+
+              <div className="text-xs text-on-surface-variant mt-3">
+                {selectedFiles.size} of {metadata.files.length} selected
+              </div>
             </div>
           </>
         )}

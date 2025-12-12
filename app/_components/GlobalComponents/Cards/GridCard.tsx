@@ -30,6 +30,7 @@ interface GridCardProps {
   currentUser?: User;
   allUsers?: User[];
   recursive?: boolean;
+  hasTorrent?: boolean;
 }
 
 export default function GridCard({
@@ -49,6 +50,7 @@ export default function GridCard({
   currentUser,
   allUsers = [],
   recursive = false,
+  hasTorrent = false,
 }: GridCardProps) {
   const { showContextMenu } = useContextMenu();
   const { encryptPath } = usePathEncryption();
@@ -111,7 +113,11 @@ export default function GridCard({
       },
       {
         onFileOpen: isFolder ? undefined : onOpen,
-        onFileRename: isFolder ? undefined : onRename ? handleRenameStart : undefined,
+        onFileRename: isFolder
+          ? undefined
+          : onRename
+          ? handleRenameStart
+          : undefined,
         onFileMove: isFolder ? undefined : onMove,
         onFileDownload: isFolder ? undefined : onDownload,
         onFileEncrypt: isFolder ? undefined : onEncrypt,
@@ -218,9 +224,11 @@ export default function GridCard({
             {file.folderPath}/
           </span>
         )}
-        <h3 className="text-sm font-normal text-on-surface break-all">
-          {itemName}
-        </h3>
+        <div className="flex items-center gap-1.5">
+          <h3 className="text-sm font-normal text-on-surface break-all flex-1">
+            {itemName}
+          </h3>
+        </div>
       </div>
     );
   };
@@ -352,18 +360,32 @@ export default function GridCard({
                   const iconInfo = getFileIconInfo(
                     (item as FileMetadata).originalName
                   );
-                  return iconInfo.extension ? (
-                    <FileIconComponent
-                      extension={iconInfo.extension}
-                      size="2xl"
-                      className="mb-3 transition-transform group-hover:scale-105"
-                    />
-                  ) : (
-                    <Icon
-                      icon={iconInfo.materialIcon}
-                      size="2xl"
-                      className="text-on-surface-variant mb-3 transition-transform group-hover:scale-105"
-                    />
+                  return (
+                    <div className="relative mb-3">
+                      {iconInfo.extension ? (
+                        <FileIconComponent
+                          extension={iconInfo.extension}
+                          size="2xl"
+                          className="transition-transform group-hover:scale-105"
+                        />
+                      ) : (
+                        <Icon
+                          icon={iconInfo.materialIcon}
+                          size="2xl"
+                          className="text-on-surface-variant transition-transform group-hover:scale-105"
+                        />
+                      )}
+                      {hasTorrent && (
+                        <div className="absolute -top-2 -left-3 bg-sidebar-active border border-dashed border-outline-variant rounded-full flex items-center justify-center p-1">
+                          <Icon
+                            icon="p2p"
+                            size="xxs"
+                            className="text-on-primary text-xs"
+                            title="Torrent available"
+                          />
+                        </div>
+                      )}
+                    </div>
                   );
                 })()}
           </>

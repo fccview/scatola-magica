@@ -1,19 +1,19 @@
-import { InputHTMLAttributes, forwardRef } from "react";
+import { TextareaHTMLAttributes, forwardRef } from "react";
 
-interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
+interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: string;
   error?: string;
   description?: string;
   secondary?: boolean;
 }
 
-const Input = forwardRef<HTMLInputElement, InputProps>(
+const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
   (
     { label, error, description, secondary = false, className = "", ...props },
     ref
   ) => {
     const baseStyles =
-      "w-full px-2.5 py-1.5 min-h-[40px] text-sm rounded-lg text-on-surface focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:border-primary focus:border focus:border-dashed";
+      "w-full px-2.5 py-1.5 text-sm rounded-lg text-on-surface focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:border-primary focus:border focus:border-dashed resize-y";
     const secondaryStyles = secondary ? "bg-surface" : "bg-surface-container";
 
     const errorStyles = error ? "ring-1 ring-error" : "";
@@ -28,7 +28,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             {label}
           </label>
         )}
-        <input
+        <textarea
           ref={ref}
           className={`${baseStyles} ${secondaryStyles} ${errorStyles} ${className}`}
           {...props}
@@ -42,6 +42,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
   }
 );
 
-Input.displayName = "Input";
+Textarea.displayName = "Textarea";
 
-export default Input;
+export default Textarea;
+

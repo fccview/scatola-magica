@@ -170,8 +170,9 @@ export default function ContextMenuProvider({
         if (actions.onFileCreateTorrent && target.id && target.name) {
           items.push({
             label: "Create Torrent",
-            icon: "hub",
-            onClick: () => actions.onFileCreateTorrent!(target.id!, target.name!),
+            icon: "p2p",
+            onClick: () =>
+              actions.onFileCreateTorrent!(target.id!, target.name!),
           });
         }
 
@@ -250,8 +251,9 @@ export default function ContextMenuProvider({
         if (actions.onFolderCreateTorrent && target.id && target.name) {
           items.push({
             label: "Create Torrent",
-            icon: "hub",
-            onClick: () => actions.onFolderCreateTorrent!(target.id!, target.name!),
+            icon: "p2p",
+            onClick: () =>
+              actions.onFolderCreateTorrent!(target.id!, target.name!),
           });
         }
 

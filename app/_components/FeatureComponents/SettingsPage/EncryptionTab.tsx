@@ -224,7 +224,9 @@ export default function EncryptionTab() {
     if (!user?.username) return;
 
     const result = useCustomPath
-      ? await updateUserPreferences(user.username, { customKeysPath: customPath })
+      ? await updateUserPreferences(user.username, {
+          customKeysPath: customPath,
+        })
       : await updateUserPreferences(user.username, {}, ["customKeysPath"]);
 
     if (result.success) {
@@ -232,7 +234,10 @@ export default function EncryptionTab() {
       await loadKeyStatus();
       router.refresh();
     } else {
-      setMessage({ type: "error", text: result.error || "Failed to update settings" });
+      setMessage({
+        type: "error",
+        text: result.error || "Failed to update settings",
+      });
     }
   }
 
@@ -478,7 +483,7 @@ export default function EncryptionTab() {
                   }}
                   required
                   disabled={generating}
-                  helperText="Minimum 8 characters. This password protects your private key."
+                  description="Minimum 8 characters. This password protects your private key."
                   error={
                     generateError && !generatePasswordConfirm
                       ? generateError
@@ -642,7 +647,8 @@ export default function EncryptionTab() {
           </div>
 
           {/* Show save button when changing from custom to default, or when custom path changes */}
-          {((!useCustomPath && customKeysPath) || (useCustomPath && customPath !== customKeysPath)) && (
+          {((!useCustomPath && customKeysPath) ||
+            (useCustomPath && customPath !== customKeysPath)) && (
             <Button variant="filled" onClick={handleUpdateCustomPath}>
               Save Path
             </Button>

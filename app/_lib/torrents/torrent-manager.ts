@@ -1,0 +1,237 @@
+import { getTorrentClient } from "./webtorrent-client";
+import { getUserPreferences } from "@/app/_lib/preferences";
+import {
+  TorrentSession,
+  TorrentState,
+  TorrentStatus,
+} from "@/app/_types/torrent";
+import { EventEmitter } from "events";
+import fs from "fs/promises";
+
+interface TorrentInstance {
+  infoHash: string;
+  torrent: any;
+  downloadPath: string;
+  seedRatio: number;
+  onUpdate: (state: TorrentState) => Promise<void>;
+  updateInterval?: NodeJS.Timeout;
+}
+
+class TorrentManager extends EventEmitter {
+  private static instance: TorrentManager | null = null;
+  private torrents: Map<string, TorrentInstance> = new Map();
+
+  private constructor() {
+    super();
+  }
+
+  static getInstance(): TorrentManager {
+    if (!TorrentManager.instance) {
+      TorrentManager.instance = new TorrentManager();
+    }
+    return TorrentManager.instance;
+  }
+
+  async addTorrent(
+    session: TorrentSession,
+    seedRatio: number,
+    onUpdate: (state: TorrentState) => Promise<void>
+  ): Promise<void> {
+    const { metadata, state } = session;
+    const infoHash = metadata.infoHash;
+
+    if (this.torrents.has(infoHash)) {
+      throw new Error("Torrent already exists");
+    }
+
+    const preferences = await getUserPreferences(session.username);
+    const prefs = preferences.torrentPreferences!;
+
+    const client = getTorrentClient(
+      prefs.maxDownloadSpeed,
+      prefs.maxUploadSpeed
+    );
+    const downloadPath = metadata.downloadPath;
+
+    return new Promise(async (resolve, reject) => {
+      let torrentInput: string | Buffer;
+
+      if (metadata.torrentFilePath) {
+        try {
+          torrentInput = await fs.readFile(metadata.torrentFilePath);
+        } catch {
+          torrentInput =
+            metadata.magnetURI || `magnet:?xt=urn:btih:${infoHash}`;
+        }
+      } else {
+        torrentInput = metadata.magnetURI || `magnet:?xt=urn:btih:${infoHash}`;
+      }
+
+      const torrent = client.add(
+        torrentInput,
+        { path: downloadPath },
+        (torrentInstance: any) => {
+          const instance: TorrentInstance = {
+            infoHash,
+            torrent: torrentInstance,
+            downloadPath,
+            seedRatio,
+            onUpdate,
+          };
+
+          torrentInstance.on("download", () => {
+            this.updateTorrentState(instance);
+          });
+
+          torrentInstance.on("upload", () => {
+            this.updateTorrentState(instance);
+          });
+
+          torrentInstance.on("done", () => {
+            this.updateTorrentState(instance);
+          });
+
+          torrentInstance.on("error", (err: Error) => {
+            console.error(`Torrent error for ${metadata.name}:`, err);
+            this.updateTorrentState(instance, err.message);
+          });
+
+          this.torrents.set(infoHash, instance);
+
+          const updateInterval = setInterval(() => {
+            this.updateTorrentState(instance);
+          }, 2000);
+
+          instance.updateInterval = updateInterval;
+
+          this.updateTorrentState(instance);
+          resolve();
+        }
+      );
+
+      torrent.on("error", (err: Error) => {
+        console.error(`Failed to add torrent ${metadata.name}:`, err);
+        reject(err);
+      });
+    });
+  }
+
+  private async updateTorrentState(
+    instance: TorrentInstance,
+    error?: string
+  ): Promise<void> {
+    const { torrent, seedRatio, onUpdate, infoHash } = instance;
+    const torrentInstance = torrent;
+
+    if (!torrentInstance) return;
+
+    const downloaded = torrentInstance.downloaded || 0;
+    const uploaded = torrentInstance.uploaded || 0;
+    const progress = torrentInstance.progress || 0;
+    const ratio = downloaded > 0 ? uploaded / downloaded : 0;
+    const numPeers = torrentInstance.numPeers || 0;
+    const downloadSpeed = torrentInstance.downloadSpeed || 0;
+    const uploadSpeed = torrentInstance.uploadSpeed || 0;
+    const isPaused = torrentInstance.paused || false;
+
+    let status = TorrentStatus.DOWNLOADING;
+    if (error) {
+      status = TorrentStatus.ERROR;
+    } else if (isPaused) {
+      if (progress >= 1) {
+        status = TorrentStatus.PAUSED;
+      } else {
+        status = TorrentStatus.PAUSED;
+      }
+    } else if (progress >= 1) {
+      if (ratio >= seedRatio && seedRatio > 0) {
+        status = TorrentStatus.COMPLETED;
+      } else {
+        status = TorrentStatus.SEEDING;
+      }
+    }
+
+    const timeRemaining =
+      downloadSpeed > 0
+        ? (torrentInstance.length - downloaded) / downloadSpeed
+        : 0;
+
+    const updatedState: TorrentState = {
+      infoHash,
+      status,
+      downloadSpeed,
+      uploadSpeed,
+      downloaded,
+      uploaded,
+      progress,
+      ratio,
+      numPeers,
+      timeRemaining,
+      addedAt: Date.now(),
+      error,
+    };
+
+    await onUpdate(updatedState);
+
+    if (status === TorrentStatus.COMPLETED && instance.updateInterval) {
+      clearInterval(instance.updateInterval);
+      instance.updateInterval = undefined;
+    }
+  }
+
+  getTorrent(infoHash: string): any {
+    const instance = this.torrents.get(infoHash);
+    return instance?.torrent;
+  }
+
+  async pauseTorrent(infoHash: string): Promise<void> {
+    const instance = this.torrents.get(infoHash);
+    if (instance?.torrent) {
+      instance.torrent.pause();
+      await this.updateTorrentState(instance);
+    }
+  }
+
+  async resumeTorrent(infoHash: string): Promise<void> {
+    const instance = this.torrents.get(infoHash);
+    if (instance?.torrent) {
+      instance.torrent.resume();
+      await this.updateTorrentState(instance);
+    }
+  }
+
+  async removeTorrent(infoHash: string): Promise<void> {
+    const instance = this.torrents.get(infoHash);
+    if (instance) {
+      if (instance.updateInterval) {
+        clearInterval(instance.updateInterval);
+      }
+      if (instance.torrent) {
+        const client = getTorrentClient();
+        client.remove(instance.torrent);
+      }
+      this.torrents.delete(infoHash);
+    }
+  }
+
+  async stopTorrent(infoHash: string): Promise<void> {
+    const instance = this.torrents.get(infoHash);
+    if (instance) {
+      if (instance.updateInterval) {
+        clearInterval(instance.updateInterval);
+      }
+      if (instance.torrent) {
+        instance.torrent.pause();
+        const client = getTorrentClient();
+        client.remove(instance.torrent);
+      }
+      this.torrents.delete(infoHash);
+    }
+  }
+
+  getAllTorrents(): TorrentInstance[] {
+    return Array.from(this.torrents.values());
+  }
+}
+
+export const getTorrentManager = () => TorrentManager.getInstance();

@@ -46,15 +46,15 @@ export default function Modal({
   if (!isOpen) return null;
 
   const sizeClasses = {
-    sm: "max-w-md",
-    md: "max-w-2xl",
-    lg: "max-w-4xl",
-    xl: "max-w-6xl",
+    sm: "lg:max-w-md",
+    md: "lg:max-w-2xl",
+    lg: "lg:max-w-4xl",
+    xl: "lg:max-w-6xl",
   };
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60"
+      className="modal-overlay fixed inset-0 z-[100] flex justify-center items-end lg:items-center lg:align-middle lg:p-4 bg-black/60"
       onClick={(e) => {
         if (e.target === e.currentTarget) {
           onClose();
@@ -63,7 +63,7 @@ export default function Modal({
     >
       <div
         ref={modalRef}
-        className={`bg-surface rounded-lg shadow-xl w-full ${sizeClasses[size]} max-h-[90vh] flex flex-col overflow-hidden`}
+        className={`bg-surface rounded-t-lg lg:rounded-b-lg shadow-xl w-full max-w-full ${sizeClasses[size]} max-h-[90vh] flex flex-col overflow-hidden`}
         onClick={(e) => e.stopPropagation()}
       >
         {title && (

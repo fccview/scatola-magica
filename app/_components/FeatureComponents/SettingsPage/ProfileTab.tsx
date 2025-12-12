@@ -277,7 +277,7 @@ export default function ProfileTab() {
             }}
             disabled={isChangingPassword}
             required
-            helperText="Minimum 6 characters"
+            description="Minimum 6 characters"
           />
           <Input
             label="Confirm New Password"

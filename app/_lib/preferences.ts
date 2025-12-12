@@ -17,7 +17,7 @@ export interface UserPreferences {
 
 const _getPreferencesFile = (): string => {
   return path.join(process.cwd(), "data", "config", "preferences.json");
-}
+};
 
 const _readPreferences = async (): Promise<UserPreferences[]> => {
   try {
@@ -27,9 +27,11 @@ const _readPreferences = async (): Promise<UserPreferences[]> => {
   } catch {
     return [];
   }
-}
+};
 
-const _writePreferences = async (preferences: UserPreferences[]): Promise<void> => {
+const _writePreferences = async (
+  preferences: UserPreferences[]
+): Promise<void> => {
   const file = _getPreferencesFile();
   try {
     await fs.access(file);
@@ -42,7 +44,7 @@ const _writePreferences = async (preferences: UserPreferences[]): Promise<void> 
   } finally {
     await unlock(file);
   }
-}
+};
 
 export const getUserPreferences = async (
   username: string
@@ -61,10 +63,25 @@ export const getUserPreferences = async (
         seedRatio: 1.0,
         autoStartTorrents: true,
         maxActiveTorrents: 5,
+        maxTorrentFileSize: 10 * 1024 * 1024,
+        maxSingleFileSize: 50 * 1024 * 1024 * 1024,
+        maxTotalTorrentSize: 100 * 1024 * 1024 * 1024,
+        maxFolderFileCount: 10000,
+        maxPathDepth: 10,
+        maxDownloadSpeed: -1,
+        maxUploadSpeed: -1,
+        trackers: [
+          "udp://tracker.opentrackr.org:1337/announce",
+          "udp://open.demonii.com:1337/announce",
+          "udp://tracker.openbittorrent.com:6969/announce",
+          "udp://exodus.desync.com:6969/announce",
+          "udp://tracker.torrent.eu.org:451/announce",
+        ],
+        allowCustomTrackers: false,
       },
     }
   );
-}
+};
 
 export const updateUserPreferences = async (
   username: string,
@@ -107,17 +124,34 @@ export const updateUserPreferences = async (
               seedRatio: 1.0,
               autoStartTorrents: true,
               maxActiveTorrents: 5,
+              maxTorrentFileSize: 10 * 1024 * 1024,
+              maxSingleFileSize: 50 * 1024 * 1024 * 1024,
+              maxTotalTorrentSize: 100 * 1024 * 1024 * 1024,
+              maxFolderFileCount: 10000,
+              maxPathDepth: 10,
+              maxDownloadSpeed: -1,
+              maxUploadSpeed: -1,
+              trackers: [
+                "udp://tracker.opentrackr.org:1337/announce",
+                "udp://open.demonii.com:1337/announce",
+                "udp://tracker.openbittorrent.com:6969/announce",
+                "udp://exodus.desync.com:6969/announce",
+                "udp://tracker.torrent.eu.org:451/announce",
+              ],
+              allowCustomTrackers: false,
             }),
     };
 
-    // Handle customKeysPath
     if ("customKeysPath" in updates && updates.customKeysPath) {
       updatedPref.customKeysPath = updates.customKeysPath;
-    } else if (existingIndex >= 0 && allPreferences[existingIndex].customKeysPath && !keysToRemove?.includes("customKeysPath")) {
+    } else if (
+      existingIndex >= 0 &&
+      allPreferences[existingIndex].customKeysPath &&
+      !keysToRemove?.includes("customKeysPath")
+    ) {
       updatedPref.customKeysPath = allPreferences[existingIndex].customKeysPath;
     }
 
-    // Remove keys explicitly marked for removal
     if (keysToRemove) {
       keysToRemove.forEach((key) => {
         delete (updatedPref as any)[key];
@@ -136,4 +170,4 @@ export const updateUserPreferences = async (
     console.error("Failed to update preferences:", error);
     return { success: false, error: "Failed to update preferences" };
   }
-}
+};

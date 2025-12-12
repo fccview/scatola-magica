@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { addTorrent } from "@/app/_server/actions/torrents";
+import { addTorrent } from "@/app/_server/actions/manage-torrents";
 
 interface DeepLinkHandlerProps {
   onTorrentAdded?: () => void;
@@ -18,9 +18,9 @@ export default function DeepLinkHandler({
 
   useEffect(() => {
     const processMagnet = async () => {
-      // Check for magnet parameter
-      const magnetParam = searchParams.get("magnet");
       const torrentParam = searchParams.get("torrent");
+      const isDeepLink = searchParams.get("deeplink") === "true";
+      const magnetParam = isDeepLink ? searchParams.get("magnet") : null;
 
       if (!magnetParam && !torrentParam) return;
       if (isProcessing) return;
@@ -31,9 +31,7 @@ export default function DeepLinkHandler({
       try {
         let magnetURI = magnetParam;
 
-        // Handle custom scatolamagica:// URL scheme
         if (torrentParam) {
-          // torrentParam might be: "scatolamagica://torrent?magnet=..."
           try {
             const url = new URL(torrentParam);
             const extractedMagnet = url.searchParams.get("magnet");
@@ -41,7 +39,6 @@ export default function DeepLinkHandler({
               magnetURI = extractedMagnet;
             }
           } catch {
-            // If not a URL, treat as direct magnet
             magnetURI = torrentParam;
           }
         }
@@ -50,18 +47,14 @@ export default function DeepLinkHandler({
           throw new Error("Invalid torrent link");
         }
 
-        // Decode URI component in case it's URL encoded
         const decodedMagnet = decodeURIComponent(magnetURI);
 
-        // Add the torrent
         const result = await addTorrent(decodedMagnet);
 
         if (result.success) {
-          // Clear URL parameters
           router.replace("/torrents");
           onTorrentAdded?.();
 
-          // Show success notification
           alert("Torrent added successfully!");
         } else {
           setError(result.error || "Failed to add torrent");

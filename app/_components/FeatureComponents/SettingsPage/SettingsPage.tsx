@@ -20,18 +20,30 @@ import { SidebarProvider } from "@/app/_providers/SidebarProvider";
 import { usePreferences } from "@/app/_providers/PreferencesProvider";
 import TorrentsTab from "@/app/_components/FeatureComponents/SettingsPage/TorrentsTab";
 
-type Tab = "profile" | "preferences" | "encryption" | "users" | "audit-logs" | "torrents";
+type Tab =
+  | "profile"
+  | "preferences"
+  | "encryption"
+  | "users"
+  | "audit-logs"
+  | "torrents";
 
 export default function SettingsPage() {
   const { user } = usePreferences();
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<Tab>("profile");
 
-  // Read tab from URL query parameter
   useEffect(() => {
     const tabParam = searchParams.get("tab");
     if (tabParam) {
-      const validTabs: Tab[] = ["profile", "preferences", "encryption", "users", "audit-logs", "torrents"];
+      const validTabs: Tab[] = [
+        "profile",
+        "preferences",
+        "encryption",
+        "users",
+        "audit-logs",
+        "torrents",
+      ];
       if (validTabs.includes(tabParam as Tab)) {
         setActiveTab(tabParam as Tab);
       }
@@ -46,7 +58,7 @@ export default function SettingsPage() {
     { id: "profile", label: "Profile", icon: "person" },
     { id: "preferences", label: "Preferences", icon: "tune" },
     { id: "encryption", label: "Encryption", icon: "lock" },
-    { id: "torrents", label: "Torrents", icon: "hub" },
+    { id: "torrents", label: "Torrents", icon: "p2p" },
     ...(user.isAdmin
       ? [
           { id: "users" as Tab, label: "Users", icon: "group" },
