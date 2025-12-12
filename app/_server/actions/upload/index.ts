@@ -343,6 +343,6 @@ export const cleanupExpiredSessions = async (): Promise<void> => {
   }
 };
 
-export const isChunkEncrypted = (chunk: Buffer): boolean => {
+const isChunkEncrypted = (chunk: Buffer): boolean => {
   return chunk.length > SALT_LENGTH + IV_LENGTH + AUTH_TAG_LENGTH;
 };

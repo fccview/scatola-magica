@@ -10,6 +10,7 @@ import {
 import { TorrentStatus } from "@/app/_types/torrent";
 import IconButton from "@/app/_components/GlobalComponents/Buttons/IconButton";
 import Button from "@/app/_components/GlobalComponents/Buttons/Button";
+import Progress from "@/app/_components/GlobalComponents/Layout/Progress";
 
 const formatBytes = (bytes: number): string => {
   if (bytes === 0) return "0 B";
@@ -92,7 +93,7 @@ export default function MyTorrentsList() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-on-surface/60">Loading...</div>
+        <Progress variant="circular" size="lg" value={50} />
       </div>
     );
   }

@@ -144,6 +144,7 @@ export default function GridCard({
     }
   };
 
+
   const renderItemName = () => {
     if (recursive) {
       const fullPath = isFolder ? itemId : file?.folderPath || "";

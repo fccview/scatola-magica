@@ -269,6 +269,17 @@ export const createTorrentFromFile = async (
     const errorMsg =
       error?.message?.replace(/\/[^\s]+/g, "[path]") ||
       "Failed to create torrent";
+
+    await auditLog("torrent:error", {
+      resource: "createTorrentFromFile",
+      details: {
+        filePath: filePath?.replace(/\/[^\s]+/g, "[path]"),
+        error: errorMsg,
+      },
+      success: false,
+      errorMessage: errorMsg,
+    });
+
     return {
       success: false,
       error: errorMsg,
@@ -460,6 +471,17 @@ export const createTorrentFromFolder = async (
     const errorMsg =
       error?.message?.replace(/\/[^\s]+/g, "[path]") ||
       "Failed to create torrent from folder";
+
+    await auditLog("torrent:error", {
+      resource: "createTorrentFromFolder",
+      details: {
+        folderPath: folderPath?.replace(/\/[^\s]+/g, "[path]"),
+        error: errorMsg,
+      },
+      success: false,
+      errorMessage: errorMsg,
+    });
+
     return {
       success: false,
       error: errorMsg,

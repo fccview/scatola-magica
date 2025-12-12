@@ -292,6 +292,16 @@ export const addTorrent = async (
     console.error("Add torrent error:", error);
     const errorMsg =
       error?.message?.replace(/\/[^\s]+/g, "[path]") || "Failed to add torrent";
+
+    await auditLog("torrent:error", {
+      resource: "addTorrent",
+      details: {
+        error: errorMsg,
+      },
+      success: false,
+      errorMessage: errorMsg,
+    });
+
     return {
       success: false,
       error: errorMsg,
@@ -473,6 +483,17 @@ export const pauseTorrent = async (
     return { success: true };
   } catch (error: any) {
     console.error("Pause torrent error:", error);
+
+    await auditLog("torrent:error", {
+      resource: "pauseTorrent",
+      details: {
+        infoHash,
+        error: error?.message || "Failed to pause torrent",
+      },
+      success: false,
+      errorMessage: error?.message || "Failed to pause torrent",
+    });
+
     return {
       success: false,
       error: "Failed to pause torrent",
@@ -509,6 +530,17 @@ export const stopTorrent = async (
     return { success: true };
   } catch (error: any) {
     console.error("Stop torrent error:", error);
+
+    await auditLog("torrent:error", {
+      resource: "stopTorrent",
+      details: {
+        infoHash,
+        error: error?.message || "Failed to stop torrent",
+      },
+      success: false,
+      errorMessage: error?.message || "Failed to stop torrent",
+    });
+
     return {
       success: false,
       error: "Failed to stop torrent",
@@ -579,6 +611,17 @@ export const resumeTorrent = async (
     return { success: true };
   } catch (error: any) {
     console.error("Resume torrent error:", error);
+
+    await auditLog("torrent:error", {
+      resource: "resumeTorrent",
+      details: {
+        infoHash,
+        error: error?.message || "Failed to resume torrent",
+      },
+      success: false,
+      errorMessage: error?.message || "Failed to resume torrent",
+    });
+
     return {
       success: false,
       error: "Failed to resume torrent",
@@ -644,6 +687,17 @@ export const removeTorrent = async (
     return { success: true };
   } catch (error: any) {
     console.error("Remove torrent error:", error);
+
+    await auditLog("torrent:error", {
+      resource: "removeTorrent",
+      details: {
+        infoHash,
+        error: error?.message || "Failed to remove torrent",
+      },
+      success: false,
+      errorMessage: error?.message || "Failed to remove torrent",
+    });
+
     return {
       success: false,
       error: "Failed to remove torrent",
@@ -776,6 +830,17 @@ export const startSeedingCreatedTorrent = async (
     return { success: true };
   } catch (error: any) {
     console.error("Start seeding error:", error);
+
+    await auditLog("torrent:error", {
+      resource: "startSeedingCreatedTorrent",
+      details: {
+        infoHash,
+        error: error?.message || "Failed to start seeding",
+      },
+      success: false,
+      errorMessage: error?.message || "Failed to start seeding",
+    });
+
     return {
       success: false,
       error: "Failed to start seeding",

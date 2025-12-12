@@ -7,6 +7,7 @@ import {
 } from "@/app/_types/torrent";
 import { EventEmitter } from "events";
 import fs from "fs/promises";
+import { auditLog } from "@/app/_server/actions/logs";
 
 interface TorrentInstance {
   infoHash: string;
@@ -15,6 +16,12 @@ interface TorrentInstance {
   seedRatio: number;
   onUpdate: (state: TorrentState) => Promise<void>;
   updateInterval?: NodeJS.Timeout;
+  metadata?: {
+    name: string;
+  };
+  username?: string;
+  hasLoggedCompletion?: boolean;
+  hasLoggedSeedComplete?: boolean;
 }
 
 class TorrentManager extends EventEmitter {
@@ -77,6 +84,12 @@ class TorrentManager extends EventEmitter {
             downloadPath,
             seedRatio,
             onUpdate,
+            metadata: {
+              name: metadata.name,
+            },
+            username: session.username,
+            hasLoggedCompletion: false,
+            hasLoggedSeedComplete: false,
           };
 
           torrentInstance.on("download", () => {
@@ -137,6 +150,18 @@ class TorrentManager extends EventEmitter {
     let status = TorrentStatus.DOWNLOADING;
     if (error) {
       status = TorrentStatus.ERROR;
+
+      if (instance.metadata && instance.username) {
+        await auditLog("torrent:error", {
+          resource: instance.metadata.name,
+          details: {
+            infoHash,
+            error,
+          },
+          success: false,
+          errorMessage: error,
+        });
+      }
     } else if (isPaused) {
       if (progress >= 1) {
         status = TorrentStatus.PAUSED;
@@ -144,8 +169,35 @@ class TorrentManager extends EventEmitter {
         status = TorrentStatus.PAUSED;
       }
     } else if (progress >= 1) {
+      if (!instance.hasLoggedCompletion && instance.metadata && instance.username) {
+        await auditLog("torrent:complete", {
+          resource: instance.metadata.name,
+          details: {
+            infoHash,
+            downloaded,
+            uploaded,
+            ratio,
+          },
+        });
+        instance.hasLoggedCompletion = true;
+      }
+
       if (ratio >= seedRatio && seedRatio > 0) {
         status = TorrentStatus.COMPLETED;
+
+        if (!instance.hasLoggedSeedComplete && instance.metadata && instance.username) {
+          await auditLog("torrent:seed-complete", {
+            resource: instance.metadata.name,
+            details: {
+              infoHash,
+              finalRatio: ratio,
+              targetRatio: seedRatio,
+              uploaded,
+              downloaded,
+            },
+          });
+          instance.hasLoggedSeedComplete = true;
+        }
       } else {
         status = TorrentStatus.SEEDING;
       }

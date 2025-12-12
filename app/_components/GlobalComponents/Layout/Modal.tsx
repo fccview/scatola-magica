@@ -10,6 +10,7 @@ interface ModalProps {
   children: React.ReactNode;
   size?: "sm" | "md" | "lg" | "xl";
   headerActions?: React.ReactNode;
+  zIndex?: number;
 }
 
 export default function Modal({
@@ -19,6 +20,7 @@ export default function Modal({
   children,
   size = "md",
   headerActions,
+  zIndex = 100,
 }: ModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -54,7 +56,8 @@ export default function Modal({
 
   return (
     <div
-      className="modal-overlay fixed inset-0 z-[100] flex justify-center items-end lg:items-center lg:align-middle lg:p-4 bg-black/60"
+      className="modal-overlay fixed inset-0 flex justify-center items-end lg:items-center lg:align-middle lg:p-4 bg-black/60"
+      style={{ zIndex }}
       onClick={(e) => {
         if (e.target === e.currentTarget) {
           onClose();
