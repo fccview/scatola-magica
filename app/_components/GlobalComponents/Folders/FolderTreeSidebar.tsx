@@ -11,12 +11,14 @@ interface FolderTreeSidebarProps {
   folderTreeHook?: ReturnType<typeof useFolderTree>;
   showSearch?: boolean;
   showCreate?: boolean;
+  isCollapsed?: boolean;
 }
 
 export default function FolderTreeSidebar({
   folderTreeHook: providedHook,
   showSearch = false,
   showCreate = true,
+  isCollapsed = false,
 }: FolderTreeSidebarProps) {
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const pathname = usePathname();
@@ -50,7 +52,7 @@ export default function FolderTreeSidebar({
 
   return (
     <div className="h-full flex flex-col bg-sidebar">
-      {showSearch && (
+      {showSearch && !isCollapsed && (
         <div className="px-3 py-2 border-b border-outline-variant/20">
           <div className="relative">
             <Icon
@@ -69,7 +71,9 @@ export default function FolderTreeSidebar({
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto overflow-x-hidden px-2 pb-2 pt-6 min-w-0">
+      <div className={`flex-1 overflow-y-auto overflow-x-hidden pb-2 pt-4 min-w-0 ${
+        isCollapsed ? "px-1" : "px-2"
+      }`}>
         <div className="space-y-1">
           <FolderTreeNode
             key="root"
@@ -84,6 +88,7 @@ export default function FolderTreeSidebar({
             level={0}
             folderTreeHook={folderTreeHook}
             variant="sidebar"
+            isCollapsed={isCollapsed}
           />
 
           {filteredTree.map((folder: any) => (
@@ -93,6 +98,7 @@ export default function FolderTreeSidebar({
               level={0}
               folderTreeHook={folderTreeHook}
               variant="sidebar"
+              isCollapsed={isCollapsed}
             />
           ))}
         </div>

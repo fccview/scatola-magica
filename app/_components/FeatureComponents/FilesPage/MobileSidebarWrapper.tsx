@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, cloneElement, isValidElement, ReactElement } from "react";
 import IconButton from "@/app/_components/GlobalComponents/Buttons/IconButton";
 import { useSidebar } from "@/app/_providers/SidebarProvider";
 
@@ -13,7 +13,13 @@ export default function MobileSidebarWrapper({
   sidebar,
   children,
 }: MobileSidebarWrapperProps) {
-  const { isSidebarOpen, openSidebar, closeSidebar } = useSidebar();
+  const {
+    isSidebarOpen,
+    openSidebar,
+    closeSidebar,
+    isCollapsed,
+    toggleCollapse,
+  } = useSidebar();
   const sidebarRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
@@ -84,7 +90,14 @@ export default function MobileSidebarWrapper({
     return () => {
       document.removeEventListener("touchmove", handleSwipeClose);
     };
-  }, [isSidebarOpen, openSidebar]);
+  }, [isSidebarOpen, closeSidebar]);
+
+  // Clone sidebar element and pass isCollapsed prop
+  const sidebarWithProps = isValidElement(sidebar)
+    ? cloneElement(sidebar as ReactElement<{ isCollapsed?: boolean }>, {
+        isCollapsed,
+      })
+    : sidebar;
 
   return (
     <>
@@ -95,8 +108,37 @@ export default function MobileSidebarWrapper({
         />
       )}
 
-      <aside className="w-96 bg-sidebar flex-shrink-0 hidden medium:block overflow-hidden">
-        {sidebar}
+      <aside
+        className={`bg-sidebar flex-shrink-0 hidden medium:flex flex-col overflow-hidden transition-all duration-300 ease-in-out ${
+          isCollapsed ? "w-16" : "w-64"
+        }`}
+      >
+        {/* Collapse toggle button */}
+        <div
+          className={`flex items-center p-2 border-b border-outline-variant/20 ${
+            isCollapsed ? "justify-center" : "justify-end"
+          }`}
+          onDragOver={(e) => e.stopPropagation()}
+          onDrop={(e) => e.stopPropagation()}
+        >
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              toggleCollapse();
+            }}
+            className="p-2 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/30 transition-colors"
+            title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            <span className="material-symbols-outlined text-xl">
+              {isCollapsed ? "chevron_right" : "chevron_left"}
+            </span>
+          </button>
+        </div>
+        <div className="flex-1 overflow-hidden">
+          {sidebarWithProps}
+        </div>
       </aside>
 
       <aside
