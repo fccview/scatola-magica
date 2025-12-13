@@ -19,6 +19,7 @@ interface FolderTreeNodeProps {
   folderTreeHook: ReturnType<typeof useFolderTree>;
   variant: "sidebar" | "dropdown";
   onFolderSelect?: (folderId: string | null) => void;
+  isCollapsed?: boolean;
 }
 
 export default function FolderTreeNode({
@@ -27,6 +28,7 @@ export default function FolderTreeNode({
   folderTreeHook,
   variant,
   onFolderSelect,
+  isCollapsed = false,
 }: FolderTreeNodeProps) {
   const {
     creatingInFolder,
@@ -159,6 +161,63 @@ export default function FolderTreeNode({
     .split("/")
     .map(encodeURIComponent)
     .join("/")}`;
+
+  // Collapsed mode: show only icons at root level
+  if (isCollapsed && level === 0) {
+    return (
+      <div className="select-none">
+        <Link
+          href={folderHref}
+          data-folder-id={folder.id}
+          className="block"
+          title={folder.name}
+        >
+          <div
+            className={`flex items-center justify-center p-2 rounded-lg mb-1 transition-colors cursor-pointer ${
+              folderIsActive
+                ? "bg-sidebar-active text-on-surface"
+                : "text-on-surface hover:bg-surface-variant/20"
+            }`}
+            onContextMenu={handleContextMenuEvent}
+          >
+            {(() => {
+              let folderUser = null;
+              const userSpecificMatch = folder.id.match(/^([^\/]+)\//);
+              if (userSpecificMatch) {
+                folderUser = allUsers.find(
+                  (u) => u.username === userSpecificMatch[1]
+                );
+              } else {
+                folderUser = allUsers.find((u) => u.username === folder.name);
+              }
+
+              if (folderUser) {
+                return (
+                  <UserAvatar
+                    user={folderUser}
+                    size="sm"
+                    className="flex-shrink-0"
+                  />
+                );
+              }
+
+              return (
+                <Icon
+                  icon={folder.id === "" ? "home" : "folder"}
+                  size="sm"
+                  className={`flex-shrink-0 ${
+                    folderIsActive
+                      ? "text-on-surface"
+                      : "text-on-surface-variant"
+                  }`}
+                />
+              );
+            })()}
+          </div>
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="select-none">
@@ -361,7 +420,7 @@ export default function FolderTreeNode({
         </div>
       )}
 
-      {folderIsExpanded && folder.children && folder.children.length > 0 && (
+      {folderIsExpanded && folder.children && folder.children.length > 0 && !isCollapsed && (
         <div className="mt-1">
           {folder.children.map((child) => (
             <FolderTreeNode
@@ -371,6 +430,7 @@ export default function FolderTreeNode({
               folderTreeHook={folderTreeHook}
               variant={variant}
               onFolderSelect={onFolderSelect}
+              isCollapsed={isCollapsed}
             />
           ))}
         </div>
