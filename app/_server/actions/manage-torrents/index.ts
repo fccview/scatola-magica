@@ -11,7 +11,9 @@ import {
 import {
   loadCreatedTorrents,
   deleteCreatedTorrent,
+  migrateCreatedTorrentsEncryption,
 } from "@/app/_lib/torrents/created-torrents";
+import { migrateTorrentSessionsEncryption } from "@/app/_lib/torrents/torrent-sessions";
 import { getUserPreferences } from "@/app/_lib/preferences";
 import { auditLog } from "@/app/_server/actions/logs";
 import { ServerActionResponse } from "@/app/_types";
@@ -311,9 +313,14 @@ export const addTorrent = async (
 
 export const getTorrents = async (
   page: number = 1,
-  limit: number = 50
+  limit: number = 50,
+  password?: string
 ): Promise<
-  ServerActionResponse<{ torrents: TorrentSession[]; total: number }>
+  ServerActionResponse<{
+    torrents: TorrentSession[];
+    total: number;
+    needsPassword?: boolean;
+  }>
 > => {
   try {
     const user = await getCurrentUser();
@@ -321,8 +328,39 @@ export const getTorrents = async (
       return { success: false, error: "Unauthorized" };
     }
 
-    const storedSessions = await loadTorrentSessions(user.username);
-    const createdTorrents = await loadCreatedTorrents(user.username);
+    let storedSessions: Array<{ metadata: TorrentMetadata; addedAt: number }> =
+      [];
+    let createdTorrents: any[] = [];
+
+    try {
+      storedSessions = await loadTorrentSessions(user.username, password);
+    } catch (error: any) {
+      if (error.message === "PASSWORD_REQUIRED") {
+        return {
+          success: false,
+          error: "PASSWORD_REQUIRED",
+          data: { torrents: [], total: 0, needsPassword: true },
+        };
+      }
+      if (error.message === "INVALID_PASSWORD") {
+        return { success: false, error: "INVALID_PASSWORD" };
+      }
+    }
+
+    try {
+      createdTorrents = await loadCreatedTorrents(user.username, password);
+    } catch (error: any) {
+      if (error.message === "PASSWORD_REQUIRED") {
+        return {
+          success: false,
+          error: "PASSWORD_REQUIRED",
+          data: { torrents: [], total: 0, needsPassword: true },
+        };
+      }
+      if (error.message === "INVALID_PASSWORD") {
+        return { success: false, error: "INVALID_PASSWORD" };
+      }
+    }
     const createdInfoHashes = new Set(createdTorrents.map((ct) => ct.infoHash));
     const manager = getTorrentManager();
     const preferences = await getUserPreferences(user.username);
@@ -436,6 +474,7 @@ export const getTorrents = async (
       data: {
         torrents: paginated,
         total: allTorrents.length,
+        needsPassword: false,
       },
     };
   } catch (error: any) {
@@ -845,6 +884,40 @@ export const startSeedingCreatedTorrent = async (
       success: false,
       error: "Failed to start seeding",
     };
+  }
+};
+
+export const migrateTorrentMetadataEncryption = async (
+  encrypt: boolean,
+  password?: string
+): Promise<ServerActionResponse<{ success: boolean }>> => {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return { success: false, error: "Unauthorized" };
+    }
+
+    const sessionsResult = await migrateTorrentSessionsEncryption(
+      user.username,
+      encrypt,
+      password
+    );
+    if (!sessionsResult.success) {
+      return { success: false, error: sessionsResult.error };
+    }
+
+    const createdResult = await migrateCreatedTorrentsEncryption(
+      user.username,
+      encrypt,
+      password
+    );
+    if (!createdResult.success) {
+      return { success: false, error: createdResult.error };
+    }
+
+    return { success: true, data: { success: true } };
+  } catch (error: any) {
+    return { success: false, error: error.message || "Migration failed" };
   }
 };
 

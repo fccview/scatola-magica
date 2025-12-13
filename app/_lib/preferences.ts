@@ -15,6 +15,12 @@ export interface UserPreferences {
   torrentPreferences?: TorrentPreferences;
 }
 
+export type PartialUserPreferences = Partial<
+  Omit<UserPreferences, "username" | "torrentPreferences">
+> & {
+  torrentPreferences?: Partial<TorrentPreferences>;
+};
+
 const _getPreferencesFile = (): string => {
   return path.join(process.cwd(), "data", "config", "preferences.json");
 };
@@ -78,6 +84,7 @@ export const getUserPreferences = async (
           "udp://tracker.torrent.eu.org:451/announce",
         ],
         allowCustomTrackers: false,
+        encryptMetadata: true,
       },
     }
   );
@@ -85,7 +92,7 @@ export const getUserPreferences = async (
 
 export const updateUserPreferences = async (
   username: string,
-  updates: Partial<Omit<UserPreferences, "username">>,
+  updates: PartialUserPreferences,
   keysToRemove?: string[]
 ): Promise<{ success: boolean; error?: string }> => {
   try {
@@ -94,52 +101,48 @@ export const updateUserPreferences = async (
       (p) => p.username === username
     );
 
+    const existing = existingIndex >= 0 ? allPreferences[existingIndex] : null;
+    const defaultTorrentPrefs = {
+      seedRatio: 1.0,
+      autoStartTorrents: true,
+      maxActiveTorrents: 5,
+      maxTorrentFileSize: 10 * 1024 * 1024,
+      maxSingleFileSize: 50 * 1024 * 1024 * 1024,
+      maxTotalTorrentSize: 100 * 1024 * 1024 * 1024,
+      maxFolderFileCount: 10000,
+      maxPathDepth: 10,
+      maxDownloadSpeed: -1,
+      maxUploadSpeed: -1,
+      trackers: [
+        "udp://tracker.opentrackr.org:1337/announce",
+        "udp://open.demonii.com:1337/announce",
+        "udp://tracker.openbittorrent.com:6969/announce",
+        "udp://exodus.desync.com:6969/announce",
+        "udp://tracker.torrent.eu.org:451/announce",
+      ],
+      allowCustomTrackers: false,
+      encryptMetadata: true,
+    };
+
     const updatedPref: UserPreferences = {
       username,
       particlesEnabled:
-        updates.particlesEnabled ??
-        (existingIndex >= 0
-          ? allPreferences[existingIndex].particlesEnabled
-          : true),
+        updates.particlesEnabled ?? existing?.particlesEnabled ?? true,
       wandCursorEnabled:
-        updates.wandCursorEnabled ??
-        (existingIndex >= 0
-          ? allPreferences[existingIndex].wandCursorEnabled
-          : true),
+        updates.wandCursorEnabled ?? existing?.wandCursorEnabled ?? true,
       pokemonThemesEnabled:
-        updates.pokemonThemesEnabled ??
-        (existingIndex >= 0
-          ? allPreferences[existingIndex].pokemonThemesEnabled
-          : false),
+        updates.pokemonThemesEnabled ?? existing?.pokemonThemesEnabled ?? false,
       e2eEncryptionOnTransfer:
         updates.e2eEncryptionOnTransfer ??
-        (existingIndex >= 0
-          ? allPreferences[existingIndex].e2eEncryptionOnTransfer
-          : true),
-      torrentPreferences:
-        updates.torrentPreferences ??
-        (existingIndex >= 0
-          ? allPreferences[existingIndex].torrentPreferences
-          : {
-              seedRatio: 1.0,
-              autoStartTorrents: true,
-              maxActiveTorrents: 5,
-              maxTorrentFileSize: 10 * 1024 * 1024,
-              maxSingleFileSize: 50 * 1024 * 1024 * 1024,
-              maxTotalTorrentSize: 100 * 1024 * 1024 * 1024,
-              maxFolderFileCount: 10000,
-              maxPathDepth: 10,
-              maxDownloadSpeed: -1,
-              maxUploadSpeed: -1,
-              trackers: [
-                "udp://tracker.opentrackr.org:1337/announce",
-                "udp://open.demonii.com:1337/announce",
-                "udp://tracker.openbittorrent.com:6969/announce",
-                "udp://exodus.desync.com:6969/announce",
-                "udp://tracker.torrent.eu.org:451/announce",
-              ],
-              allowCustomTrackers: false,
-            }),
+        existing?.e2eEncryptionOnTransfer ??
+        true,
+      torrentPreferences: updates.torrentPreferences
+        ? {
+            ...defaultTorrentPrefs,
+            ...(existing?.torrentPreferences || {}),
+            ...updates.torrentPreferences,
+          }
+        : existing?.torrentPreferences ?? defaultTorrentPrefs,
     };
 
     if ("customKeysPath" in updates && updates.customKeysPath) {

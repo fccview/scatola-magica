@@ -10,10 +10,13 @@ import Textarea from "@/app/_components/GlobalComponents/Form/Textarea";
 import Button from "@/app/_components/GlobalComponents/Buttons/Button";
 import { getKeyStatus } from "@/app/_server/actions/pgp";
 import { getEncryptionKey } from "@/app/_server/actions/user";
+import { migrateTorrentMetadataEncryption } from "@/app/_server/actions/manage-torrents";
+import E2EPasswordModal from "@/app/_components/FeatureComponents/Modals/E2EPasswordModal";
+import { getStoredE2EPassword } from "@/app/_lib/chunk-encryption";
 
 export default function TorrentsTab() {
   const router = useRouter();
-  const { user, torrentPreferences } = usePreferences();
+  const { user, torrentPreferences, encryptionKey } = usePreferences();
 
   const [seedRatio, setSeedRatio] = useState(
     torrentPreferences?.seedRatio ?? 1.0
@@ -23,6 +26,9 @@ export default function TorrentsTab() {
   );
   const [autoStartTorrents, setAutoStartTorrents] = useState(
     torrentPreferences?.autoStartTorrents ?? true
+  );
+  const [encryptMetadata, setEncryptMetadata] = useState(
+    torrentPreferences?.encryptMetadata ?? true
   );
   const [maxActiveTorrents, setMaxActiveTorrents] = useState(
     torrentPreferences?.maxActiveTorrents ?? 5
@@ -70,6 +76,10 @@ export default function TorrentsTab() {
   const [hasEncryption, setHasEncryption] = useState<boolean | null>(null);
   const [isCheckingEncryption, setIsCheckingEncryption] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [pendingEncryptValue, setPendingEncryptValue] = useState<
+    boolean | null
+  >(null);
 
   useEffect(() => {
     const checkEncryption = async () => {
@@ -102,6 +112,39 @@ export default function TorrentsTab() {
     checkEncryption();
   }, [user]);
 
+  const handleEncryptionToggle = async (encrypt: boolean, password: string) => {
+    if (!user?.username) return;
+
+    setIsSaving(true);
+    try {
+      const result = await migrateTorrentMetadataEncryption(encrypt, password);
+      if (!result.success) {
+        alert(result.error || "Failed to migrate encryption");
+        return;
+      }
+      setEncryptMetadata(encrypt);
+      await updateUserPreferences(user.username, {
+        torrentPreferences: {
+          encryptMetadata: encrypt,
+        },
+      });
+      router.refresh();
+    } catch (error) {
+      console.error("Error toggling encryption:", error);
+      alert("Failed to toggle encryption");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handlePasswordSubmit = async (password: string) => {
+    if (pendingEncryptValue !== null) {
+      await handleEncryptionToggle(pendingEncryptValue, password);
+      setPendingEncryptValue(null);
+    }
+    setShowPasswordModal(false);
+  };
+
   const handleSave = async () => {
     if (!user?.username) return;
 
@@ -117,6 +160,7 @@ export default function TorrentsTab() {
           seedRatio: Number(seedRatio),
           preferredDownloadPath: preferredDownloadPath || undefined,
           autoStartTorrents,
+          encryptMetadata,
           maxActiveTorrents: Number(maxActiveTorrents),
           maxTorrentFileSize: Number(maxTorrentFileSize) * 1024 * 1024,
           maxSingleFileSize: Number(maxSingleFileSize) * 1024 * 1024 * 1024,
@@ -142,6 +186,7 @@ export default function TorrentsTab() {
     setSeedRatio(torrentPreferences?.seedRatio ?? 1.0);
     setPreferredDownloadPath(torrentPreferences?.preferredDownloadPath ?? "");
     setAutoStartTorrents(torrentPreferences?.autoStartTorrents ?? true);
+    setEncryptMetadata(torrentPreferences?.encryptMetadata ?? true);
     setMaxActiveTorrents(torrentPreferences?.maxActiveTorrents ?? 5);
     setMaxTorrentFileSize(
       (torrentPreferences?.maxTorrentFileSize ?? 10 * 1024 * 1024) / 1024 / 1024
@@ -216,7 +261,6 @@ export default function TorrentsTab() {
 
   return (
     <div className="space-y-8">
-      {/* Basic Settings */}
       <div>
         <h2 className="text-xl font-medium text-on-surface mb-4">
           Basic Settings
@@ -254,6 +298,27 @@ export default function TorrentsTab() {
             onChange={() => setAutoStartTorrents(!autoStartTorrents)}
             label="Auto-start Torrents"
             description="Automatically start downloading torrents when added"
+          />
+
+          <Switch
+            id="encrypt-metadata"
+            checked={encryptMetadata}
+            onChange={async () => {
+              const newValue = !encryptMetadata;
+              const { encryptionKey } = usePreferences();
+
+              const password = encryptionKey
+                ? await getStoredE2EPassword(encryptionKey)
+                : null;
+              if (!password) {
+                setPendingEncryptValue(newValue);
+                setShowPasswordModal(true);
+                return;
+              }
+              await handleEncryptionToggle(newValue, password);
+            }}
+            label="Encrypt Metadata"
+            description="Encrypt torrent metadata with PGP. Disable to avoid password prompts, but metadata will be stored in plain text."
           />
 
           <div className="p-4 bg-surface rounded-lg">
@@ -431,6 +496,15 @@ export default function TorrentsTab() {
           Reset to Current
         </Button>
       </div>
+
+      <E2EPasswordModal
+        isOpen={showPasswordModal}
+        onClose={() => {
+          setShowPasswordModal(false);
+          setPendingEncryptValue(null);
+        }}
+        onPasswordSubmit={handlePasswordSubmit}
+      />
     </div>
   );
 }

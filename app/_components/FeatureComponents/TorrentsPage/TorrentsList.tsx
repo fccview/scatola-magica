@@ -11,6 +11,7 @@ import { TorrentStatus } from "@/app/_types/torrent";
 import IconButton from "@/app/_components/GlobalComponents/Buttons/IconButton";
 import Button from "@/app/_components/GlobalComponents/Buttons/Button";
 import Progress from "@/app/_components/GlobalComponents/Layout/Progress";
+import TorrentPasswordModal from "@/app/_components/FeatureComponents/Modals/TorrentPasswordModal";
 
 const formatBytes = (bytes: number): string => {
   if (bytes === 0) return "0 B";
@@ -21,7 +22,14 @@ const formatBytes = (bytes: number): string => {
 };
 
 export default function MyTorrentsList() {
-  const { torrents, isLoading, error, refresh } = useTorrents();
+  const {
+    torrents,
+    isLoading,
+    error,
+    refresh,
+    needsPassword,
+    onPasswordProvided,
+  } = useTorrents();
   const [actioningTorrent, setActioningTorrent] = useState<string | null>(null);
 
   const createdTorrents = torrents.filter(
@@ -92,38 +100,66 @@ export default function MyTorrentsList() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Progress variant="circular" size="lg" value={50} />
-      </div>
+      <>
+        <div className="flex items-center justify-center py-12">
+          <Progress variant="circular" size="lg" value={50} />
+        </div>
+        {needsPassword && (
+          <TorrentPasswordModal
+            isOpen={true}
+            onClose={() => {}}
+            onPasswordSubmit={onPasswordProvided}
+          />
+        )}
+      </>
     );
   }
 
   if (error) {
     return (
-      <div className="p-6 bg-error-container rounded-lg">
-        <div className="flex items-center gap-3">
-          <span className="material-symbols-outlined text-on-error-container">
-            error
-          </span>
-          <div className="text-on-error-container">{error}</div>
+      <>
+        <div className="p-6 bg-error-container rounded-lg">
+          <div className="flex items-center gap-3">
+            <span className="material-symbols-outlined text-on-error-container">
+              error
+            </span>
+            <div className="text-on-error-container">{error}</div>
+          </div>
         </div>
-      </div>
+        {needsPassword && (
+          <TorrentPasswordModal
+            isOpen={true}
+            onClose={() => {}}
+            onPasswordSubmit={onPasswordProvided}
+          />
+        )}
+      </>
     );
   }
 
   if (createdTorrents.length === 0) {
+    console.log("[MyTorrentsList] Empty list, needsPassword:", needsPassword);
     return (
-      <div className="text-center py-8 sm:py-12 px-4">
-        <span className="material-symbols-outlined text-on-surface/40 text-5xl sm:text-6xl mb-4 block">
-          p2p
-        </span>
-        <h2 className="text-lg sm:text-xl font-medium text-on-surface mb-2">
-          No torrents created yet
-        </h2>
-        <p className="text-sm sm:text-base text-on-surface/60">
-          Create a torrent from a file or folder in the file browser
-        </p>
-      </div>
+      <>
+        <div className="text-center py-8 sm:py-12 px-4">
+          <span className="material-symbols-outlined text-on-surface/40 text-5xl sm:text-6xl mb-4 block">
+            p2p
+          </span>
+          <h2 className="text-lg sm:text-xl font-medium text-on-surface mb-2">
+            No torrents created yet
+          </h2>
+          <p className="text-sm sm:text-base text-on-surface/60">
+            Create a torrent from a file or folder in the file browser
+          </p>
+        </div>
+        {needsPassword && (
+          <TorrentPasswordModal
+            isOpen={true}
+            onClose={() => {}}
+            onPasswordSubmit={onPasswordProvided}
+          />
+        )}
+      </>
     );
   }
 
@@ -279,6 +315,13 @@ export default function MyTorrentsList() {
           </div>
         );
       })}
+      {needsPassword && (
+        <TorrentPasswordModal
+          isOpen={true}
+          onClose={() => {}}
+          onPasswordSubmit={onPasswordProvided}
+        />
+      )}
     </div>
   );
 }
