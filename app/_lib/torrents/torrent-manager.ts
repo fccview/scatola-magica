@@ -78,75 +78,75 @@ class TorrentManager extends EventEmitter {
       }, 30000);
 
       try {
-        if (metadata.torrentFilePath) {
-          try {
-            torrentInput = await fs.readFile(metadata.torrentFilePath);
-          } catch {
-            torrentInput =
-              metadata.magnetURI || `magnet:?xt=urn:btih:${infoHash}`;
-          }
-        } else {
-          torrentInput = metadata.magnetURI || `magnet:?xt=urn:btih:${infoHash}`;
+      if (metadata.torrentFilePath) {
+        try {
+          torrentInput = await fs.readFile(metadata.torrentFilePath);
+        } catch {
+          torrentInput =
+            metadata.magnetURI || `magnet:?xt=urn:btih:${infoHash}`;
         }
+      } else {
+        torrentInput = metadata.magnetURI || `magnet:?xt=urn:btih:${infoHash}`;
+      }
 
-        const torrent = client.add(
-          torrentInput,
-          { path: downloadPath },
-          (torrentInstance: any) => {
+      const torrent = client.add(
+        torrentInput,
+        { path: downloadPath },
+        (torrentInstance: any) => {
             if (resolved) return;
 
-            const instance: TorrentInstance = {
-              infoHash,
-              torrent: torrentInstance,
-              downloadPath,
-              seedRatio,
-              onUpdate,
-              metadata: {
-                name: metadata.name,
-              },
-              username: session.username,
-              hasLoggedCompletion: false,
-              hasLoggedSeedComplete: false,
-            };
+          const instance: TorrentInstance = {
+            infoHash,
+            torrent: torrentInstance,
+            downloadPath,
+            seedRatio,
+            onUpdate,
+            metadata: {
+              name: metadata.name,
+            },
+            username: session.username,
+            hasLoggedCompletion: false,
+            hasLoggedSeedComplete: false,
+          };
 
-            torrentInstance.on("download", () => {
-              this.updateTorrentState(instance);
-            });
-
-            torrentInstance.on("upload", () => {
-              this.updateTorrentState(instance);
-            });
-
-            torrentInstance.on("done", () => {
-              this.updateTorrentState(instance);
-            });
-
-            torrentInstance.on("error", (err: Error) => {
-              console.error(`Torrent error for ${metadata.name}:`, err);
-              this.updateTorrentState(instance, err.message);
-            });
-
-            this.torrents.set(infoHash, instance);
-
-            const updateInterval = setInterval(() => {
-              this.updateTorrentState(instance);
-            }, 2000);
-
-            instance.updateInterval = updateInterval;
-
+          torrentInstance.on("download", () => {
             this.updateTorrentState(instance);
-            cleanup();
-            resolve();
-          }
-        );
+          });
 
-        torrent.on("error", (err: Error) => {
+          torrentInstance.on("upload", () => {
+            this.updateTorrentState(instance);
+          });
+
+          torrentInstance.on("done", () => {
+            this.updateTorrentState(instance);
+          });
+
+          torrentInstance.on("error", (err: Error) => {
+            console.error(`Torrent error for ${metadata.name}:`, err);
+            this.updateTorrentState(instance, err.message);
+          });
+
+          this.torrents.set(infoHash, instance);
+
+          const updateInterval = setInterval(() => {
+            this.updateTorrentState(instance);
+          }, 2000);
+
+          instance.updateInterval = updateInterval;
+
+          this.updateTorrentState(instance);
+            cleanup();
+          resolve();
+        }
+      );
+
+      torrent.on("error", (err: Error) => {
           if (!resolved) {
             cleanup();
-            console.error(`Failed to add torrent ${metadata.name}:`, err);
-            reject(err);
+        console.error(`Failed to add torrent ${metadata.name}:`, err);
+        reject(err);
           }
-        });
+      });
       } catch (error) {
         cleanup();
         reject(error);

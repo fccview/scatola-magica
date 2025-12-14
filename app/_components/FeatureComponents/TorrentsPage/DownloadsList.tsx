@@ -151,22 +151,22 @@ export default function DownloadsList() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Progress variant="circular" size="lg" value={50} />
-      </div>
+        <div className="flex items-center justify-center py-12">
+          <Progress variant="circular" size="lg" value={50} />
+        </div>
     );
   }
 
   if (error) {
     return (
-      <div className="p-6 bg-error-container rounded-lg">
-        <div className="flex items-center gap-3">
-          <span className="material-symbols-outlined text-on-error-container">
-            error
-          </span>
-          <div className="text-on-error-container">{error}</div>
+        <div className="p-6 bg-error-container rounded-lg">
+          <div className="flex items-center gap-3">
+            <span className="material-symbols-outlined text-on-error-container">
+              error
+            </span>
+            <div className="text-on-error-container">{error}</div>
+          </div>
         </div>
-      </div>
     );
   }
 

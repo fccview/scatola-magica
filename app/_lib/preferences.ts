@@ -84,7 +84,6 @@ export const getUserPreferences = async (
           "udp://tracker.torrent.eu.org:451/announce",
         ],
         allowCustomTrackers: false,
-        encryptMetadata: true,
       },
     }
   );
@@ -138,10 +137,10 @@ export const updateUserPreferences = async (
         true,
       torrentPreferences: updates.torrentPreferences
         ? {
-            ...defaultTorrentPrefs,
-            ...(existing?.torrentPreferences || {}),
-            ...updates.torrentPreferences,
-          }
+          ...defaultTorrentPrefs,
+          ...(existing?.torrentPreferences || {}),
+          ...updates.torrentPreferences,
+        }
         : existing?.torrentPreferences ?? defaultTorrentPrefs,
     };
 

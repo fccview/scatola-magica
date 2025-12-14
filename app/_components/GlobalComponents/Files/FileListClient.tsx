@@ -116,6 +116,8 @@ export default function FileListClient({
   });
 
   const { hasTorrent, refresh: refreshTorrents } = useFileTorrents();
+  const { torrentPreferences } = usePreferences();
+  const torrentsEnabled = !torrentPreferences?.disabled;
 
   if (allFiles.length === 0 && folders.length === 0 && !isLoadingMore) {
     return (
@@ -164,8 +166,8 @@ export default function FileListClient({
 
       <div
         className={`flex-1 overflow-y-auto ${viewMode === FileViewMode.GRID
-            ? "grid grid-cols-3 medium:grid-cols-2 expanded:grid-cols-3 large:grid-cols-4 xlarge:grid-cols-5 gap-3 content-start lg:p-2"
-            : "flex flex-col gap-1"
+          ? "grid grid-cols-3 medium:grid-cols-2 expanded:grid-cols-3 large:grid-cols-4 xlarge:grid-cols-5 gap-3 content-start lg:p-2"
+          : "flex flex-col gap-1"
           }`}
       >
         {!isRecursive &&
@@ -208,7 +210,7 @@ export default function FileListClient({
               onOpen={handleFileOpen}
               onEncrypt={() => setEncryptingFileId(file.id)}
               onDecrypt={() => setDecryptingFileId(file.id)}
-              onCreateTorrent={handleCreateTorrent}
+              onCreateTorrent={torrentsEnabled ? handleCreateTorrent : undefined}
               isSelectionMode={isSelectionMode}
               isSelected={selectedFileIds.has(file.id)}
               onToggleSelect={() => toggleFileSelection(file.id)}

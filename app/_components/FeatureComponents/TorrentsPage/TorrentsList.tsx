@@ -92,38 +92,38 @@ export default function MyTorrentsList() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Progress variant="circular" size="lg" value={50} />
-      </div>
+        <div className="flex items-center justify-center py-12">
+          <Progress variant="circular" size="lg" value={50} />
+        </div>
     );
   }
 
   if (error) {
     return (
-      <div className="p-6 bg-error-container rounded-lg">
-        <div className="flex items-center gap-3">
-          <span className="material-symbols-outlined text-on-error-container">
-            error
-          </span>
-          <div className="text-on-error-container">{error}</div>
+        <div className="p-6 bg-error-container rounded-lg">
+          <div className="flex items-center gap-3">
+            <span className="material-symbols-outlined text-on-error-container">
+              error
+            </span>
+            <div className="text-on-error-container">{error}</div>
+          </div>
         </div>
-      </div>
     );
   }
 
   if (createdTorrents.length === 0) {
     return (
-      <div className="text-center py-8 sm:py-12 px-4">
-        <span className="material-symbols-outlined text-on-surface/40 text-5xl sm:text-6xl mb-4 block">
-          p2p
-        </span>
-        <h2 className="text-lg sm:text-xl font-medium text-on-surface mb-2">
-          No torrents created yet
-        </h2>
-        <p className="text-sm sm:text-base text-on-surface/60">
-          Create a torrent from a file or folder in the file browser
-        </p>
-      </div>
+        <div className="text-center py-8 sm:py-12 px-4">
+          <span className="material-symbols-outlined text-on-surface/40 text-5xl sm:text-6xl mb-4 block">
+            p2p
+          </span>
+          <h2 className="text-lg sm:text-xl font-medium text-on-surface mb-2">
+            No torrents created yet
+          </h2>
+          <p className="text-sm sm:text-base text-on-surface/60">
+            Create a torrent from a file or folder in the file browser
+          </p>
+        </div>
     );
   }
 
@@ -218,8 +218,8 @@ export default function MyTorrentsList() {
                     onClick={() => handleStopSeeding(metadata.infoHash)}
                     disabled={isActioning || !isSeeding}
                     className={`w-full sm:w-auto ${!isSeeding
-                      ? "opacity-50 cursor-not-allowed"
-                      : "bg-error text-on-error hover:bg-error/90"
+                        ? "opacity-50 cursor-not-allowed"
+                        : "bg-error text-on-error hover:bg-error/90"
                       }`}
                   >
                     Stop Seeding

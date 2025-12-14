@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { addTorrent } from "@/app/_server/actions/manage-torrents";
-import { usePreferences } from "@/app/_providers/PreferencesProvider";
 import Button from "../../GlobalComponents/Buttons/Button";
+import { usePreferences } from "@/app/_providers/PreferencesProvider";
 
 interface DeepLinkHandlerProps {
   onTorrentAdded?: () => void;
@@ -15,10 +15,14 @@ export default function DeepLinkHandler({
 }: DeepLinkHandlerProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { torrentPreferences } = usePreferences();
+  const torrentsEnabled = !torrentPreferences?.disabled;
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!torrentsEnabled) return;
+
     const processMagnet = async () => {
       const torrentParam = searchParams.get("torrent");
       const isDeepLink = searchParams.get("deeplink") === "true";
@@ -70,7 +74,7 @@ export default function DeepLinkHandler({
     };
 
     processMagnet();
-  }, [searchParams, router, isProcessing, onTorrentAdded, torrentsEnabled]);
+  }, [searchParams, router, isProcessing, onTorrentAdded]);
 
   if (!isProcessing && !error) return null;
 
