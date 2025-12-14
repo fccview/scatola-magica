@@ -122,19 +122,6 @@ export default function AddMagnetModal({
     }
   }, [isOpen, initialMagnet, initialTorrentFile]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (!file.name.endsWith(".torrent")) {
-        setError("Please select a .torrent file");
-        return;
-      }
-      setTorrentFile(file);
-      setMagnetURI("");
-      setError(null);
-    }
-  };
-
   const handleFetchMetadata = async () => {
     if (!magnetURI.trim() && !torrentFile) {
       setError("Provide a magnet URI or .torrent file");
@@ -276,7 +263,7 @@ export default function AddMagnetModal({
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title={metadata ? "Select Files to Download" : "Add Torrent"}
+      title={metadata ? "Select Files to Download" : "Add Magnet"}
       headerActions={
         <>
           <Button onClick={handleClose} variant="outlined" disabled={isLoading}>
@@ -341,41 +328,6 @@ export default function AddMagnetModal({
                 }
               }}
             />
-
-            <div className="flex items-center gap-4">
-              <div className="flex-1 h-px border-t border-dashed border-outline"></div>
-              <span className="text-sm text-on-surface/60">OR</span>
-              <div className="flex-1 h-px border-t border-dashed border-outline"></div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-on-surface mb-2">
-                Torrent File
-              </label>
-              <div className="flex items-center gap-3">
-                <Button
-                  variant="outlined"
-                  onClick={() =>
-                    document.getElementById("torrent-file-input")?.click()
-                  }
-                  disabled={!!magnetURI || isLoading}
-                >
-                  Choose File
-                </Button>
-                {torrentFile && (
-                  <span className="text-sm text-on-surface">
-                    {torrentFile.name}
-                  </span>
-                )}
-              </div>
-              <input
-                id="torrent-file-input"
-                type="file"
-                accept=".torrent"
-                onChange={handleFileChange}
-                className="hidden"
-              />
-            </div>
 
             {loadingStatus && (
               <div className="flex items-center gap-3 p-3 bg-surface-container rounded">
