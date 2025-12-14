@@ -8,6 +8,7 @@ import IconButton from "@/app/_components/GlobalComponents/Buttons/IconButton";
 import HelpButton from "@/app/_components/GlobalComponents/Layout/HelpButton";
 import ThemeSelector from "@/app/_components/GlobalComponents/Layout/ThemeSelector";
 import UserMenu from "@/app/_components/FeatureComponents/User/UserMenu";
+import { usePreferences } from "@/app/_providers/PreferencesProvider";
 
 export default function Header({
   showHelpButton = true,
@@ -25,6 +26,8 @@ export default function Header({
   showUserMenu?: boolean;
 }) {
   const router = useRouter();
+  const { torrentPreferences } = usePreferences();
+  const torrentsEnabled = !torrentPreferences?.disabled;
 
   return (
     <TopAppBar
@@ -38,7 +41,7 @@ export default function Header({
       }
       trailing={
         <div className="flex items-center gap-2">
-          {showTorrentsButton && (
+          {showTorrentsButton && torrentsEnabled && (
             <IconButton
               icon="p2p"
               onClick={() => {

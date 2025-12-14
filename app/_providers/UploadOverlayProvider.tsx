@@ -16,6 +16,7 @@ import {
   FileWithPath,
 } from "@/app/_lib/folder-reader";
 import { useFolders } from "@/app/_providers/FoldersProvider";
+import { usePreferences } from "@/app/_providers/PreferencesProvider";
 
 interface UploadOverlayContextValue {
   openUploadWithFiles: (files: FileList, folderId?: string | null) => void;
@@ -50,6 +51,8 @@ export default function UploadOverlayProvider({
   const router = useRouter();
   const pathname = usePathname();
   const { refreshFolders } = useFolders();
+  const { torrentPreferences } = usePreferences();
+  const torrentsEnabled = !torrentPreferences?.disabled;
   const [isDragging, setIsDragging] = useState(false);
   const [dragCounter, setDragCounter] = useState(0);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
@@ -139,6 +142,30 @@ export default function UploadOverlayProvider({
           for (let i = 0; i < files.length; i++) {
             const file = files[i];
             if (file.name.endsWith(".torrent")) {
+              if (!torrentsEnabled) {
+                const fileList = createFileList([file]);
+                setUploadFiles(fileList);
+                setUploadFilesWithPaths(null);
+                setRootFolderName("");
+
+                let currentFolderId: string | null = null;
+                if (pathname.startsWith("/files/")) {
+                  const pathAfterFiles = pathname.slice(7);
+                  if (pathAfterFiles) {
+                    const pathParts = pathAfterFiles
+                      .split("/")
+                      .map(decodeURIComponent);
+                    currentFolderId = pathParts.join("/");
+                  }
+                } else if (pathname === "/files") {
+                  currentFolderId = null;
+                }
+
+                setUploadFolderPath(currentFolderId || "");
+                setIsUploadModalOpen(true);
+                isModalOpenRef.current = true;
+                return;
+              }
               const reader = new FileReader();
               reader.onload = () => {
                 sessionStorage.setItem(
@@ -201,7 +228,7 @@ export default function UploadOverlayProvider({
         alert("Failed to process dropped files. Please try again.");
       }
     },
-    [pathname, router]
+    [pathname, router, torrentsEnabled]
   );
 
   const handlePaste = useCallback(
@@ -230,28 +257,33 @@ export default function UploadOverlayProvider({
           if (file) {
             if (file.name.endsWith(".torrent")) {
               e.preventDefault();
-              const reader = new FileReader();
-              reader.onload = () => {
-                sessionStorage.setItem(
-                  "pendingTorrentFile",
-                  reader.result as string
-                );
-                sessionStorage.setItem("pendingTorrentFileName", file.name);
-                if (pathname === "/torrents") {
-                  window.dispatchEvent(
-                    new CustomEvent("torrent-paste", {
-                      detail: { torrentFile: file.name },
-                    })
+              if (!torrentsEnabled) {
+                files.push(file);
+              } else {
+                const reader = new FileReader();
+                reader.onload = () => {
+                  sessionStorage.setItem(
+                    "pendingTorrentFile",
+                    reader.result as string
                   );
-                  router.replace("/torrents?tab=downloads&action=add");
-                } else {
-                  router.push("/torrents?tab=downloads&action=add");
-                }
-              };
-              reader.readAsDataURL(file);
-              return;
+                  sessionStorage.setItem("pendingTorrentFileName", file.name);
+                  if (pathname === "/torrents") {
+                    window.dispatchEvent(
+                      new CustomEvent("torrent-paste", {
+                        detail: { torrentFile: file.name },
+                      })
+                    );
+                    router.replace("/torrents?tab=downloads&action=add");
+                  } else {
+                    router.push("/torrents?tab=downloads&action=add");
+                  }
+                };
+                reader.readAsDataURL(file);
+                return;
+              }
+            } else {
+              files.push(file);
             }
-            files.push(file);
           }
         }
       }
@@ -268,6 +300,38 @@ export default function UploadOverlayProvider({
             if (!text.trim()) return;
 
             if (text.trim().startsWith("magnet:")) {
+              if (!torrentsEnabled) {
+                const timestamp = new Date()
+                  .toISOString()
+                  .replace(/[:.]/g, "-")
+                  .slice(0, -5);
+                const filename = `pasted-text-${timestamp}.txt`;
+                const blob = new Blob([text], { type: "text/plain" });
+                const file = new File([blob], filename, { type: "text/plain" });
+
+                let currentFolderId: string | null = null;
+                if (pathname.startsWith("/files/")) {
+                  const pathAfterFiles = pathname.slice(7);
+                  if (pathAfterFiles) {
+                    const pathParts = pathAfterFiles
+                      .split("/")
+                      .map(decodeURIComponent);
+                    currentFolderId = pathParts.join("/");
+                  }
+                } else if (pathname === "/files") {
+                  currentFolderId = null;
+                }
+
+                const fileList = createFileList([file]);
+                setUploadFiles(fileList);
+                setUploadFilesWithPaths(null);
+                setRootFolderName("");
+                setUploadFolderPath(currentFolderId || "");
+                setIsUploadModalOpen(true);
+                isModalOpenRef.current = true;
+                return;
+              }
+
               const magnet = text.trim();
               if (pathname === "/torrents") {
                 sessionStorage.setItem("pendingMagnet", magnet);

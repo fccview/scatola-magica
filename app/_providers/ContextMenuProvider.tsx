@@ -10,6 +10,7 @@ import {
 import ContextMenu, {
   ContextMenuItem,
 } from "@/app/_components/GlobalComponents/Layout/ContextMenu";
+import { usePreferences } from "./PreferencesProvider";
 
 export interface ContextMenuTarget {
   type: "file" | "folder" | "empty";
@@ -114,6 +115,8 @@ export default function ContextMenuProvider({
   const [menuVisible, setMenuVisible] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const [menuItems, setMenuItems] = useState<ContextMenuItem[]>([]);
+  const { torrentPreferences } = usePreferences();
+  const torrentsEnabled = !torrentPreferences?.disabled;
 
   const showContextMenu = useCallback(
     (
@@ -167,7 +170,7 @@ export default function ContextMenuProvider({
           });
         }
 
-        if (actions.onFileCreateTorrent && target.id && target.name) {
+        if (actions.onFileCreateTorrent && target.id && target.name && torrentsEnabled) {
           items.push({
             label: "Create Torrent",
             icon: "p2p",
@@ -181,7 +184,7 @@ export default function ContextMenuProvider({
             items.push({
               label: "",
               icon: "",
-              onClick: () => {},
+              onClick: () => { },
               divider: true,
             });
           }
@@ -197,7 +200,7 @@ export default function ContextMenuProvider({
             items.push({
               label: "",
               icon: "",
-              onClick: () => {},
+              onClick: () => { },
               divider: true,
             });
           }
@@ -213,7 +216,7 @@ export default function ContextMenuProvider({
             items.push({
               label: "",
               icon: "",
-              onClick: () => {},
+              onClick: () => { },
               divider: true,
             });
           }
@@ -248,7 +251,7 @@ export default function ContextMenuProvider({
           });
         }
 
-        if (actions.onFolderCreateTorrent && target.id && target.name) {
+        if (actions.onFolderCreateTorrent && target.id && target.name && torrentsEnabled) {
           items.push({
             label: "Create Torrent",
             icon: "p2p",
@@ -280,7 +283,7 @@ export default function ContextMenuProvider({
             items.push({
               label: "",
               icon: "",
-              onClick: () => {},
+              onClick: () => { },
               divider: true,
             });
           }
@@ -296,7 +299,7 @@ export default function ContextMenuProvider({
             items.push({
               label: "",
               icon: "",
-              onClick: () => {},
+              onClick: () => { },
               divider: true,
             });
           }
@@ -312,7 +315,7 @@ export default function ContextMenuProvider({
             items.push({
               label: "",
               icon: "",
-              onClick: () => {},
+              onClick: () => { },
               divider: true,
             });
           }
@@ -349,7 +352,7 @@ export default function ContextMenuProvider({
         setMenuVisible(true);
       }
     },
-    []
+    [torrentsEnabled]
   );
 
   const hideContextMenu = useCallback(() => {

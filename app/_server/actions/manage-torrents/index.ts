@@ -58,6 +58,11 @@ const _checkRateLimit = (username: string): boolean => {
   return true;
 };
 
+const _checkTorrentsEnabled = async (username: string): Promise<boolean> => {
+  const preferences = await getUserPreferences(username);
+  return !preferences?.torrentPreferences?.disabled;
+};
+
 const _getDownloadPath = async (
   username: string,
   customPath?: string,
@@ -120,11 +125,16 @@ export const addTorrent = async (
   magnetURIOrBuffer: string | Buffer | Uint8Array,
   customDownloadPath?: string,
   folderPath?: string
-): Promise<ServerActionResponse<{ infoHash: string }>> => {
+): Promise<ServerActionResponse<{ infoHash: string } | null>> => {
   try {
     const user = await getCurrentUser();
     if (!user) {
       return { success: false, error: "Unauthorized" };
+    }
+
+    const enabled = await _checkTorrentsEnabled(user.username);
+    if (!enabled) {
+      return { success: true, data: null };
     }
 
     const encryptionValidation = await validateEncryptionForTorrents();
@@ -326,7 +336,7 @@ export const getTorrents = async (
     torrents: TorrentSession[];
     total: number;
     needsPassword?: boolean;
-  }>
+  } | null>
 > => {
   try {
     const user = await getCurrentUser();
@@ -494,11 +504,16 @@ export const getTorrents = async (
 
 export const pauseTorrent = async (
   infoHash: string
-): Promise<ServerActionResponse<void>> => {
+): Promise<ServerActionResponse<void | null>> => {
   try {
     const user = await getCurrentUser();
     if (!user) {
       return { success: false, error: "Unauthorized" };
+    }
+
+    const enabled = await _checkTorrentsEnabled(user.username);
+    if (!enabled) {
+      return { success: true, data: null };
     }
 
     const sessions = await loadTorrentSessions(user.username);
@@ -595,11 +610,16 @@ export const stopTorrent = async (
 
 export const resumeTorrent = async (
   infoHash: string
-): Promise<ServerActionResponse<void>> => {
+): Promise<ServerActionResponse<void | null>> => {
   try {
     const user = await getCurrentUser();
     if (!user) {
       return { success: false, error: "Unauthorized" };
+    }
+
+    const enabled = await _checkTorrentsEnabled(user.username);
+    if (!enabled) {
+      return { success: true, data: null };
     }
 
     const encryptionValidation = await validateEncryptionForTorrents();
@@ -768,11 +788,16 @@ export const removeTorrent = async (
 
 export const startSeedingCreatedTorrent = async (
   infoHash: string
-): Promise<ServerActionResponse<void>> => {
+): Promise<ServerActionResponse<void | null>> => {
   try {
     const user = await getCurrentUser();
     if (!user) {
       return { success: false, error: "Unauthorized" };
+    }
+
+    const enabled = await _checkTorrentsEnabled(user.username);
+    if (!enabled) {
+      return { success: true, data: null };
     }
 
     const encryptionValidation = await validateEncryptionForTorrents();

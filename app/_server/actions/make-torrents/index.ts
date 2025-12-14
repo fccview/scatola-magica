@@ -122,6 +122,11 @@ const _getFilesRecursive = async (
   return files;
 };
 
+const _checkTorrentsEnabled = async (username: string): Promise<boolean> => {
+  const preferences = await getUserPreferences(username);
+  return !preferences?.torrentPreferences?.disabled;
+};
+
 export const createTorrentFromFile = async (
   filePath: string,
   options?: TorrentCreateOptions
@@ -130,12 +135,17 @@ export const createTorrentFromFile = async (
     magnetURI: string;
     torrentFile: string;
     infoHash: string;
-  }>
+  } | null>
 > => {
   try {
     const user = await getCurrentUser();
     if (!user) {
       return { success: false, error: "Unauthorized" };
+    }
+
+    const enabled = await _checkTorrentsEnabled(user.username);
+    if (!enabled) {
+      return { success: true, data: null };
     }
 
     const encryptionValidation = await validateEncryptionForTorrents();
@@ -295,12 +305,17 @@ export const createTorrentFromFolder = async (
     magnetURI: string;
     torrentFile: string;
     infoHash: string;
-  }>
+  } | null>
 > => {
   try {
     const user = await getCurrentUser();
     if (!user) {
       return { success: false, error: "Unauthorized" };
+    }
+
+    const enabled = await _checkTorrentsEnabled(user.username);
+    if (!enabled) {
+      return { success: true, data: null };
     }
 
     const encryptionValidation = await validateEncryptionForTorrents();

@@ -18,6 +18,7 @@ import CreateTorrentModal from "@/app/_components/FeatureComponents/Modals/Torre
 import Progress from "@/app/_components/GlobalComponents/Layout/Progress";
 import { useFileList } from "@/app/_hooks/useFileList";
 import { useFileTorrents } from "@/app/_hooks/useFileTorrents";
+import { usePreferences } from "@/app/_providers/PreferencesProvider";
 
 interface FileListClientProps {
   files: FileMetadata[];
@@ -162,11 +163,10 @@ export default function FileListClient({
       )}
 
       <div
-        className={`flex-1 overflow-y-auto ${
-          viewMode === FileViewMode.GRID
+        className={`flex-1 overflow-y-auto ${viewMode === FileViewMode.GRID
             ? "grid grid-cols-3 medium:grid-cols-2 expanded:grid-cols-3 large:grid-cols-4 xlarge:grid-cols-5 gap-3 content-start lg:p-2"
             : "flex flex-col gap-1"
-        }`}
+          }`}
       >
         {!isRecursive &&
           folders.map((folder) => {
@@ -181,7 +181,7 @@ export default function FileListClient({
                 onRename={handleRenameFolder}
                 onEncrypt={() => setEncryptingFolderId(folder.id)}
                 onDecrypt={() => setDecryptingFolderId(folder.id)}
-                onCreateTorrent={handleCreateTorrent}
+                onCreateTorrent={torrentsEnabled ? handleCreateTorrent : undefined}
                 isSelectionMode={isSelectionMode}
                 isSelected={selectedFolderIds.has(folder.id)}
                 onToggleSelect={() => toggleFolderSelection(folder.id)}

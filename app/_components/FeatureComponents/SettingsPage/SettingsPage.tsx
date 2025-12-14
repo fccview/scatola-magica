@@ -32,15 +32,22 @@ type Tab =
   | "torrents";
 
 function SettingsPageContent() {
-  const { user } = usePreferences();
+  const { user, torrentPreferences } = usePreferences();
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<Tab>("profile");
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const { toggleSidebar } = useSidebar();
+  const torrentsEnabled = !torrentPreferences?.disabled;
 
   const handleOpenUpload = () => {
     setIsUploadModalOpen(true);
   };
+
+  useEffect(() => {
+    if (activeTab === "torrents" && !torrentsEnabled) {
+      setActiveTab("profile");
+    }
+  }, [torrentsEnabled, activeTab]);
 
   useEffect(() => {
     const tabParam = searchParams.get("tab");
@@ -51,13 +58,15 @@ function SettingsPageContent() {
         "encryption",
         "users",
         "audit-logs",
-        "torrents",
+        ...(torrentsEnabled ? ["torrents" as Tab] : []),
       ];
       if (validTabs.includes(tabParam as Tab)) {
         setActiveTab(tabParam as Tab);
+      } else if (tabParam === "torrents" && !torrentsEnabled) {
+        setActiveTab("profile");
       }
     }
-  }, [searchParams]);
+  }, [searchParams, torrentsEnabled]);
 
   if (!user) {
     return null;
@@ -67,7 +76,7 @@ function SettingsPageContent() {
     { id: "profile", label: "Profile", icon: "person" },
     { id: "preferences", label: "Preferences", icon: "tune" },
     { id: "encryption", label: "Encryption", icon: "lock" },
-    { id: "torrents", label: "Torrents", icon: "p2p" },
+    ...(torrentsEnabled ? [{ id: "torrents" as Tab, label: "Torrents", icon: "p2p" }] : []),
     ...(user.isAdmin
       ? [
         { id: "users" as Tab, label: "Users", icon: "group" },
@@ -128,7 +137,7 @@ function SettingsPageContent() {
                 {activeTab === "encryption" && <EncryptionTab />}
                 {activeTab === "users" && <UsersTab />}
                 {activeTab === "audit-logs" && <AuditLogsTab />}
-                {activeTab === "torrents" && <TorrentsTab />}
+                {activeTab === "torrents" && torrentsEnabled && <TorrentsTab />}
               </div>
             </main>
           </MobileSidebarWrapper>

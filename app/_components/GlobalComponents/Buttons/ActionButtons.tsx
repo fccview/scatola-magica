@@ -12,6 +12,7 @@ import DropdownMenu, {
 } from "@/app/_components/GlobalComponents/Form/DropdownMenu";
 import { useClientEncryption } from "@/app/_hooks/useClientEncryption";
 import { useUploadOverlay } from "@/app/_providers/UploadOverlayProvider";
+import { usePreferences } from "@/app/_providers/PreferencesProvider";
 import Progress from "@/app/_components/GlobalComponents/Layout/Progress";
 
 interface ActionButtonsProps {
@@ -21,10 +22,10 @@ interface ActionButtonsProps {
 }
 
 export default function ActionButtons({
-                                          onCreateFolder,
-                                          onUpload,
-                                          parentId = null,
-                                      }: ActionButtonsProps) {
+    onCreateFolder,
+    onUpload,
+    parentId = null,
+}: ActionButtonsProps) {
     const router = useRouter();
     const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
     const [isEncryptionModalOpen, setIsEncryptionModalOpen] = useState(false);
@@ -95,6 +96,9 @@ export default function ActionButtons({
         setIsTorrentModalOpen(false);
     };
 
+    const { torrentPreferences } = usePreferences();
+    const torrentsEnabled = !torrentPreferences?.disabled;
+
     const uploadMenuItems: DropdownMenuItem[] = [
         {
             label: "Files",
@@ -106,16 +110,20 @@ export default function ActionButtons({
             icon: "lock",
             onClick: handleEncryptedUpload,
         },
-        {
-            label: "Torrent File",
-            icon: "p2p",
-            onClick: handleTorrentFileUpload,
-        },
-        {
-            label: "Magnet Link",
-            icon: "link",
-            onClick: handleMagnetLink,
-        },
+        ...(torrentsEnabled
+            ? [
+                {
+                    label: "Torrent File",
+                    icon: "p2p",
+                    onClick: handleTorrentFileUpload,
+                },
+                {
+                    label: "Magnet Link",
+                    icon: "link",
+                    onClick: handleMagnetLink,
+                },
+            ]
+            : []),
     ];
 
     return (

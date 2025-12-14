@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { addTorrent } from "@/app/_server/actions/manage-torrents";
+import { usePreferences } from "@/app/_providers/PreferencesProvider";
 import Button from "../../GlobalComponents/Buttons/Button";
 
 interface DeepLinkHandlerProps {
@@ -69,7 +70,7 @@ export default function DeepLinkHandler({
     };
 
     processMagnet();
-  }, [searchParams, router, isProcessing, onTorrentAdded]);
+  }, [searchParams, router, isProcessing, onTorrentAdded, torrentsEnabled]);
 
   if (!isProcessing && !error) return null;
 

@@ -37,7 +37,6 @@ export const saveCreatedTorrent = async (
 ): Promise<void> => {
   await _ensureDir();
   const file = _getCreatedTorrentsFile(username);
-  const encryptedFile = _getCreatedTorrentsEncryptedFile(username);
 
   const isEncrypted = await isCreatedTorrentsEncrypted(username);
   if (isEncrypted) {
@@ -114,7 +113,6 @@ export const loadCreatedTorrents = async (
   username: string
 ): Promise<CreatedTorrent[]> => {
   const file = _getCreatedTorrentsFile(username);
-  const encryptedFile = _getCreatedTorrentsEncryptedFile(username);
 
   const isEncrypted = await isCreatedTorrentsEncrypted(username);
   if (isEncrypted) {

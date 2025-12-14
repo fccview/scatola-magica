@@ -12,6 +12,7 @@ export default function PreferencesTab() {
     particlesEnabled: initialParticles,
     wandCursorEnabled: initialWand,
     pokemonThemesEnabled: initialPokemonThemes,
+    torrentPreferences,
     user,
   } = usePreferences();
 
@@ -23,6 +24,9 @@ export default function PreferencesTab() {
   const [wandCursorEnabled, setWandCursorEnabled] = useState(initialWand);
   const [pokemonThemesEnabled, setPokemonThemesEnabled] = useState(
     initialPokemonThemes ?? false
+  );
+  const [torrentsDisabled, setTorrentsDisabled] = useState(
+    torrentPreferences?.disabled ?? false
   );
 
   const handleParticlesToggle = async () => {
@@ -58,6 +62,17 @@ export default function PreferencesTab() {
       }
     }
 
+    router.refresh();
+  };
+
+  const handleTorrentsDisabledToggle = async () => {
+    const newValue = !torrentsDisabled;
+    setTorrentsDisabled(newValue);
+    await updateUserPreferences(user?.username ?? "", {
+      torrentPreferences: {
+        disabled: newValue,
+      },
+    });
     router.refresh();
   };
 
@@ -107,6 +122,19 @@ export default function PreferencesTab() {
                 dev.
               </>
             }
+          />
+        </div>
+      </div>
+
+      <div>
+        <h2 className="text-xl font-medium text-on-surface mb-6">Torrents</h2>
+        <div className="p-6 bg-surface-container rounded-lg space-y-6">
+          <Switch
+            id="disable-torrents"
+            checked={torrentsDisabled}
+            onChange={handleTorrentsDisabledToggle}
+            label="Disable Torrents"
+            description="Completely disable all torrent functionality. When toggled, torrent features will be hidden and unavailable."
           />
         </div>
       </div>

@@ -8,11 +8,6 @@ import Switch from "@/app/_components/GlobalComponents/Form/Switch";
 import Input from "@/app/_components/GlobalComponents/Form/Input";
 import Textarea from "@/app/_components/GlobalComponents/Form/Textarea";
 import Button from "@/app/_components/GlobalComponents/Buttons/Button";
-import { getKeyStatus } from "@/app/_server/actions/pgp";
-import { getEncryptionKey } from "@/app/_server/actions/user";
-import { encryptTorrentMetadata, decryptTorrentMetadata } from "@/app/_server/actions/manage-torrents";
-import E2EPasswordModal from "@/app/_components/FeatureComponents/Modals/E2EPasswordModal";
-import { getStoredE2EPassword } from "@/app/_lib/chunk-encryption";
 
 export default function TorrentsTab() {
   const router = useRouter();
@@ -26,9 +21,6 @@ export default function TorrentsTab() {
   );
   const [autoStartTorrents, setAutoStartTorrents] = useState(
     torrentPreferences?.autoStartTorrents ?? true
-  );
-  const [encryptMetadata, setEncryptMetadata] = useState(
-    torrentPreferences?.encryptMetadata ?? true
   );
   const [maxActiveTorrents, setMaxActiveTorrents] = useState(
     torrentPreferences?.maxActiveTorrents ?? 5
@@ -73,89 +65,8 @@ export default function TorrentsTab() {
     torrentPreferences?.allowCustomTrackers ?? false
   );
 
-  const [hasEncryption, setHasEncryption] = useState<boolean | null>(null);
-  const [isCheckingEncryption, setIsCheckingEncryption] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [pendingEncryptValue, setPendingEncryptValue] = useState<
-    boolean | null
-  >(null);
 
-  useEffect(() => {
-    const checkEncryption = async () => {
-      try {
-        const keyResult = await getEncryptionKey();
-        console.log(
-          "TorrentsTab - Encryption key result:",
-          keyResult.hasEncryptionKey
-        );
-
-        if (!keyResult.hasEncryptionKey) {
-          console.log("TorrentsTab - No encryption key found");
-          setHasEncryption(false);
-          setIsCheckingEncryption(false);
-          return;
-        }
-
-        console.log("TorrentsTab - Checking PGP key status...");
-        const keyStatus = await getKeyStatus();
-        console.log("TorrentsTab - PGP key status result:", keyStatus.hasKeys);
-        setHasEncryption(keyStatus.hasKeys);
-      } catch (error) {
-        console.error("TorrentsTab - Error checking encryption:", error);
-        setHasEncryption(false);
-      } finally {
-        setIsCheckingEncryption(false);
-      }
-    };
-
-    checkEncryption();
-  }, [user]);
-
-  const handleEncryptionToggle = async (encrypt: boolean, password: string) => {
-    if (!user?.username) return;
-
-    setIsSaving(true);
-    try {
-      if (encrypt) {
-        const result = await encryptTorrentMetadata();
-        if (!result.success) {
-          alert(result.error || "Failed to encrypt metadata");
-          return;
-        }
-      } else {
-        if (!password) {
-          alert("Password is required to decrypt");
-          return;
-        }
-        const result = await decryptTorrentMetadata(password);
-        if (!result.success) {
-          alert(result.error || "Failed to decrypt metadata");
-          return;
-        }
-      }
-      setEncryptMetadata(encrypt);
-      await updateUserPreferences(user.username, {
-        torrentPreferences: {
-          encryptMetadata: encrypt,
-        },
-      });
-      router.refresh();
-    } catch (error) {
-      console.error("Error toggling encryption:", error);
-      alert("Failed to toggle encryption");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handlePasswordSubmit = async (password: string) => {
-    if (pendingEncryptValue !== null) {
-      await handleEncryptionToggle(pendingEncryptValue, password);
-      setPendingEncryptValue(null);
-    }
-    setShowPasswordModal(false);
-  };
 
   const handleSave = async () => {
     if (!user?.username) return;
@@ -172,7 +83,6 @@ export default function TorrentsTab() {
           seedRatio: Number(seedRatio),
           preferredDownloadPath: preferredDownloadPath || undefined,
           autoStartTorrents,
-          encryptMetadata,
           maxActiveTorrents: Number(maxActiveTorrents),
           maxTorrentFileSize: Number(maxTorrentFileSize) * 1024 * 1024,
           maxSingleFileSize: Number(maxSingleFileSize) * 1024 * 1024 * 1024,
@@ -198,7 +108,6 @@ export default function TorrentsTab() {
     setSeedRatio(torrentPreferences?.seedRatio ?? 1.0);
     setPreferredDownloadPath(torrentPreferences?.preferredDownloadPath ?? "");
     setAutoStartTorrents(torrentPreferences?.autoStartTorrents ?? true);
-    setEncryptMetadata(torrentPreferences?.encryptMetadata ?? true);
     setMaxActiveTorrents(torrentPreferences?.maxActiveTorrents ?? 5);
     setMaxTorrentFileSize(
       (torrentPreferences?.maxTorrentFileSize ?? 10 * 1024 * 1024) / 1024 / 1024
@@ -225,51 +134,6 @@ export default function TorrentsTab() {
     setAllowCustomTrackers(torrentPreferences?.allowCustomTrackers ?? false);
   };
 
-  if (isCheckingEncryption) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-on-surface/60">Checking encryption status...</div>
-      </div>
-    );
-  }
-
-  if (hasEncryption === false) {
-    return (
-      <div className="space-y-6">
-        <div className="p-6 bg-error-container rounded-lg">
-          <div className="flex items-start gap-4">
-            <span className="material-symbols-outlined text-on-error-container text-3xl">
-              lock
-            </span>
-            <div className="flex-1">
-              <h3 className="text-lg font-medium text-on-error-container mb-2">
-                Encryption Required
-              </h3>
-              <p className="text-on-error-container/80 mb-4">
-                Torrent features require encryption to be configured. Please set
-                up PGP encryption keys in the Encryption tab before using
-                torrents.
-              </p>
-              <p className="text-sm text-on-error-container/70 mb-4">
-                This ensures your torrent activity is secure and your downloads
-                are protected with end-to-end encryption.
-              </p>
-              <Button
-                variant="filled"
-                onClick={() => {
-                  const url = new URL(window.location.href);
-                  url.searchParams.set("tab", "encryption");
-                  router.push(url.toString());
-                }}
-              >
-                Go to Encryption Settings
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-8">
@@ -312,26 +176,6 @@ export default function TorrentsTab() {
             description="Automatically start downloading torrents when added"
           />
 
-          <Switch
-            id="encrypt-metadata"
-            checked={encryptMetadata}
-            onChange={async () => {
-              const newValue = !encryptMetadata;
-              const { encryptionKey } = usePreferences();
-
-              const password = encryptionKey
-                ? await getStoredE2EPassword(encryptionKey)
-                : null;
-              if (!password) {
-                setPendingEncryptValue(newValue);
-                setShowPasswordModal(true);
-                return;
-              }
-              await handleEncryptionToggle(newValue, password);
-            }}
-            label="Encrypt Metadata"
-            description="Encrypt torrent metadata with PGP. Disable to avoid password prompts, but metadata will be stored in plain text."
-          />
 
           <div className="p-4 bg-surface rounded-lg">
             <p className="text-sm text-on-surface-variant mb-2">
@@ -509,14 +353,6 @@ export default function TorrentsTab() {
         </Button>
       </div>
 
-      <E2EPasswordModal
-        isOpen={showPasswordModal}
-        onClose={() => {
-          setShowPasswordModal(false);
-          setPendingEncryptValue(null);
-        }}
-        onPasswordSubmit={handlePasswordSubmit}
-      />
     </div>
   );
 }
