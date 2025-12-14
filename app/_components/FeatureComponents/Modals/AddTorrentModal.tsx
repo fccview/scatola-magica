@@ -23,37 +23,31 @@ interface AddTorrentModalProps {
 type UploadStage = "input" | "metadata" | "uploading" | "success";
 
 const AddTorrentModal = ({
-                             isOpen,
-                             onClose,
-                             initialFolderPath = null,
-                             initialTorrentFile,
-                         }: AddTorrentModalProps) => {
+    isOpen,
+    onClose,
+    initialFolderPath = null,
+    initialTorrentFile,
+}: AddTorrentModalProps) => {
     const router = useRouter();
 
-    // Stage management
     const [stage, setStage] = useState<UploadStage>("input");
 
-    // Input state
     const [torrentFile, setTorrentFile] = useState<File | null>(null);
     const [isDragging, setIsDragging] = useState(false);
 
-    // Loading and error state
     const [isLoading, setIsLoading] = useState(false);
     const [loadingStatus, setLoadingStatus] = useState("");
     const [error, setError] = useState<string | null>(null);
 
-    // Metadata state
     const [metadata, setMetadata] = useState<TorrentMetadataInfo | null>(null);
     const [selectedFiles, setSelectedFiles] = useState<Set<number>>(new Set());
     const [selectedFolder, setSelectedFolder] = useState<string | null>(
         initialFolderPath
     );
 
-    // Refs
     const torrentFileInputRef = useRef<HTMLInputElement>(null);
     const previousIsOpen = useRef(false);
 
-    // Reset all state
     const resetState = useCallback(() => {
         setStage("input");
         setTorrentFile(null);
@@ -66,7 +60,6 @@ const AddTorrentModal = ({
         setSelectedFolder(initialFolderPath);
     }, [initialFolderPath]);
 
-    // Initialize with provided file
     useEffect(() => {
         if (isOpen && !previousIsOpen.current) {
             if (initialTorrentFile) {
@@ -79,7 +72,6 @@ const AddTorrentModal = ({
         }
     }, [isOpen, initialTorrentFile, resetState]);
 
-    // Auto-fetch metadata if initial file provided
     useEffect(() => {
         if (
             isOpen &&
@@ -92,7 +84,6 @@ const AddTorrentModal = ({
         }
     }, [isOpen, initialTorrentFile]);
 
-    // Drag handlers
     const handleDragEnter = useCallback((e: React.DragEvent) => {
         e.preventDefault();
         e.stopPropagation();
@@ -127,7 +118,6 @@ const AddTorrentModal = ({
         }
     }, []);
 
-    // File selection handlers
     const handleTorrentFileSelect = (file: File) => {
         if (!file.name.endsWith(".torrent")) {
             setError("Please select a .torrent file");
@@ -144,7 +134,6 @@ const AddTorrentModal = ({
         }
     };
 
-    // Metadata fetching
     const handleFetchMetadata = async () => {
         if (!torrentFile) {
             setError("Please select a .torrent file");
@@ -185,7 +174,6 @@ const AddTorrentModal = ({
         }
     };
 
-    // File selection toggles
     const toggleFileSelection = (index: number) => {
         const newSelected = new Set(selectedFiles);
         if (newSelected.has(index)) {
@@ -205,7 +193,6 @@ const AddTorrentModal = ({
         setSelectedFiles(new Set());
     };
 
-    // Torrent upload
     const handleAddTorrent = async () => {
         if (!metadata || !torrentFile) return;
 
@@ -240,7 +227,6 @@ const AddTorrentModal = ({
         }
     };
 
-    // Navigation
     const handleBack = () => {
         if (stage === "metadata") {
             setStage("input");
@@ -255,7 +241,6 @@ const AddTorrentModal = ({
         onClose();
     };
 
-    // Utility
     const formatBytes = (bytes: number): string => {
         if (bytes === 0) return "0 B";
         const k = 1024;
@@ -264,7 +249,6 @@ const AddTorrentModal = ({
         return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
     };
 
-    // Header actions based on stage
     const getHeaderActions = () => {
         switch (stage) {
             case "input":
@@ -301,7 +285,7 @@ const AddTorrentModal = ({
 
             case "uploading":
                 return (
-                    <Button onClick={() => {}} variant="filled" disabled>
+                    <Button onClick={() => { }} variant="filled" disabled>
                         Adding...
                     </Button>
                 );
@@ -337,13 +321,12 @@ const AddTorrentModal = ({
             headerActions={getHeaderActions()}
         >
             <div className="p-6 flex flex-col gap-6">
-                {/* Success Stage */}
                 {stage === "success" && (
                     <div className="flex flex-col items-center gap-4 py-8">
                         <div className="w-16 h-16 rounded-full bg-success-container flex items-center justify-center">
-              <span className="material-symbols-outlined text-on-success-container text-4xl">
-                check_circle
-              </span>
+                            <span className="material-symbols-outlined text-on-success-container text-4xl">
+                                check_circle
+                            </span>
                         </div>
                         <div className="text-center">
                             <h3 className="text-lg font-medium text-on-surface mb-1">
@@ -363,17 +346,15 @@ const AddTorrentModal = ({
                     </div>
                 )}
 
-                {/* Uploading Stage */}
                 {stage === "uploading" && (
                     <div className="flex flex-col items-center gap-4 py-8">
-            <span className="material-symbols-outlined text-primary text-6xl animate-spin">
-              progress_activity
-            </span>
+                        <span className="material-symbols-outlined text-primary text-6xl animate-spin">
+                            progress_activity
+                        </span>
                         <p className="text-on-surface font-medium">Adding torrent...</p>
                     </div>
                 )}
 
-                {/* Input Stage */}
                 {stage === "input" && (
                     <>
                         <TorrentDropZone
@@ -397,23 +378,22 @@ const AddTorrentModal = ({
 
                         {loadingStatus && (
                             <div className="flex items-center gap-3 p-3 bg-surface-container rounded">
-                <span className="material-symbols-outlined text-primary animate-spin">
-                  progress_activity
-                </span>
+                                <span className="material-symbols-outlined text-primary animate-spin">
+                                    progress_activity
+                                </span>
                                 <span className="text-sm text-on-surface">{loadingStatus}</span>
                             </div>
                         )}
                     </>
                 )}
 
-                {/* Metadata Stage */}
                 {stage === "metadata" && metadata && (
                     <>
                         <div className="p-4 bg-surface-container rounded-lg">
                             <div className="flex items-start gap-3">
-                <span className="material-symbols-outlined text-primary text-2xl">
-                  folder_zip
-                </span>
+                                <span className="material-symbols-outlined text-primary text-2xl">
+                                    folder_zip
+                                </span>
                                 <div className="flex-1">
                                     <div className="text-base font-medium text-on-surface mb-1">
                                         {metadata.name}
@@ -472,7 +452,6 @@ const AddTorrentModal = ({
                     </>
                 )}
 
-                {/* Error Display */}
                 {error && (
                     <div className="flex items-center gap-2 text-sm text-error bg-error-container p-3 rounded">
                         <span className="material-symbols-outlined">error</span>

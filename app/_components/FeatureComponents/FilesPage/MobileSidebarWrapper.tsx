@@ -7,11 +7,13 @@ import { useSidebar } from "@/app/_providers/SidebarProvider";
 interface MobileSidebarWrapperProps {
   sidebar: React.ReactNode;
   children: React.ReactNode;
+  title?: string;
 }
 
 export default function MobileSidebarWrapper({
   sidebar,
   children,
+  title = "Folders",
 }: MobileSidebarWrapperProps) {
   const { isSidebarOpen, openSidebar, closeSidebar } = useSidebar();
   const sidebarRef = useRef<HTMLDivElement>(null);
@@ -22,7 +24,8 @@ export default function MobileSidebarWrapper({
     const handleTouchStart = (e: TouchEvent) => {
       if (isSidebarOpen) return;
       const touch = e.touches[0];
-      if (touch.clientX < 20) {
+      const screenWidth = window.innerWidth;
+      if (touch.clientX < screenWidth * 0.3) {
         touchStartX.current = touch.clientX;
         touchStartY.current = touch.clientY;
       }
@@ -54,8 +57,8 @@ export default function MobileSidebarWrapper({
       touchStartY.current = null;
     };
 
-    document.addEventListener("touchstart", handleTouchStart);
-    document.addEventListener("touchmove", handleTouchMove);
+    document.addEventListener("touchstart", handleTouchStart, { passive: true });
+    document.addEventListener("touchmove", handleTouchMove, { passive: true });
     document.addEventListener("touchend", handleTouchEnd);
 
     return () => {
@@ -101,13 +104,12 @@ export default function MobileSidebarWrapper({
 
       <aside
         ref={sidebarRef}
-        className={`fixed inset-y-0 left-0 w-[80%] bg-sidebar z-50 transform transition-transform duration-300 medium:hidden overflow-hidden ${
-          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+        className={`fixed inset-y-0 left-0 w-[80%] bg-sidebar z-50 transform transition-transform duration-300 medium:hidden overflow-hidden ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+          }`}
       >
         <div className="h-full flex flex-col">
           <div className="flex items-center justify-between p-4">
-            <h2 className="text-lg font-semibold text-on-surface">Folders</h2>
+            <h2 className="text-lg font-semibold text-on-surface">{title}</h2>
             <IconButton
               icon="close"
               size="sm"

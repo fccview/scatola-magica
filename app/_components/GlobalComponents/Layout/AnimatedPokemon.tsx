@@ -151,7 +151,7 @@ export default function AnimatedPokemon() {
   return (
     <div
       ref={elementRef}
-      className="fixed bottom-0 z-50 will-change-transform group cursor-pointer"
+      className="fixed bottom-[70px] lg:bottom-0 z-50 will-change-transform group cursor-pointer"
       style={{
         width: POKEMON_SIZE,
         height: POKEMON_SIZE,

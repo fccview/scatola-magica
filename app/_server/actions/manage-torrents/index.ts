@@ -11,9 +11,15 @@ import {
 import {
   loadCreatedTorrents,
   deleteCreatedTorrent,
-  migrateCreatedTorrentsEncryption,
+  encryptCreatedTorrents,
+  decryptCreatedTorrents,
+  isCreatedTorrentsEncrypted,
 } from "@/app/_lib/torrents/created-torrents";
-import { migrateTorrentSessionsEncryption } from "@/app/_lib/torrents/torrent-sessions";
+import {
+  encryptTorrentSessions,
+  decryptTorrentSessions,
+  isTorrentSessionsEncrypted,
+} from "@/app/_lib/torrents/torrent-sessions";
 import { getUserPreferences } from "@/app/_lib/preferences";
 import { auditLog } from "@/app/_server/actions/logs";
 import { ServerActionResponse } from "@/app/_types";
@@ -270,7 +276,7 @@ export const addTorrent = async (
         await manager.addTorrent(
           session,
           torrentPrefs.seedRatio,
-          async () => {}
+          async () => { }
         );
       } catch (error) {
         console.error("Failed to start torrent manager:", error);
@@ -333,7 +339,7 @@ export const getTorrents = async (
     let createdTorrents: any[] = [];
 
     try {
-      storedSessions = await loadTorrentSessions(user.username, password);
+      storedSessions = await loadTorrentSessions(user.username);
     } catch (error: any) {
       if (error.message === "PASSWORD_REQUIRED") {
         return {
@@ -348,7 +354,7 @@ export const getTorrents = async (
     }
 
     try {
-      createdTorrents = await loadCreatedTorrents(user.username, password);
+      createdTorrents = await loadCreatedTorrents(user.username);
     } catch (error: any) {
       if (error.message === "PASSWORD_REQUIRED") {
         return {
@@ -510,9 +516,9 @@ export const pauseTorrent = async (
       return { success: false, error: "Torrent is not active" };
     }
 
-    await manager.pauseTorrent(infoHash);
+    manager.pauseTorrent(infoHash);
 
-    await auditLog("torrent:pause", {
+    auditLog("torrent:pause", {
       resource: stored.metadata.name,
       details: {
         infoHash,
@@ -608,7 +614,7 @@ export const resumeTorrent = async (
     const stored = sessions.find((s) => s.metadata.infoHash === infoHash);
 
     if (!stored) {
-      return { success: false, error: "Torrent not found" };
+      return { success: false, error: "Torrent not found in sessions" };
     }
 
     const preferences = await getUserPreferences(user.username);
@@ -637,7 +643,23 @@ export const resumeTorrent = async (
         },
         username: user.username,
       };
-      await manager.addTorrent(session, seedRatio, async () => {});
+
+      try {
+        await Promise.race([
+          manager.addTorrent(session, seedRatio, async () => { }),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("Torrent initialization timeout")), 35000)
+          ),
+        ]);
+      } catch (addError: any) {
+        if (addError.message === "Torrent initialization timeout") {
+          return {
+            success: false,
+            error: "Torrent failed to initialize within 35 seconds. It may be starting in the background.",
+          };
+        }
+        throw addError;
+      }
     }
 
     await auditLog("torrent:resume", {
@@ -786,7 +808,7 @@ export const startSeedingCreatedTorrent = async (
     if (existingStored) {
       try {
         await seedingManager.removeTorrent(infoHash);
-      } catch (error) {}
+      } catch (error) { }
       await deleteTorrentSession(user.username, infoHash);
     }
 
@@ -856,7 +878,7 @@ export const startSeedingCreatedTorrent = async (
       username: user.username,
     };
 
-    await seedingManager.addTorrent(session, seedRatio, async () => {});
+    await seedingManager.addTorrent(session, seedRatio, async () => { });
 
     await auditLog("torrent:start-seeding", {
       resource: created.name,
@@ -887,9 +909,33 @@ export const startSeedingCreatedTorrent = async (
   }
 };
 
-export const migrateTorrentMetadataEncryption = async (
-  encrypt: boolean,
-  password?: string
+export const encryptTorrentMetadata = async (): Promise<
+  ServerActionResponse<{ success: boolean }>
+> => {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return { success: false, error: "Unauthorized" };
+    }
+
+    const sessionsResult = await encryptTorrentSessions(user.username);
+    if (!sessionsResult.success) {
+      return { success: false, error: sessionsResult.error };
+    }
+
+    const createdResult = await encryptCreatedTorrents(user.username);
+    if (!createdResult.success) {
+      return { success: false, error: createdResult.error };
+    }
+
+    return { success: true, data: { success: true } };
+  } catch (error: any) {
+    return { success: false, error: error.message || "Encryption failed" };
+  }
+};
+
+export const decryptTorrentMetadata = async (
+  password: string
 ): Promise<ServerActionResponse<{ success: boolean }>> => {
   try {
     const user = await getCurrentUser();
@@ -897,27 +943,40 @@ export const migrateTorrentMetadataEncryption = async (
       return { success: false, error: "Unauthorized" };
     }
 
-    const sessionsResult = await migrateTorrentSessionsEncryption(
-      user.username,
-      encrypt,
-      password
-    );
+    const sessionsResult = await decryptTorrentSessions(user.username, password);
     if (!sessionsResult.success) {
       return { success: false, error: sessionsResult.error };
     }
 
-    const createdResult = await migrateCreatedTorrentsEncryption(
-      user.username,
-      encrypt,
-      password
-    );
+    const createdResult = await decryptCreatedTorrents(user.username, password);
     if (!createdResult.success) {
       return { success: false, error: createdResult.error };
     }
 
     return { success: true, data: { success: true } };
   } catch (error: any) {
-    return { success: false, error: error.message || "Migration failed" };
+    return { success: false, error: error.message || "Decryption failed" };
+  }
+};
+
+export const isTorrentMetadataEncrypted = async (): Promise<
+  ServerActionResponse<{ isEncrypted: boolean }>
+> => {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return { success: false, error: "Unauthorized" };
+    }
+
+    const sessionsEncrypted = await isTorrentSessionsEncrypted(user.username);
+    const createdEncrypted = await isCreatedTorrentsEncrypted(user.username);
+
+    return {
+      success: true,
+      data: { isEncrypted: sessionsEncrypted || createdEncrypted },
+    };
+  } catch (error: any) {
+    return { success: false, error: error.message || "Check failed" };
   }
 };
 

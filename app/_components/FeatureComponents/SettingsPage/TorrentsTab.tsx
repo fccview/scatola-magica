@@ -10,7 +10,7 @@ import Textarea from "@/app/_components/GlobalComponents/Form/Textarea";
 import Button from "@/app/_components/GlobalComponents/Buttons/Button";
 import { getKeyStatus } from "@/app/_server/actions/pgp";
 import { getEncryptionKey } from "@/app/_server/actions/user";
-import { migrateTorrentMetadataEncryption } from "@/app/_server/actions/manage-torrents";
+import { encryptTorrentMetadata, decryptTorrentMetadata } from "@/app/_server/actions/manage-torrents";
 import E2EPasswordModal from "@/app/_components/FeatureComponents/Modals/E2EPasswordModal";
 import { getStoredE2EPassword } from "@/app/_lib/chunk-encryption";
 
@@ -39,15 +39,15 @@ export default function TorrentsTab() {
   );
   const [maxSingleFileSize, setMaxSingleFileSize] = useState(
     (torrentPreferences?.maxSingleFileSize ?? 50 * 1024 * 1024 * 1024) /
-      1024 /
-      1024 /
-      1024
+    1024 /
+    1024 /
+    1024
   );
   const [maxTotalTorrentSize, setMaxTotalTorrentSize] = useState(
     (torrentPreferences?.maxTotalTorrentSize ?? 100 * 1024 * 1024 * 1024) /
-      1024 /
-      1024 /
-      1024
+    1024 /
+    1024 /
+    1024
   );
   const [maxFolderFileCount, setMaxFolderFileCount] = useState(
     torrentPreferences?.maxFolderFileCount ?? 10000
@@ -117,10 +117,22 @@ export default function TorrentsTab() {
 
     setIsSaving(true);
     try {
-      const result = await migrateTorrentMetadataEncryption(encrypt, password);
-      if (!result.success) {
-        alert(result.error || "Failed to migrate encryption");
-        return;
+      if (encrypt) {
+        const result = await encryptTorrentMetadata();
+        if (!result.success) {
+          alert(result.error || "Failed to encrypt metadata");
+          return;
+        }
+      } else {
+        if (!password) {
+          alert("Password is required to decrypt");
+          return;
+        }
+        const result = await decryptTorrentMetadata(password);
+        if (!result.success) {
+          alert(result.error || "Failed to decrypt metadata");
+          return;
+        }
       }
       setEncryptMetadata(encrypt);
       await updateUserPreferences(user.username, {
@@ -193,15 +205,15 @@ export default function TorrentsTab() {
     );
     setMaxSingleFileSize(
       (torrentPreferences?.maxSingleFileSize ?? 50 * 1024 * 1024 * 1024) /
-        1024 /
-        1024 /
-        1024
+      1024 /
+      1024 /
+      1024
     );
     setMaxTotalTorrentSize(
       (torrentPreferences?.maxTotalTorrentSize ?? 100 * 1024 * 1024 * 1024) /
-        1024 /
-        1024 /
-        1024
+      1024 /
+      1024 /
+      1024
     );
     setMaxFolderFileCount(torrentPreferences?.maxFolderFileCount ?? 10000);
     setMaxPathDepth(torrentPreferences?.maxPathDepth ?? 10);

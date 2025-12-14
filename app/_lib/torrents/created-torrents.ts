@@ -23,6 +23,10 @@ const _getCreatedTorrentsFile = (username: string): string => {
   return path.join(TORRENTS_DATA_DIR, `${username}-created.json`);
 };
 
+const _getCreatedTorrentsEncryptedFile = (username: string): string => {
+  return path.join(TORRENTS_DATA_DIR, `${username}-created.json.pgp`);
+};
+
 const _ensureDir = async (): Promise<void> => {
   await fs.mkdir(TORRENTS_DATA_DIR, { recursive: true });
 };
@@ -33,19 +37,18 @@ export const saveCreatedTorrent = async (
 ): Promise<void> => {
   await _ensureDir();
   const file = _getCreatedTorrentsFile(username);
+  const encryptedFile = _getCreatedTorrentsEncryptedFile(username);
 
-  const preferences = await getUserPreferences(username);
-  const encryptMetadata =
-    preferences.torrentPreferences?.encryptMetadata ?? true;
+  const isEncrypted = await isCreatedTorrentsEncrypted(username);
+  if (isEncrypted) {
+    return;
+  }
 
   let torrents: CreatedTorrent[] = [];
   try {
     const content = await fs.readFile(file, "utf-8");
-    if (content.trim().startsWith("-----BEGIN PGP MESSAGE-----")) {
-      return;
-    }
     torrents = JSON.parse(content);
-  } catch {}
+  } catch { }
 
   const existingIndex = torrents.findIndex(
     (t) => t.infoHash === torrent.infoHash
@@ -58,25 +61,11 @@ export const saveCreatedTorrent = async (
   }
 
   const jsonData = JSON.stringify(torrents, null, 2);
-  let contentToWrite: string;
-
-  if (encryptMetadata) {
-    const encryptResult = await encryptJsonData(jsonData);
-    if (!encryptResult.success || !encryptResult.encryptedData) {
-      throw new Error(encryptResult.message || "Failed to encrypt metadata");
-    }
-    contentToWrite = encryptResult.encryptedData;
-  } else {
-    contentToWrite = jsonData;
-  }
 
   try {
     await fs.access(file);
   } catch {
-    await fs.writeFile(
-      file,
-      encryptMetadata ? "" : JSON.stringify([], null, 2)
-    );
+    await fs.writeFile(file, JSON.stringify([], null, 2));
   }
 
   const maxRetries = 5;
@@ -86,11 +75,11 @@ export const saveCreatedTorrent = async (
     try {
       await lock(file, { retries: 0 });
       try {
-        await fs.writeFile(file, contentToWrite);
+        await fs.writeFile(file, jsonData);
         await unlock(file);
         return;
       } catch (writeError) {
-        await unlock(file).catch(() => {});
+        await unlock(file).catch(() => { });
         throw writeError;
       }
     } catch (lockError: any) {
@@ -102,10 +91,7 @@ export const saveCreatedTorrent = async (
         continue;
       }
       if (lockError.code === "ELOCKED") {
-        console.warn(
-          "Lock file busy, skipping save (will retry on next update)"
-        );
-        return;
+        throw new Error("Failed to save created torrent: file is locked");
       }
       throw lockError;
     }
@@ -116,19 +102,25 @@ export const isCreatedTorrentsEncrypted = async (
   username: string
 ): Promise<boolean> => {
   try {
-    const file = _getCreatedTorrentsFile(username);
-    const content = await fs.readFile(file, "utf-8");
-    return content.trim().startsWith("-----BEGIN PGP MESSAGE-----");
+    const encryptedFile = _getCreatedTorrentsEncryptedFile(username);
+    await fs.access(encryptedFile);
+    return true;
   } catch {
     return false;
   }
 };
 
 export const loadCreatedTorrents = async (
-  username: string,
-  password?: string
+  username: string
 ): Promise<CreatedTorrent[]> => {
   const file = _getCreatedTorrentsFile(username);
+  const encryptedFile = _getCreatedTorrentsEncryptedFile(username);
+
+  const isEncrypted = await isCreatedTorrentsEncrypted(username);
+  if (isEncrypted) {
+    return [];
+  }
+
   let content: string;
 
   try {
@@ -141,17 +133,6 @@ export const loadCreatedTorrents = async (
     return [];
   }
 
-  if (content.trim().startsWith("-----BEGIN PGP MESSAGE-----")) {
-    if (!password) {
-      throw new Error("PASSWORD_REQUIRED");
-    }
-    const decryptResult = await decryptJsonData(content, password);
-    if (!decryptResult.success || !decryptResult.decryptedData) {
-      throw new Error("INVALID_PASSWORD");
-    }
-    return JSON.parse(decryptResult.decryptedData);
-  }
-
   try {
     return JSON.parse(content);
   } catch {
@@ -159,84 +140,103 @@ export const loadCreatedTorrents = async (
   }
 };
 
-export const migrateCreatedTorrentsEncryption = async (
-  username: string,
-  encrypt: boolean,
-  password?: string
+export const encryptCreatedTorrents = async (
+  username: string
 ): Promise<{ success: boolean; error?: string }> => {
   try {
     const file = _getCreatedTorrentsFile(username);
-    let content: string;
+    const encryptedFile = _getCreatedTorrentsEncryptedFile(username);
 
+    const isEncrypted = await isCreatedTorrentsEncrypted(username);
+    if (isEncrypted) {
+      return { success: true };
+    }
+
+    let content: string;
     try {
       content = await fs.readFile(file, "utf-8");
     } catch {
       return { success: true };
     }
 
-    const isEncrypted = content
-      .trim()
-      .startsWith("-----BEGIN PGP MESSAGE-----");
-
-    if (encrypt && !isEncrypted) {
-      if (!password) {
-        return { success: false, error: "Password required to encrypt" };
-      }
-      const encryptResult = await encryptJsonData(content);
-      if (!encryptResult.success || !encryptResult.encryptedData) {
-        return {
-          success: false,
-          error: encryptResult.message || "Failed to encrypt",
-        };
-      }
-      await fs.writeFile(file, encryptResult.encryptedData);
-    } else if (!encrypt && isEncrypted) {
-      if (!password) {
-        return { success: false, error: "Password required to decrypt" };
-      }
-      const decryptResult = await decryptJsonData(content, password);
-      if (!decryptResult.success || !decryptResult.decryptedData) {
-        return {
-          success: false,
-          error: decryptResult.message || "Failed to decrypt",
-        };
-      }
-      await fs.writeFile(file, decryptResult.decryptedData);
+    if (!content || content.trim().length === 0) {
+      return { success: true };
     }
+
+    const encryptResult = await encryptJsonData(content);
+    if (!encryptResult.success || !encryptResult.encryptedData) {
+      return {
+        success: false,
+        error: encryptResult.message || "Failed to encrypt",
+      };
+    }
+
+    await fs.writeFile(encryptedFile, encryptResult.encryptedData);
+    await fs.unlink(file).catch(() => { });
 
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: error.message || "Migration failed" };
+    return { success: false, error: error.message || "Encryption failed" };
+  }
+};
+
+export const decryptCreatedTorrents = async (
+  username: string,
+  password: string
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const file = _getCreatedTorrentsFile(username);
+    const encryptedFile = _getCreatedTorrentsEncryptedFile(username);
+
+    const isEncrypted = await isCreatedTorrentsEncrypted(username);
+    if (!isEncrypted) {
+      return { success: true };
+    }
+
+    let encryptedContent: string;
+    try {
+      encryptedContent = await fs.readFile(encryptedFile, "utf-8");
+    } catch {
+      return { success: true };
+    }
+
+    if (!encryptedContent || encryptedContent.trim().length === 0) {
+      return { success: true };
+    }
+
+    const decryptResult = await decryptJsonData(encryptedContent, password);
+    if (!decryptResult.success || !decryptResult.decryptedData) {
+      return {
+        success: false,
+        error: decryptResult.message || "Failed to decrypt",
+      };
+    }
+
+    await fs.writeFile(file, decryptResult.decryptedData);
+    await fs.unlink(encryptedFile).catch(() => { });
+
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message || "Decryption failed" };
   }
 };
 
 export const deleteCreatedTorrent = async (
   username: string,
-  infoHash: string,
-  password?: string
+  infoHash: string
 ): Promise<void> => {
   const file = _getCreatedTorrentsFile(username);
 
+  const isEncrypted = await isCreatedTorrentsEncrypted(username);
+  if (isEncrypted) {
+    return;
+  }
+
   try {
-    const torrents = await loadCreatedTorrents(username, password);
+    const torrents = await loadCreatedTorrents(username);
     const filtered = torrents.filter((t) => t.infoHash !== infoHash);
 
-    const preferences = await getUserPreferences(username);
-    const encryptMetadata =
-      preferences.torrentPreferences?.encryptMetadata ?? true;
-
     const jsonData = JSON.stringify(filtered, null, 2);
-    let contentToWrite: string;
-
-    if (encryptMetadata) {
-      const encryptResult = await encryptJsonData(jsonData);
-      if (!encryptResult.success || !encryptResult.encryptedData) {
-        throw new Error(encryptResult.message || "Failed to encrypt metadata");
-      }
-      contentToWrite = encryptResult.encryptedData;
-    } else {
-      contentToWrite = jsonData;
-    }
 
     const maxRetries = 5;
     let retries = 0;
@@ -245,11 +245,11 @@ export const deleteCreatedTorrent = async (
       try {
         await lock(file, { retries: 0 });
         try {
-          await fs.writeFile(file, contentToWrite);
+          await fs.writeFile(file, jsonData);
           await unlock(file);
           break;
         } catch (writeError) {
-          await unlock(file).catch(() => {});
+          await unlock(file).catch(() => { });
           throw writeError;
         }
       } catch (lockError: any) {
@@ -261,10 +261,7 @@ export const deleteCreatedTorrent = async (
           continue;
         }
         if (lockError.code === "ELOCKED") {
-          console.warn(
-            "Lock file busy, skipping delete (will retry on next operation)"
-          );
-          return;
+          throw new Error("Failed to delete created torrent: file is locked");
         }
         throw lockError;
       }
@@ -275,7 +272,6 @@ export const deleteCreatedTorrent = async (
       try {
         await fs.unlink(torrent.torrentFilePath);
       } catch {
-        // File might not exist, that's okay
       }
     }
   } catch (error) {

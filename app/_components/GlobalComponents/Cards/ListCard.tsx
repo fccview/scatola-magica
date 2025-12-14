@@ -116,8 +116,8 @@ export default function ListCard({
         onFileRename: isFolder
           ? undefined
           : onRename
-          ? handleRenameStart
-          : undefined,
+            ? handleRenameStart
+            : undefined,
         onFileMove: isFolder ? undefined : onMove,
         onFileDownload: isFolder ? undefined : onDownload,
         onFileEncrypt: isFolder ? undefined : onEncrypt,
@@ -314,20 +314,18 @@ export default function ListCard({
 
   return (
     <div
-      className={`group flex items-center gap-4 pl-4 pr-12 py-3 rounded-lg hover:bg-surface-container transition-colors ${
-        isSelectionMode ? "cursor-pointer" : ""
-      } ${isSelected ? "bg-primary/10 hover:bg-primary/15" : ""}`}
+      className={`group flex items-center gap-4 pl-4 pr-12 py-3 rounded-lg hover:bg-surface-container transition-colors ${isSelectionMode ? "cursor-pointer" : ""
+        } ${isSelected ? "bg-primary/10 hover:bg-primary/15" : ""}`}
       onClick={isSelectionMode ? onToggleSelect : undefined}
       onDoubleClick={handleDoubleClick}
       onContextMenu={handleContextMenu}
     >
       {isSelectionMode && (
         <div
-          className={`flex items-center justify-center w-5 h-5 rounded border-2 transition-colors ${
-            isSelected
+          className={`flex items-center justify-center w-5 h-5 rounded border-2 transition-colors ${isSelected
               ? "bg-primary border-primary"
               : "bg-transparent border-outline"
-          }`}
+            }`}
         >
           {isSelected && (
             <Icon icon="check" size="xs" className="text-on-primary" />
@@ -340,7 +338,7 @@ export default function ListCard({
 
         {hasTorrent && (
           <div className="absolute -top-2 -left-3 bg-sidebar-active border border-dashed border-outline-variant rounded-full flex items-center justify-center p-1">
-            <Icon icon="p2p" size="xxs" className="text-on-primary text-xs" />
+            <Icon icon="p2p" size="xxs" className="text-primary text-xs" />
           </div>
         )}
       </div>
@@ -389,8 +387,8 @@ export default function ListCard({
                   ? () => onEncrypt(itemId)
                   : undefined
                 : onEncrypt
-                ? () => onEncrypt(itemId)
-                : undefined
+                  ? () => onEncrypt(itemId)
+                  : undefined
             }
             onDecrypt={
               isFolder
@@ -398,8 +396,8 @@ export default function ListCard({
                   ? () => onDecrypt(itemId)
                   : undefined
                 : onDecrypt
-                ? () => onDecrypt(itemId)
-                : undefined
+                  ? () => onDecrypt(itemId)
+                  : undefined
             }
             fileName={itemName}
           />

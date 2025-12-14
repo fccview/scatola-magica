@@ -116,8 +116,8 @@ export default function GridCard({
         onFileRename: isFolder
           ? undefined
           : onRename
-          ? handleRenameStart
-          : undefined,
+            ? handleRenameStart
+            : undefined,
         onFileMove: isFolder ? undefined : onMove,
         onFileDownload: isFolder ? undefined : onDownload,
         onFileEncrypt: isFolder ? undefined : onEncrypt,
@@ -236,9 +236,8 @@ export default function GridCard({
 
   return (
     <div
-      className={`group relative p-3 rounded-lg hover:bg-surface-container transition-all ${
-        isSelectionMode ? "cursor-pointer" : ""
-      } ${isSelected ? "bg-primary/10 hover:bg-primary/15" : ""}`}
+      className={`group relative p-3 rounded-lg hover:bg-surface-container transition-all ${isSelectionMode ? "cursor-pointer" : ""
+        } ${isSelected ? "bg-primary/10 hover:bg-primary/15" : ""}`}
       onClick={isSelectionMode ? onToggleSelect : undefined}
       onDoubleClick={handleDoubleClick}
       onContextMenu={handleContextMenu}
@@ -246,11 +245,10 @@ export default function GridCard({
       <div className="flex flex-col items-center text-center">
         {isSelectionMode && (
           <div
-            className={`absolute top-2 left-2 flex items-center justify-center w-5 h-5 rounded border-2 transition-colors z-10 ${
-              isSelected
-                ? "bg-primary border-primary"
-                : "bg-transparent border-outline"
-            }`}
+            className={`absolute top-2 left-2 flex items-center justify-center w-5 h-5 rounded border-2 transition-colors z-10 ${isSelected
+              ? "bg-primary border-primary"
+              : "bg-transparent border-outline"
+              }`}
           >
             {isSelected && (
               <span className="material-symbols-outlined text-sm text-on-primary">
@@ -312,83 +310,83 @@ export default function GridCard({
           <>
             {isFolder
               ? (() => {
-                  const folderData = item as FolderMetadata;
-                  let folderUser = null;
+                const folderData = item as FolderMetadata;
+                let folderUser = null;
 
-                  const userSpecificMatch = itemId.match(/^([^\/]+)\//);
-                  if (userSpecificMatch) {
-                    folderUser = allUsers.find(
-                      (u) => u.username === userSpecificMatch[1]
-                    );
-                  } else {
-                    const folderName = folderData.name;
-                    folderUser = allUsers.find(
-                      (u) => u.username === folderName
-                    );
-                    if (!folderUser && currentUser && !currentUser.isAdmin) {
-                      if (
-                        itemId === "" &&
-                        folderName === currentUser.username
-                      ) {
-                        folderUser = currentUser;
-                      }
+                const userSpecificMatch = itemId.match(/^([^\/]+)\//);
+                if (userSpecificMatch) {
+                  folderUser = allUsers.find(
+                    (u) => u.username === userSpecificMatch[1]
+                  );
+                } else {
+                  const folderName = folderData.name;
+                  folderUser = allUsers.find(
+                    (u) => u.username === folderName
+                  );
+                  if (!folderUser && currentUser && !currentUser.isAdmin) {
+                    if (
+                      itemId === "" &&
+                      folderName === currentUser.username
+                    ) {
+                      folderUser = currentUser;
                     }
                   }
+                }
 
-                  if (folderUser) {
-                    return (
-                      <UserAvatar
-                        user={folderUser}
-                        size="xl"
-                        className="mb-3 transition-transform group-hover:scale-105"
-                      />
-                    );
-                  }
-
-                  const hasItems =
-                    (folderData.fileCount || 0) +
-                      (folderData.folderCount || 0) >
-                    0;
+                if (folderUser) {
                   return (
-                    <Icon
-                      icon={hasItems ? "folder_open" : "folder"}
-                      size="2xl"
+                    <UserAvatar
+                      user={folderUser}
+                      size="xl"
                       className="mb-3 transition-transform group-hover:scale-105"
                     />
                   );
-                })()
+                }
+
+                const hasItems =
+                  (folderData.fileCount || 0) +
+                  (folderData.folderCount || 0) >
+                  0;
+                return (
+                  <Icon
+                    icon={hasItems ? "folder_open" : "folder"}
+                    size="2xl"
+                    className="mb-3 transition-transform group-hover:scale-105"
+                  />
+                );
+              })()
               : (() => {
-                  const iconInfo = getFileIconInfo(
-                    (item as FileMetadata).originalName
-                  );
-                  return (
-                    <div className="relative mb-3">
-                      {iconInfo.extension ? (
-                        <FileIconComponent
-                          extension={iconInfo.extension}
-                          size="2xl"
-                          className="transition-transform group-hover:scale-105"
-                        />
-                      ) : (
+                const iconInfo = getFileIconInfo(
+                  (item as FileMetadata).originalName
+                );
+                return (
+                  <div className="relative mb-3">
+                    {iconInfo.extension ? (
+                      <FileIconComponent
+                        extension={iconInfo.extension}
+                        size="2xl"
+                        className="transition-transform group-hover:scale-105"
+                      />
+                    ) : (
+                      <Icon
+                        icon={iconInfo.materialIcon}
+                        size="2xl"
+                        className="text-on-surface-variant transition-transform group-hover:scale-105"
+                      />
+                    )}
+                    {hasTorrent && (
+                      <div className="absolute -top-2 -left-3 bg-sidebar-active border border-dashed border-outline-variant rounded-full flex items-center justify-center p-1">
                         <Icon
-                          icon={iconInfo.materialIcon}
-                          size="2xl"
-                          className="text-on-surface-variant transition-transform group-hover:scale-105"
+                          icon="p2p"
+                          size="xxs"
+                          className="text-primary text-xs"
+                          title="Torrent available"
                         />
-                      )}
-                      {hasTorrent && (
-                        <div className="absolute -top-2 -left-3 bg-sidebar-active border border-dashed border-outline-variant rounded-full flex items-center justify-center p-1">
-                          <Icon
-                            icon="p2p"
-                            size="xxs"
-                            className="text-on-primary text-xs"
-                            title="Torrent available"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
           </>
         )}
 
@@ -410,11 +408,11 @@ export default function GridCard({
         <p className="text-sm text-on-surface-variant mt-1">
           {isFolder
             ? (() => {
-                const folder = item as FolderMetadata;
-                const total =
-                  (folder.fileCount || 0) + (folder.folderCount || 0);
-                return `${total} item${total !== 1 ? "s" : ""}`;
-              })()
+              const folder = item as FolderMetadata;
+              const total =
+                (folder.fileCount || 0) + (folder.folderCount || 0);
+              return `${total} item${total !== 1 ? "s" : ""}`;
+            })()
             : formatBytes((item as FileMetadata).size)}
         </p>
       </div>
@@ -433,8 +431,8 @@ export default function GridCard({
                   ? () => onEncrypt(itemId)
                   : undefined
                 : onEncrypt
-                ? () => onEncrypt(itemId)
-                : undefined
+                  ? () => onEncrypt(itemId)
+                  : undefined
             }
             onDecrypt={
               isFolder
@@ -442,8 +440,8 @@ export default function GridCard({
                   ? () => onDecrypt(itemId)
                   : undefined
                 : onDecrypt
-                ? () => onDecrypt(itemId)
-                : undefined
+                  ? () => onDecrypt(itemId)
+                  : undefined
             }
             fileName={itemName}
           />

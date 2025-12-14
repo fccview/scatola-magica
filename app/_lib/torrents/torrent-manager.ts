@@ -62,70 +62,95 @@ class TorrentManager extends EventEmitter {
 
     return new Promise(async (resolve, reject) => {
       let torrentInput: string | Buffer;
+      let timeout: NodeJS.Timeout;
+      let resolved = false;
 
-      if (metadata.torrentFilePath) {
-        try {
-          torrentInput = await fs.readFile(metadata.torrentFilePath);
-        } catch {
-          torrentInput =
-            metadata.magnetURI || `magnet:?xt=urn:btih:${infoHash}`;
+      const cleanup = () => {
+        if (timeout) clearTimeout(timeout);
+        resolved = true;
+      };
+
+      timeout = setTimeout(() => {
+        if (!resolved) {
+          cleanup();
+          reject(new Error("Timeout: Torrent failed to initialize within 30 seconds"));
         }
-      } else {
-        torrentInput = metadata.magnetURI || `magnet:?xt=urn:btih:${infoHash}`;
+      }, 30000);
+
+      try {
+        if (metadata.torrentFilePath) {
+          try {
+            torrentInput = await fs.readFile(metadata.torrentFilePath);
+          } catch {
+            torrentInput =
+              metadata.magnetURI || `magnet:?xt=urn:btih:${infoHash}`;
+          }
+        } else {
+          torrentInput = metadata.magnetURI || `magnet:?xt=urn:btih:${infoHash}`;
+        }
+
+        const torrent = client.add(
+          torrentInput,
+          { path: downloadPath },
+          (torrentInstance: any) => {
+            if (resolved) return;
+
+            const instance: TorrentInstance = {
+              infoHash,
+              torrent: torrentInstance,
+              downloadPath,
+              seedRatio,
+              onUpdate,
+              metadata: {
+                name: metadata.name,
+              },
+              username: session.username,
+              hasLoggedCompletion: false,
+              hasLoggedSeedComplete: false,
+            };
+
+            torrentInstance.on("download", () => {
+              this.updateTorrentState(instance);
+            });
+
+            torrentInstance.on("upload", () => {
+              this.updateTorrentState(instance);
+            });
+
+            torrentInstance.on("done", () => {
+              this.updateTorrentState(instance);
+            });
+
+            torrentInstance.on("error", (err: Error) => {
+              console.error(`Torrent error for ${metadata.name}:`, err);
+              this.updateTorrentState(instance, err.message);
+            });
+
+            this.torrents.set(infoHash, instance);
+
+            const updateInterval = setInterval(() => {
+              this.updateTorrentState(instance);
+            }, 2000);
+
+            instance.updateInterval = updateInterval;
+
+            this.updateTorrentState(instance);
+            cleanup();
+            resolve();
+          }
+        );
+
+        torrent.on("error", (err: Error) => {
+          if (!resolved) {
+            cleanup();
+            console.error(`Failed to add torrent ${metadata.name}:`, err);
+            reject(err);
+          }
+        });
+      } catch (error) {
+        cleanup();
+        reject(error);
       }
-
-      const torrent = client.add(
-        torrentInput,
-        { path: downloadPath },
-        (torrentInstance: any) => {
-          const instance: TorrentInstance = {
-            infoHash,
-            torrent: torrentInstance,
-            downloadPath,
-            seedRatio,
-            onUpdate,
-            metadata: {
-              name: metadata.name,
-            },
-            username: session.username,
-            hasLoggedCompletion: false,
-            hasLoggedSeedComplete: false,
-          };
-
-          torrentInstance.on("download", () => {
-            this.updateTorrentState(instance);
-          });
-
-          torrentInstance.on("upload", () => {
-            this.updateTorrentState(instance);
-          });
-
-          torrentInstance.on("done", () => {
-            this.updateTorrentState(instance);
-          });
-
-          torrentInstance.on("error", (err: Error) => {
-            console.error(`Torrent error for ${metadata.name}:`, err);
-            this.updateTorrentState(instance, err.message);
-          });
-
-          this.torrents.set(infoHash, instance);
-
-          const updateInterval = setInterval(() => {
-            this.updateTorrentState(instance);
-          }, 2000);
-
-          instance.updateInterval = updateInterval;
-
-          this.updateTorrentState(instance);
-          resolve();
-        }
-      );
-
-      torrent.on("error", (err: Error) => {
-        console.error(`Failed to add torrent ${metadata.name}:`, err);
-        reject(err);
-      });
     });
   }
 
@@ -240,7 +265,9 @@ class TorrentManager extends EventEmitter {
     const instance = this.torrents.get(infoHash);
     if (instance?.torrent) {
       instance.torrent.pause();
-      await this.updateTorrentState(instance);
+      this.updateTorrentState(instance).catch((err) => {
+        console.error(`Error updating torrent state for ${infoHash}:`, err);
+      });
     }
   }
 
@@ -248,7 +275,9 @@ class TorrentManager extends EventEmitter {
     const instance = this.torrents.get(infoHash);
     if (instance?.torrent) {
       instance.torrent.resume();
-      await this.updateTorrentState(instance);
+      this.updateTorrentState(instance).catch((err) => {
+        console.error(`Error updating torrent state for ${infoHash}:`, err);
+      });
     }
   }
 

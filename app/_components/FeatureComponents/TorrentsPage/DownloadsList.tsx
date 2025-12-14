@@ -11,7 +11,6 @@ import {
 import { TorrentStatus } from "@/app/_types/torrent";
 import IconButton from "@/app/_components/GlobalComponents/Buttons/IconButton";
 import Progress from "@/app/_components/GlobalComponents/Layout/Progress";
-import TorrentPasswordModal from "@/app/_components/FeatureComponents/Modals/TorrentPasswordModal";
 
 const formatBytes = (bytes: number): string => {
   if (bytes === 0) return "0 B";
@@ -75,14 +74,7 @@ const getStatusIcon = (status: TorrentStatus): string => {
 };
 
 export default function DownloadsList() {
-  const {
-    torrents,
-    isLoading,
-    error,
-    refresh,
-    needsPassword,
-    onPasswordProvided,
-  } = useTorrents();
+  const { torrents, isLoading, error, refresh } = useTorrents();
   const [actioningTorrent, setActioningTorrent] = useState<string | null>(null);
 
   const downloadTorrents = torrents.filter(
@@ -159,40 +151,22 @@ export default function DownloadsList() {
 
   if (isLoading) {
     return (
-      <>
-        <div className="flex items-center justify-center py-12">
-          <Progress variant="circular" size="lg" value={50} />
-        </div>
-        {needsPassword && (
-          <TorrentPasswordModal
-            isOpen={true}
-            onClose={() => {}}
-            onPasswordSubmit={onPasswordProvided}
-          />
-        )}
-      </>
+      <div className="flex items-center justify-center py-12">
+        <Progress variant="circular" size="lg" value={50} />
+      </div>
     );
   }
 
   if (error) {
     return (
-      <>
-        <div className="p-6 bg-error-container rounded-lg">
-          <div className="flex items-center gap-3">
-            <span className="material-symbols-outlined text-on-error-container">
-              error
-            </span>
-            <div className="text-on-error-container">{error}</div>
-          </div>
+      <div className="p-6 bg-error-container rounded-lg">
+        <div className="flex items-center gap-3">
+          <span className="material-symbols-outlined text-on-error-container">
+            error
+          </span>
+          <div className="text-on-error-container">{error}</div>
         </div>
-        {needsPassword && (
-          <TorrentPasswordModal
-            isOpen={true}
-            onClose={() => {}}
-            onPasswordSubmit={onPasswordProvided}
-          />
-        )}
-      </>
+      </div>
     );
   }
 
@@ -390,13 +364,6 @@ export default function DownloadsList() {
           </div>
         );
       })}
-      {needsPassword && (
-        <TorrentPasswordModal
-          isOpen={true}
-          onClose={() => {}}
-          onPasswordSubmit={onPasswordProvided}
-        />
-      )}
     </div>
   );
 }
