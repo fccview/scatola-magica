@@ -4,7 +4,6 @@
 NODE_ENV=production
 HTTPS=true
 APP_URL=https://your-scatola-magica-domain.com
-DATABASE_URL=file:/data/scatola.db
 UPLOAD_DIR=/data/uploads
 MAX_CHUNK_SIZE=104857600
 PARALLEL_UPLOADS=12
@@ -16,10 +15,9 @@ OIDC_ADMIN_GROUPS=admins
 DISABLE_PASSWORD_LOGIN=true
 ```
 
-### Mandatory (for production instances)
+### Mandatory
 
 - `NODE_ENV=production` Sets the Node.js environment to production mode for optimal performance and security.
-- `DATABASE_URL=file:/data/scatola.db` SQLite database file location for storing file metadata and user data.
 
 ### Upload Configuration
 
@@ -31,7 +29,7 @@ DISABLE_PASSWORD_LOGIN=true
 ### Optional
 
 - `HTTPS=true` Optional. Enables HTTPS mode for secure connections.
-- `APP_URL=https://your-scatola-magica-domain.com` Force a base URL of your Scatola Magica instance. Required for SSO but optional otherwise - if you have trouble logging in with reverse proxy try setting this up as it will force the application to login using this exact url.
+- `APP_URL=https://scatola-magica-domain.com` Force a base URL of your Scatola Magica instance. Required for SSO but optional otherwise - if you have trouble logging in with reverse proxy try setting this up as it will force the application to login using this exact url.
 - `INTERNAL_API_URL=http://localhost:3000` Optional. URL used for internal API calls within the container. Defaults to `http://localhost:3000` if not set. Only needed if you're experiencing session validation issues behind a reverse proxy.
 - `ENCRYPTION_KEY=your-secret-key` Optional. Encrypts folder paths in browser URLs for additional security. Can be any length string. When set, folder paths like `/documents/reports` will appear as encrypted strings in the URL bar. Leave unset for plain folder paths.
 
