@@ -5,6 +5,7 @@ import Icon from "@/app/_components/GlobalComponents/Icons/Icon";
 type Tab =
   | "profile"
   | "preferences"
+  | "upload"
   | "encryption"
   | "users"
   | "audit-logs"

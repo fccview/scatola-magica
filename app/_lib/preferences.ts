@@ -13,12 +13,20 @@ export interface UserPreferences {
   customKeysPath?: string;
   e2eEncryptionOnTransfer?: boolean;
   torrentPreferences?: TorrentPreferences;
+  dropzones?: {
+    enabled?: boolean;
+    zone1?: string;
+    zone2?: string;
+    zone3?: string;
+    zone4?: string;
+  };
 }
 
 export type PartialUserPreferences = Partial<
-  Omit<UserPreferences, "username" | "torrentPreferences">
+  Omit<UserPreferences, "username" | "torrentPreferences" | "dropzones">
 > & {
   torrentPreferences?: Partial<TorrentPreferences>;
+  dropzones?: Partial<UserPreferences["dropzones"]>;
 };
 
 const _getPreferencesFile = (): string => {
@@ -85,6 +93,13 @@ export const getUserPreferences = async (
         ],
         allowCustomTrackers: false,
       },
+      dropzones: {
+        enabled: false,
+        zone1: "",
+        zone2: "",
+        zone3: "",
+        zone4: "",
+      },
     }
   );
 };
@@ -123,6 +138,14 @@ export const updateUserPreferences = async (
       encryptMetadata: true,
     };
 
+    const defaultDropzones = {
+      enabled: false,
+      zone1: "",
+      zone2: "",
+      zone3: "",
+      zone4: "",
+    };
+
     const updatedPref: UserPreferences = {
       username,
       particlesEnabled:
@@ -142,6 +165,13 @@ export const updateUserPreferences = async (
           ...updates.torrentPreferences,
         }
         : existing?.torrentPreferences ?? defaultTorrentPrefs,
+      dropzones: updates.dropzones
+        ? {
+          ...defaultDropzones,
+          ...(existing?.dropzones || {}),
+          ...updates.dropzones,
+        }
+        : existing?.dropzones ?? defaultDropzones,
     };
 
     if ("customKeysPath" in updates && updates.customKeysPath) {

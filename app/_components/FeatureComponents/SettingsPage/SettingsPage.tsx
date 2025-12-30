@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import ProfileTab from "@/app/_components/FeatureComponents/SettingsPage/ProfileTab";
 import PreferencesTab from "@/app/_components/FeatureComponents/SettingsPage/PreferencesTab";
+import UploadSettingsTab from "@/app/_components/FeatureComponents/SettingsPage/UploadSettingsTab";
 import EncryptionTab from "@/app/_components/FeatureComponents/SettingsPage/EncryptionTab";
 import UsersTab from "@/app/_components/FeatureComponents/SettingsPage/UsersTab";
 import AuditLogsTab from "@/app/_components/FeatureComponents/SettingsPage/AuditLogsTab";
@@ -26,6 +27,7 @@ import UploadModal from "@/app/_components/FeatureComponents/Modals/UploadModal"
 type Tab =
   | "profile"
   | "preferences"
+  | "upload"
   | "encryption"
   | "users"
   | "audit-logs"
@@ -75,6 +77,7 @@ function SettingsPageContent() {
   const tabs: { id: Tab; label: string; icon: string }[] = [
     { id: "profile", label: "Profile", icon: "person" },
     { id: "preferences", label: "Preferences", icon: "tune" },
+    { id: "upload", label: "Upload", icon: "upload" },
     { id: "encryption", label: "Encryption", icon: "lock" },
     ...(torrentsEnabled ? [{ id: "torrents" as Tab, label: "Torrents", icon: "p2p" }] : []),
     ...(user.isAdmin
@@ -134,6 +137,7 @@ function SettingsPageContent() {
 
                 {activeTab === "profile" && <ProfileTab />}
                 {activeTab === "preferences" && <PreferencesTab />}
+                {activeTab === "upload" && <UploadSettingsTab />}
                 {activeTab === "encryption" && <EncryptionTab />}
                 {activeTab === "users" && <UsersTab />}
                 {activeTab === "audit-logs" && <AuditLogsTab />}

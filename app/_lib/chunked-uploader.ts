@@ -22,19 +22,30 @@ export class ChunkedUploader {
   private serverProgress: number = 0;
   private encryptionKey?: CryptoKey;
   private encryptionSalt?: Uint8Array;
+  private appSettings?: {
+    maxChunkSize: number;
+    parallelUploads: number;
+    maxFileSize: number;
+  };
 
   constructor(
     file: File,
     existingUploadId?: string,
     alreadyUploadedChunks?: number[],
     folderPath?: string,
-    e2eEncryption?: E2EEncryptionOptions
+    e2eEncryption?: E2EEncryptionOptions,
+    appSettings?: {
+      maxChunkSize: number;
+      parallelUploads: number;
+      maxFileSize: number;
+    }
   ) {
     this.file = file;
     this.uploadId = existingUploadId || this.generateUploadId(file);
     this.chunkSize = ADAPTIVE_CHUNK_SIZES.FAST;
     this.folderPath = folderPath;
     this.e2eEncryption = e2eEncryption;
+    this.appSettings = appSettings;
     if (alreadyUploadedChunks) {
       this.uploadedChunks = new Set(alreadyUploadedChunks);
       this.uploadedBytes = 0;
@@ -86,6 +97,17 @@ export class ChunkedUploader {
     this.abortController = new AbortController();
 
     try {
+      const maxFileSize =
+        this.appSettings?.maxFileSize ?? UPLOAD_CONFIG.MAX_FILE_SIZE;
+
+      if (maxFileSize > 0 && this.file.size > maxFileSize) {
+        const fileSizeGB = (this.file.size / 1024 / 1024 / 1024).toFixed(2);
+        const maxSizeGB = (maxFileSize / 1024 / 1024 / 1024).toFixed(2);
+        throw new Error(
+          `File size (${fileSizeGB} GB) exceeds maximum allowed size (${maxSizeGB} GB)`
+        );
+      }
+
       if (this.e2eEncryption?.enabled) {
         if (!window.isSecureContext) {
           throw new Error(
@@ -206,6 +228,10 @@ export class ChunkedUploader {
     }
 
     this.chunkSize = ADAPTIVE_CHUNK_SIZES.FAST;
+
+    const maxAllowedChunkSize =
+      this.appSettings?.maxChunkSize ?? UPLOAD_CONFIG.MAX_CHUNK_SIZE;
+    this.chunkSize = Math.min(this.chunkSize, maxAllowedChunkSize);
   }
 
   private async deriveEncryptionKey(password: string): Promise<void> {
@@ -283,8 +309,11 @@ export class ChunkedUploader {
       }
     }
 
+    const parallelCount =
+      this.appSettings?.parallelUploads ?? UPLOAD_CONFIG.PARALLEL_UPLOADS;
+
     const workers: Promise<void>[] = [];
-    for (let i = 0; i < UPLOAD_CONFIG.PARALLEL_UPLOADS; i++) {
+    for (let i = 0; i < parallelCount; i++) {
       workers.push(this.uploadWorker(queue));
     }
 

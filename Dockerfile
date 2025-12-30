@@ -1,48 +1,49 @@
-# Use Node 20 Alpine
 FROM node:20-alpine AS base
 
-# Install dependencies only when needed
 FROM base AS deps
-RUN apk add --no-cache libc6-compat
+RUN apk add --no-cache libc6-compat python3 make g++
 WORKDIR /app
 
 COPY package.json yarn.lock* ./
 RUN yarn install --frozen-lockfile
 
-# Rebuild the source code only when needed
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-
-# Disable telemetry
-ENV NEXT_TELEMETRY_DISABLED 1
+ENV NEXT_TELEMETRY_DISABLED=1
 
 RUN yarn build
 
-# Production image
 FROM base AS runner
 WORKDIR /app
 
-ENV NODE_ENV production
-ENV NEXT_TELEMETRY_DISABLED 1
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Create data directories
-RUN mkdir -p /data/uploads/temp /data/config/avatars && chown -R nextjs:nodejs /data
+RUN mkdir -p \
+    /data/uploads/temp \
+    /data/config/avatars \
+    /data/config/torrents \
+    /data/config/keys \
+    /data/audit-logs \
+    /app/.next/cache && \
+    chown -R nextjs:nodejs /data /app/.next
 
-COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+COPY --from=builder /app/public ./public
 
 USER nextjs
 
 EXPOSE 3000
 
-ENV PORT 3000
-ENV HOSTNAME "0.0.0.0"
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
 
 CMD ["node", "server.js"]

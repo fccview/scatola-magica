@@ -4,7 +4,6 @@ import fs from "fs/promises";
 import path from "path";
 import { lock, unlock } from "proper-lockfile";
 import { TorrentMetadata } from "@/app/_types/torrent";
-import { getUserPreferences } from "@/app/_lib/preferences";
 import { encryptJsonData, decryptJsonData } from "@/app/_server/actions/pgp";
 
 const TORRENTS_DATA_DIR =
@@ -170,15 +169,15 @@ export const encryptTorrentSessions = async (
 
     if (!content || content.trim().length === 0) {
       return { success: true };
-      }
+    }
 
-      const encryptResult = await encryptJsonData(content);
-      if (!encryptResult.success || !encryptResult.encryptedData) {
-        return {
-          success: false,
-          error: encryptResult.message || "Failed to encrypt",
-        };
-      }
+    const encryptResult = await encryptJsonData(content);
+    if (!encryptResult.success || !encryptResult.encryptedData) {
+      return {
+        success: false,
+        error: encryptResult.message || "Failed to encrypt",
+      };
+    }
 
     await fs.writeFile(encryptedFile, encryptResult.encryptedData);
     await fs.unlink(file).catch(() => { });
@@ -212,17 +211,17 @@ export const decryptTorrentSessions = async (
 
     if (!encryptedContent || encryptedContent.trim().length === 0) {
       return { success: true };
-      }
+    }
 
     const decryptResult = await decryptJsonData(encryptedContent, password);
-      if (!decryptResult.success || !decryptResult.decryptedData) {
-        return {
-          success: false,
-          error: decryptResult.message || "Failed to decrypt",
-        };
-      }
+    if (!decryptResult.success || !decryptResult.decryptedData) {
+      return {
+        success: false,
+        error: decryptResult.message || "Failed to decrypt",
+      };
+    }
 
-      await fs.writeFile(file, decryptResult.decryptedData);
+    await fs.writeFile(file, decryptResult.decryptedData);
     await fs.unlink(encryptedFile).catch(() => { });
 
     return { success: true };
@@ -247,7 +246,7 @@ export const deleteTorrentSession = async (
     let sessions: StoredTorrentSession[] = [];
     try {
       const content = await fs.readFile(file, "utf-8");
-        sessions = JSON.parse(content);
+      sessions = JSON.parse(content);
     } catch {
       return;
     }

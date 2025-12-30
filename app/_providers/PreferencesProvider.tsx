@@ -2,6 +2,7 @@
 
 import { createContext, useContext, ReactNode } from "react";
 import { User, TorrentPreferences } from "@/app/_types";
+import { UserPreferences } from "@/app/_lib/preferences";
 
 interface PreferencesContextType {
   particlesEnabled: boolean;
@@ -12,6 +13,7 @@ interface PreferencesContextType {
   customKeysPath?: string;
   e2eEncryptionOnTransfer?: boolean;
   torrentPreferences?: TorrentPreferences;
+  dropzones?: UserPreferences["dropzones"];
 }
 
 const PreferencesContext = createContext<PreferencesContextType>({
@@ -35,6 +37,13 @@ const PreferencesContext = createContext<PreferencesContextType>({
     maxUploadSpeed: -1,
     trackers: [],
     allowCustomTrackers: false,
+  },
+  dropzones: {
+    enabled: false,
+    zone1: "",
+    zone2: "",
+    zone3: "",
+    zone4: "",
   },
 });
 

@@ -100,6 +100,7 @@ const RootLayout = async ({
             customKeysPath: preferences.customKeysPath,
             e2eEncryptionOnTransfer: preferences.e2eEncryptionOnTransfer,
             torrentPreferences: preferences.torrentPreferences,
+            dropzones: preferences.dropzones,
           }}
         >
           <ThemeProvider>

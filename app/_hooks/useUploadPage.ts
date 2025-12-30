@@ -12,6 +12,7 @@ import {
   readFilesFromDataTransfer,
 } from "@/app/_lib/folder-reader";
 import { createFolder } from "@/app/_server/actions/folders";
+import { getAppSettings } from "@/app/_lib/app-settings";
 
 interface UploadingFile {
   id: string;
@@ -88,12 +89,15 @@ export const useUploadPage = () => {
     uploadedChunks?: number[]
   ) => {
     try {
+      const appSettings = await getAppSettings();
+
       const uploader = new ChunkedUploader(
         fileToUpload.file,
         existingUploadId,
         uploadedChunks,
         targetFolderPath || undefined,
-        encryption || e2eEncryption
+        encryption || e2eEncryption,
+        appSettings.upload
       );
 
       const uploadIdKey = `upload-${fileToUpload.file.name}-${fileToUpload.file.size}`;

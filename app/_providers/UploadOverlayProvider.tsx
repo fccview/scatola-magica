@@ -10,6 +10,7 @@ import {
 } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import DragOverlay from "@/app/_components/GlobalComponents/Layout/DragOverlay";
+import MultipleDropzonesOverlay from "@/app/_components/GlobalComponents/Layout/MultipleDropzonesOverlay";
 import UploadProgressModal from "@/app/_components/FeatureComponents/Modals/UploadProgressModal";
 import {
   readFilesFromDataTransfer,
@@ -51,8 +52,9 @@ export default function UploadOverlayProvider({
   const router = useRouter();
   const pathname = usePathname();
   const { refreshFolders } = useFolders();
-  const { torrentPreferences } = usePreferences();
+  const { torrentPreferences, dropzones } = usePreferences();
   const torrentsEnabled = torrentPreferences?.enabled ?? false;
+  const multipleDropzonesEnabled = dropzones?.enabled ?? false;
   const [isDragging, setIsDragging] = useState(false);
   const [dragCounter, setDragCounter] = useState(0);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
@@ -184,9 +186,82 @@ export default function UploadOverlayProvider({
     [isAnyModalOpen]
   );
 
+  const handleMultipleDropzoneDrop = useCallback(
+    async (zone: "zone1" | "zone2" | "zone3" | "zone4", dataTransfer: DataTransfer) => {
+      isModalOpenRef.current = true;
+      setIsDragging(false);
+      setDragCounter(0);
+
+      const targetFolderPath = dropzones?.[zone] || "";
+
+      try {
+        const files = dataTransfer.files;
+        if (files && files.length > 0) {
+          for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            if (file.name.endsWith(".torrent")) {
+              if (!torrentsEnabled) {
+                const fileList = createFileList([file]);
+                setUploadFiles(fileList);
+                setUploadFilesWithPaths(null);
+                setRootFolderName("");
+                setUploadFolderPath(targetFolderPath);
+                setIsUploadModalOpen(true);
+                return;
+              }
+              const reader = new FileReader();
+              reader.onload = () => {
+                sessionStorage.setItem("pendingTorrentFile", reader.result as string);
+                sessionStorage.setItem("pendingTorrentFileName", file.name);
+                if (pathname === "/torrents") {
+                  window.dispatchEvent(new CustomEvent("torrent-paste", { detail: { torrentFile: file.name } }));
+                  router.replace("/torrents?tab=downloads&action=add");
+                } else {
+                  router.push("/torrents?tab=downloads&action=add");
+                }
+              };
+              reader.readAsDataURL(file);
+              return;
+            }
+          }
+        }
+
+        const { files: filesWithPaths, rootFolderName: folderName } =
+          await readFilesFromDataTransfer(dataTransfer);
+
+        if (filesWithPaths.length > 0) {
+          if (folderName) {
+            setUploadFilesWithPaths(filesWithPaths);
+            setRootFolderName(folderName);
+            setUploadFiles(null);
+          } else {
+            const allFiles = filesWithPaths.map((f) => f.file);
+            const fileList = createFileList(allFiles);
+            setUploadFiles(fileList);
+            setUploadFilesWithPaths(null);
+            setRootFolderName("");
+          }
+          setUploadFolderPath(targetFolderPath);
+          setIsUploadModalOpen(true);
+        } else {
+          isModalOpenRef.current = false;
+        }
+      } catch (error) {
+        console.error("Error processing dropped files:", error);
+        isModalOpenRef.current = false;
+        alert("Failed to process dropped files. Please try again.");
+      }
+    },
+    [dropzones, torrentsEnabled, router, pathname]
+  );
+
   const handleDrop = useCallback(
     async (e: DragEvent) => {
       if (isAnyModalOpen()) return;
+
+      if (multipleDropzonesEnabled) {
+        return;
+      }
 
       e.preventDefault();
       e.stopPropagation();
@@ -472,7 +547,7 @@ export default function UploadOverlayProvider({
       setIsUploadModalOpen(true);
       isModalOpenRef.current = true;
     },
-    [pathname, router, isAnyModalOpen]
+    [pathname, router, isAnyModalOpen, multipleDropzonesEnabled]
   );
 
   useEffect(() => {
@@ -564,7 +639,17 @@ export default function UploadOverlayProvider({
       )}
 
       {!isUploadModalOpen && (
-        <DragOverlay isVisible={isDragging} targetFolderName={null} />
+        <>
+          {multipleDropzonesEnabled ? (
+            <MultipleDropzonesOverlay
+              isVisible={isDragging}
+              dropzones={dropzones || {}}
+              onDrop={handleMultipleDropzoneDrop}
+            />
+          ) : (
+            <DragOverlay isVisible={isDragging} targetFolderName={null} />
+          )}
+        </>
       )}
 
       <UploadProgressModal
