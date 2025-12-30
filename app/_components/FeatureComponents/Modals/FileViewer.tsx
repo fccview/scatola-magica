@@ -13,7 +13,7 @@ import PdfViewer from "../FileManipulation/PdfViewer";
 import CsvViewer from "../FileManipulation/CsvViewer";
 import EncryptedFileViewer from "../FileManipulation/EncryptedFileViewer";
 import DecryptFileModal from "./DecryptFileModal";
-import { decryptFile } from "@/app/_server/actions/files/encryption";
+import { decryptFile } from "@/app/_server/actions/file-encryption";
 import {
   TEXT_EXTENSIONS,
   IMAGE_EXTENSIONS,

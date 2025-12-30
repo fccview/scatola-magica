@@ -8,7 +8,7 @@ import {
   FileMetadata,
 } from "@/app/_types";
 import { SortBy } from "@/app/_types/enums";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { getFileMimeType } from "@/app/_lib/file-utils";
 import { unstable_cache } from "next/cache";
 import { getCurrentUser } from "@/app/_server/actions/user";
@@ -324,6 +324,7 @@ export const deleteFile = async (id: string): Promise<ServerActionResponse> => {
     }
 
     revalidatePath("/files", "layout");
+    revalidateTag("files");
 
     return {
       success: true,
@@ -403,6 +404,7 @@ export const renameFile = async (
     }
 
     revalidatePath("/files", "layout");
+    revalidateTag("files");
 
     return {
       success: true,
@@ -477,6 +479,7 @@ export const moveFile = async (
     }
 
     revalidatePath("/files", "layout");
+    revalidateTag("files");
 
     return {
       success: true,

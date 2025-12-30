@@ -92,37 +92,6 @@ export const encryptChunk = async (
   return result.buffer;
 };
 
-export const decryptChunk = async (
-  encryptedChunk: ArrayBuffer,
-  password: string
-): Promise<ArrayBuffer> => {
-  const subtle = _getWebCrypto();
-  const data = new Uint8Array(encryptedChunk);
-  const salt = new Uint8Array(data.buffer, data.byteOffset, SALT_LENGTH);
-  const iv = new Uint8Array(
-    data.buffer,
-    data.byteOffset + SALT_LENGTH,
-    IV_LENGTH
-  );
-  const encryptedContent = new Uint8Array(
-    data.buffer,
-    data.byteOffset + SALT_LENGTH + IV_LENGTH,
-    data.length - SALT_LENGTH - IV_LENGTH
-  );
-
-  const key = await _keyFromPwd(password, salt);
-
-  return subtle.decrypt(
-    {
-      name: ALGORITHM,
-      iv: iv,
-      tagLength: AUTH_TAG_LENGTH_BITS,
-    },
-    key,
-    encryptedContent
-  );
-};
-
 export const encryptPasswordWithKey = async (
   password: string,
   encryptionKey: string

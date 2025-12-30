@@ -38,7 +38,9 @@ export type AuditLogAction =
   | "torrent:add"
   | "torrent:pause"
   | "torrent:resume"
+  | "torrent:stop"
   | "torrent:remove"
+  | "torrent:start-seeding"
   | "torrent:complete"
   | "torrent:seed-complete"
   | "torrent:error";

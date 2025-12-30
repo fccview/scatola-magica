@@ -38,7 +38,6 @@ export default function FolderTreeNode({
     isExpanded,
     isActive,
     toggleFolder,
-    expandFolder,
     handleCreateFolder,
     handleRenameFolder,
     handleDeleteFolder,
@@ -47,6 +46,7 @@ export default function FolderTreeNode({
     startRenaming,
     cancelRename,
     allUsers,
+    handleFolderSelect,
   } = folderTreeHook;
 
   const { showContextMenu } = useContextMenu();
@@ -91,10 +91,16 @@ export default function FolderTreeNode({
     return (
       <div className="select-none">
         <button
-          onClick={() => onFolderSelect?.(folder.id)}
+          onClick={() => {
+            if (variant === "dropdown" && handleFolderSelect) {
+              handleFolderSelect(folder.id);
+            } else {
+              onFolderSelect?.(folder.id);
+            }
+          }}
           className={`w-full text-left px-2.5 py-1.5 rounded text-sm mb-0.5 flex items-center gap-2 transition-colors min-w-0 ${
             folderIsActive
-              ? "bg-primary/10 text-primary"
+              ? "bg-sidebar-active text-on-surface"
               : "hover:bg-surface-variant/30 text-on-surface"
           }`}
           style={indentStyle}

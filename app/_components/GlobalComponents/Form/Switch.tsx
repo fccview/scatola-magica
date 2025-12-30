@@ -8,6 +8,7 @@ interface SwitchProps {
   label?: string;
   description?: React.ReactNode;
   className?: string;
+  secondary?: boolean;
 }
 
 const Switch = forwardRef<HTMLDivElement, SwitchProps>(
@@ -20,6 +21,7 @@ const Switch = forwardRef<HTMLDivElement, SwitchProps>(
       label,
       description,
       className = "",
+      secondary = false,
     },
     ref
   ) => {
@@ -47,7 +49,9 @@ const Switch = forwardRef<HTMLDivElement, SwitchProps>(
           id={id}
           type="button"
           className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-            checked ? "bg-primary" : "bg-surface"
+            checked
+              ? "bg-primary"
+              : `${secondary ? "bg-surface-container" : "bg-surface"}`
           } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
           disabled={disabled}
           onClick={(e) => {

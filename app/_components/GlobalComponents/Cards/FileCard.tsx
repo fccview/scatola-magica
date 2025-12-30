@@ -23,6 +23,7 @@ interface FileCardProps {
   currentUser?: User;
   allUsers?: User[];
   recursive?: boolean;
+  hasTorrent?: boolean;
 }
 
 export default function FileCard({
@@ -43,6 +44,7 @@ export default function FileCard({
   currentUser,
   allUsers = [],
   recursive = false,
+  hasTorrent = false,
 }: FileCardProps) {
   if (viewMode === "list") {
     return (
@@ -63,6 +65,7 @@ export default function FileCard({
         currentUser={currentUser}
         allUsers={allUsers}
         recursive={recursive}
+        hasTorrent={hasTorrent}
       />
     );
   }
@@ -85,6 +88,7 @@ export default function FileCard({
       currentUser={currentUser}
       allUsers={allUsers}
       recursive={recursive}
+      hasTorrent={hasTorrent}
     />
   );
 }

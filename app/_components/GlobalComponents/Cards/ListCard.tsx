@@ -30,6 +30,7 @@ interface ListCardProps {
   currentUser?: User;
   allUsers?: User[];
   recursive?: boolean;
+  hasTorrent?: boolean;
 }
 
 export default function ListCard({
@@ -49,6 +50,7 @@ export default function ListCard({
   currentUser,
   allUsers = [],
   recursive = false,
+  hasTorrent = false,
 }: ListCardProps) {
   const { showContextMenu } = useContextMenu();
   const { encryptPath } = usePathEncryption();
@@ -111,7 +113,11 @@ export default function ListCard({
       },
       {
         onFileOpen: isFolder ? undefined : onOpen,
-        onFileRename: isFolder ? undefined : onRename ? handleRenameStart : undefined,
+        onFileRename: isFolder
+          ? undefined
+          : onRename
+            ? handleRenameStart
+            : undefined,
         onFileMove: isFolder ? undefined : onMove,
         onFileDownload: isFolder ? undefined : onDownload,
         onFileEncrypt: isFolder ? undefined : onEncrypt,
@@ -137,6 +143,7 @@ export default function ListCard({
       onOpen(itemId);
     }
   };
+
 
   const formatDate = (timestamp: number): string => {
     const date = new Date(timestamp);
@@ -178,7 +185,7 @@ export default function ListCard({
 
       if (folderUser) {
         return (
-          <UserAvatar user={folderUser} size="md" className="flex-shrink-0" />
+          <UserAvatar user={folderUser} size="lg" className="flex-shrink-0" />
         );
       }
 
@@ -187,7 +194,7 @@ export default function ListCard({
       return (
         <Icon
           icon={hasItems ? "folder_open" : "folder"}
-          size="md"
+          size="lg"
           className="flex-shrink-0"
         />
       );
@@ -197,13 +204,13 @@ export default function ListCard({
     return iconInfo.extension ? (
       <FileIconComponent
         extension={iconInfo.extension}
-        size="md"
+        size="lg"
         className="flex-shrink-0"
       />
     ) : (
       <Icon
         icon={iconInfo.materialIcon}
-        size="md"
+        size="lg"
         className="text-on-surface-variant flex-shrink-0"
       />
     );
@@ -296,29 +303,29 @@ export default function ListCard({
             {file.folderPath}/
           </span>
         )}
-        <span className="text-base font-normal text-on-surface break-all">
-          {itemName}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-base font-normal text-on-surface break-all">
+            {itemName}
+          </span>
+        </div>
       </div>
     );
   };
 
   return (
     <div
-      className={`group flex items-center gap-4 pl-4 pr-12 py-3 rounded-lg hover:bg-surface-container transition-colors ${
-        isSelectionMode ? "cursor-pointer" : ""
-      } ${isSelected ? "bg-primary/10 hover:bg-primary/15" : ""}`}
+      className={`group flex items-center gap-4 pl-4 pr-12 py-3 rounded-lg hover:bg-surface-container transition-colors ${isSelectionMode ? "cursor-pointer" : ""
+        } ${isSelected ? "bg-primary/10 hover:bg-primary/15" : ""}`}
       onClick={isSelectionMode ? onToggleSelect : undefined}
       onDoubleClick={handleDoubleClick}
       onContextMenu={handleContextMenu}
     >
       {isSelectionMode && (
         <div
-          className={`flex items-center justify-center w-5 h-5 rounded border-2 transition-colors ${
-            isSelected
+          className={`flex items-center justify-center w-5 h-5 rounded border-2 transition-colors ${isSelected
               ? "bg-primary border-primary"
               : "bg-transparent border-outline"
-          }`}
+            }`}
         >
           {isSelected && (
             <Icon icon="check" size="xs" className="text-on-primary" />
@@ -326,7 +333,15 @@ export default function ListCard({
         </div>
       )}
 
-      {renderItemIcon()}
+      <div className="relative">
+        {renderItemIcon()}
+
+        {hasTorrent && (
+          <div className="absolute -top-2 -left-3 bg-sidebar-active border border-dashed border-outline-variant rounded-full flex items-center justify-center p-1">
+            <Icon icon="p2p" size="xxs" className="text-primary text-xs" />
+          </div>
+        )}
+      </div>
 
       <div className="flex-1 min-w-0">
         {isRenaming ? (
@@ -372,8 +387,8 @@ export default function ListCard({
                   ? () => onEncrypt(itemId)
                   : undefined
                 : onEncrypt
-                ? () => onEncrypt(itemId)
-                : undefined
+                  ? () => onEncrypt(itemId)
+                  : undefined
             }
             onDecrypt={
               isFolder
@@ -381,8 +396,8 @@ export default function ListCard({
                   ? () => onDecrypt(itemId)
                   : undefined
                 : onDecrypt
-                ? () => onDecrypt(itemId)
-                : undefined
+                  ? () => onDecrypt(itemId)
+                  : undefined
             }
             fileName={itemName}
           />

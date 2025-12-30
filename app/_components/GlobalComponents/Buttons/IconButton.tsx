@@ -4,10 +4,12 @@ import Icon from "@/app/_components/GlobalComponents/Icons/Icon";
 interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   icon: string;
   size?: "xs" | "sm" | "md" | "lg";
+  ariaLabel?: string;
 }
 
 export default function IconButton({
   icon,
+  ariaLabel,
   size = "md",
   className = "",
   ...props
@@ -30,6 +32,7 @@ export default function IconButton({
 
   return (
     <button
+      aria-label={ariaLabel}
       className={`rounded-full aspect-square inline-flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none ${
         paddingMap[size]
       } ${

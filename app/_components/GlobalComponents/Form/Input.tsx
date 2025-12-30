@@ -3,13 +3,18 @@ import { InputHTMLAttributes, forwardRef } from "react";
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
-  helperText?: string;
+  description?: string;
+  secondary?: boolean;
 }
 
 const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, helperText, className = "", ...props }, ref) => {
+  (
+    { label, error, description, secondary = false, className = "", ...props },
+    ref
+  ) => {
     const baseStyles =
-      "w-full px-2.5 py-1.5 min-h-[40px] text-sm rounded-lg bg-surface-container text-on-surface focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:border-primary focus:border focus:border-dashed";
+      "w-full px-2.5 py-1.5 min-h-[40px] text-sm rounded-lg text-on-surface focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:border-primary focus:border focus:border-dashed";
+    const secondaryStyles = secondary ? "bg-surface" : "bg-surface-container";
 
     const errorStyles = error ? "ring-1 ring-error" : "";
 
@@ -25,12 +30,12 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
         )}
         <input
           ref={ref}
-          className={`${baseStyles} ${errorStyles} ${className}`}
+          className={`${baseStyles} ${secondaryStyles} ${errorStyles} ${className}`}
           {...props}
         />
         {error && <p className="text-sm text-error">{error}</p>}
-        {helperText && !error && (
-          <p className="text-sm text-on-surface-variant">{helperText}</p>
+        {description && !error && (
+          <p className="text-sm text-on-surface-variant">{description}</p>
         )}
       </div>
     );

@@ -39,6 +39,16 @@ export interface TorrentPreferences {
   seedRatio: number;
   autoStartTorrents: boolean;
   maxActiveTorrents: number;
+  maxTorrentFileSize: number;
+  maxSingleFileSize: number;
+  maxTotalTorrentSize: number;
+  maxFolderFileCount: number;
+  maxPathDepth: number;
+  maxDownloadSpeed: number;
+  maxUploadSpeed: number;
+  trackers: string[];
+  allowCustomTrackers: boolean;
+  enabled?: boolean;
 }
 
 export enum TorrentStatus {
@@ -49,10 +59,12 @@ export enum TorrentStatus {
   COMPLETED = "COMPLETED",
   ERROR = "ERROR",
   STOPPED = "STOPPED",
+  CREATED = "CREATED",
 }
 
 export interface TorrentSession {
   metadata: TorrentMetadata;
   state: TorrentState;
   username: string;
+  isFromCreatedTorrent?: boolean;
 }

@@ -70,6 +70,9 @@ export interface User {
   avatar?: string;
   apiKey?: string;
   encryptionKey?: string;
+  persistentTheme?: boolean;
+  pokemonTheme?: string | null;
+  colorMode?: "light" | "dark";
 }
 
 export interface Session {
