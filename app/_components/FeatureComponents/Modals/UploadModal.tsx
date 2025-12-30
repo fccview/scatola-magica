@@ -37,11 +37,9 @@ const UploadModal = ({
   const {
     files,
     isDragging,
-    hadInterruptedUploads,
     selectedFolderPath,
     setSelectedFolderPath,
     setE2eEncryption,
-    dismissInterruptedWarning,
     handleFileSelect,
     handleDragOver,
     handleDragEnter,
@@ -138,6 +136,15 @@ const UploadModal = ({
   }, [isOpen, keyStatusLoaded, initialFiles, handleE2EFileSelect]);
 
   useEffect(() => {
+    const hasResumingUpload = files.some(
+      (f) => f.isResumed && f.status === UploadStatus.UPLOADING
+    );
+    if (hasResumingUpload && isOpen) {
+      onClose();
+    }
+  }, [files, isOpen, onClose]);
+
+  useEffect(() => {
     const allComplete =
       files.length > 0 &&
       files.every(
@@ -151,26 +158,16 @@ const UploadModal = ({
         if (files.some((f) => f.status === UploadStatus.COMPLETED)) {
           await refreshFolders();
           router.refresh();
-          onClose();
         }
       }, 2000);
       return () => clearTimeout(timer);
     }
-  }, [files, router, onClose, refreshFolders]);
+  }, [files, router, refreshFolders]);
 
   return (
     <>
       <Modal isOpen={isOpen} onClose={onClose} title="Upload Files" size="lg">
         <div className="p-6">
-          {hadInterruptedUploads && (
-            <Warning
-              variant="error"
-              title="Uploads Interrupted"
-              message="Your uploads were interrupted by a page refresh. Please upload your files again."
-              onDismiss={dismissInterruptedWarning}
-            />
-          )}
-
           <E2EInfoCard shouldUseE2E={shouldUseE2E} />
 
           <UploadDropZone

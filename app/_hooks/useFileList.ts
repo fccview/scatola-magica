@@ -65,6 +65,7 @@ export const useFileList = ({
 
   const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
   const [deletingFolderId, setDeletingFolderId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [moveFileIds, setMoveFileIds] = useState<string[]>([]);
   const [encryptingFileId, setEncryptingFileId] = useState<string | null>(null);
   const [decryptingFileId, setDecryptingFileId] = useState<string | null>(null);
@@ -206,6 +207,7 @@ export const useFileList = ({
     const fileId = confirmDeleteFileId;
     setDeletingFileId(fileId);
     setConfirmDeleteFileId(null);
+    setIsDeleting(true);
     try {
       const result = await deleteFile(fileId);
       if (result.success) {
@@ -226,6 +228,7 @@ export const useFileList = ({
       });
     } finally {
       setDeletingFileId(null);
+      setIsDeleting(false);
     }
   };
 
@@ -239,6 +242,7 @@ export const useFileList = ({
     const folderId = confirmDeleteFolderId;
     setDeletingFolderId(folderId);
     setConfirmDeleteFolderId(null);
+    setIsDeleting(true);
     try {
       const result = await deleteFolder(folderId);
       if (result.success) {
@@ -259,6 +263,7 @@ export const useFileList = ({
       });
     } finally {
       setDeletingFolderId(null);
+      setIsDeleting(false);
     }
   };
 
@@ -669,6 +674,7 @@ export const useFileList = ({
     if (totalSelected === 0) return;
 
     setShowBulkDeleteConfirm(false);
+    setIsDeleting(true);
     try {
       await Promise.all([
         ...Array.from(selectedFileIds).map((id) => deleteFile(id)),
@@ -683,6 +689,8 @@ export const useFileList = ({
         message: "Failed to delete some items",
         variant: "error",
       });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -743,6 +751,7 @@ export const useFileList = ({
     sentinelRef,
     deletingFileId,
     deletingFolderId,
+    isDeleting,
     moveFileIds,
     setMoveFileIds,
     encryptingFileId,

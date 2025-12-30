@@ -22,6 +22,7 @@ interface UploadingFile {
   status: UploadStatus;
   fileId?: string;
   folderPath?: string;
+  isResumed?: boolean;
 }
 
 const ACTIVE_UPLOADS_KEY = "scatola-active-uploads";
@@ -30,19 +31,34 @@ export const useUploadPage = () => {
   const router = useRouter();
   const [files, setFiles] = useState<UploadingFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
-  const [hadInterruptedUploads, setHadInterruptedUploads] = useState(false);
+  const [resumableUploads, setResumableUploads] = useState<Map<string, any>>(new Map());
   const [selectedFolderPath, setSelectedFolderPath] = useState<string>("");
   const [e2eEncryption, setE2eEncryption] = useState<
     E2EEncryptionOptions | undefined
   >(undefined);
 
   useEffect(() => {
-    const hadActiveUploads =
-      localStorage.getItem(ACTIVE_UPLOADS_KEY) === "true";
-    if (hadActiveUploads) {
-      setHadInterruptedUploads(true);
-      localStorage.removeItem(ACTIVE_UPLOADS_KEY);
-    }
+    const loadResumableUploads = async () => {
+      const { listResumableUploads } = await import("@/app/_server/actions/upload");
+      const result = await listResumableUploads();
+
+      if (result.success && result.data) {
+        const resumable = new Map();
+        for (const upload of result.data.uploads) {
+          const fileKey = `${upload.fileName}-${upload.fileSize}`;
+          resumable.set(fileKey, {
+            uploadId: upload.uploadId,
+            fileName: upload.fileName,
+            fileSize: upload.fileSize,
+            progress: upload.progress,
+            uploadedChunks: [],
+          });
+        }
+        setResumableUploads(resumable);
+      }
+    };
+
+    loadResumableUploads();
   }, []);
 
   useEffect(() => {
@@ -56,10 +72,7 @@ export const useUploadPage = () => {
     };
 
     if (hasActiveUploads) {
-      localStorage.setItem(ACTIVE_UPLOADS_KEY, "true");
       window.addEventListener("beforeunload", handleBeforeUnload);
-    } else {
-      localStorage.removeItem(ACTIVE_UPLOADS_KEY);
     }
 
     return () => {
@@ -70,16 +83,24 @@ export const useUploadPage = () => {
   const uploadFile = async (
     fileToUpload: UploadingFile,
     targetFolderPath?: string,
-    encryption?: E2EEncryptionOptions
+    encryption?: E2EEncryptionOptions,
+    existingUploadId?: string,
+    uploadedChunks?: number[]
   ) => {
     try {
       const uploader = new ChunkedUploader(
         fileToUpload.file,
-        undefined,
-        undefined,
+        existingUploadId,
+        uploadedChunks,
         targetFolderPath || undefined,
         encryption || e2eEncryption
       );
+
+      const uploadIdKey = `upload-${fileToUpload.file.name}-${fileToUpload.file.size}`;
+
+      if (!existingUploadId) {
+        localStorage.setItem(uploadIdKey, uploader.getUploadId());
+      }
 
       uploader.onProgress((progress) => {
         setFiles((prev) =>
@@ -106,6 +127,7 @@ export const useUploadPage = () => {
           f.id === fileToUpload.id
             ? {
               ...f,
+              progress: f.progress ? { ...f.progress, progress: 100 } : null,
               status: UploadStatus.COMPLETED,
               fileId: fileId,
               folderPath: targetFolderPath || selectedFolderPath,
@@ -113,6 +135,8 @@ export const useUploadPage = () => {
             : f
         )
       );
+
+      localStorage.removeItem(uploadIdKey);
     } catch (error) {
       console.error("Upload failed:", error);
       setFiles((prev) =>
@@ -136,13 +160,31 @@ export const useUploadPage = () => {
 
     const filesArray = Array.from(selectedFiles);
 
-    const newFiles: UploadingFile[] = filesArray.map((file, index) => ({
-      id: `${Date.now()}-${index}-${Math.random().toString(36).substring(2)}`,
-      file,
-      progress: null,
-      uploader: null,
-      status: UploadStatus.PENDING,
-    }));
+    const newFiles: UploadingFile[] = filesArray.map((file, index) => {
+      const fileKey = `${file.name}-${file.size}`;
+      const resumable = resumableUploads.get(fileKey);
+
+      if (resumable) {
+        console.log(`Resuming upload for ${file.name} from ${resumable.progress}%`);
+        return {
+          id: `${Date.now()}-${index}-${Math.random().toString(36).substring(2)}`,
+          file,
+          progress: null,
+          uploader: null,
+          status: UploadStatus.PENDING,
+          isResumed: true,
+        };
+      }
+
+      return {
+        id: `${Date.now()}-${index}-${Math.random().toString(36).substring(2)}`,
+        file,
+        progress: null,
+        uploader: null,
+        status: UploadStatus.PENDING,
+        isResumed: false,
+      };
+    });
 
     setFiles((prev) => {
       const updated = [...prev, ...newFiles];
@@ -150,12 +192,31 @@ export const useUploadPage = () => {
     });
 
     for (const f of newFiles) {
-        uploadFile(f, folderPath || undefined, encryption).catch((error) => {
-        console.error(`Upload failed for ${f.file.name}:`, error);
-      });
+      const fileKey = `${f.file.name}-${f.file.size}`;
+      const resumable = resumableUploads.get(fileKey);
+
+      const uploadEncryption = encryption || e2eEncryption;
+
+      if (resumable) {
+        uploadFile(
+          f,
+          folderPath || undefined,
+          uploadEncryption,
+          resumable.uploadId,
+          resumable.uploadedChunks
+        ).catch((error) => {
+          console.error(`Upload failed for ${f.file.name}:`, error);
+        });
+        resumableUploads.delete(fileKey);
+        localStorage.removeItem(resumable.localStorageKey);
+      } else {
+        uploadFile(f, folderPath || undefined, uploadEncryption).catch((error) => {
+          console.error(`Upload failed for ${f.file.name}:`, error);
+        });
+      }
     }
     },
-    [selectedFolderPath, e2eEncryption]
+    [selectedFolderPath, e2eEncryption, resumableUploads]
   );
 
   const handleFilesWithPathsSelect = async (
@@ -223,9 +284,10 @@ export const useUploadPage = () => {
 
       setFiles((prev) => [...prev, ...newFiles]);
 
-      newFiles.forEach((f) =>
-        uploadFile(f, f.folderPath || undefined, e2eEncryption)
-      );
+      newFiles.forEach((f) => {
+        const uploadEncryption = e2eEncryption;
+        uploadFile(f, f.folderPath || undefined, uploadEncryption);
+      });
     } catch (error) {
       console.error("Failed to create folder structure:", error);
     }
@@ -298,12 +360,11 @@ export const useUploadPage = () => {
   return {
     files,
     isDragging,
-    hadInterruptedUploads,
+    resumableUploads,
     selectedFolderPath,
     setSelectedFolderPath,
     e2eEncryption,
     setE2eEncryption,
-    dismissInterruptedWarning: () => setHadInterruptedUploads(false),
     handleFileSelect,
     handleFilesWithPathsSelect,
     handleDragOver,
