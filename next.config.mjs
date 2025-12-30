@@ -5,15 +5,15 @@ const nextConfig = {
   experimental: {
     reactCompiler: true,
     middlewareClientMaxBodySize: 1099511627776,
-    serverComponentsExternalPackages: [
-      'utp-native',
-      'proper-lockfile',
-      'webtorrent',
-      'bittorrent-dht',
-      'bittorrent-protocol',
-      'bittorrent-tracker',
-    ],
   },
+  serverExternalPackages: [
+    'utp-native',
+    'proper-lockfile',
+    'webtorrent',
+    'bittorrent-dht',
+    'bittorrent-protocol',
+    'bittorrent-tracker',
+  ],
   output: 'standalone',
   compress: true,
   async headers() {

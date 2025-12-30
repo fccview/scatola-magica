@@ -192,7 +192,14 @@ export default function UploadSettingsTab() {
           {dropzonesEnabled && (
             <MultipleDropzonesConfig
               dropzones={dropzones}
-              onChange={setDropzones}
+              onChange={(newDropzones) =>
+                setDropzones({
+                  zone1: newDropzones.zone1 || "",
+                  zone2: newDropzones.zone2 || "",
+                  zone3: newDropzones.zone3 || "",
+                  zone4: newDropzones.zone4 || "",
+                })
+              }
             />
           )}
 
