@@ -57,7 +57,11 @@ const RootLayout = async ({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <ThemeScript />
+        <ThemeScript
+          persistentTheme={currentUser?.persistentTheme ?? false}
+          userPokemonTheme={currentUser?.pokemonTheme}
+          userColorMode={currentUser?.colorMode}
+        />
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#A91D52" />
         <link rel="icon" type="image/x-icon" href="/favicon/favicon.ico" />
@@ -86,34 +90,36 @@ const RootLayout = async ({
       <body>
         <ServiceWorkerRegistrar />
         <PWAInstallPrompt />
-        <ThemeProvider>
-          <PreferencesProvider
-            preferences={{
-              particlesEnabled: preferences.particlesEnabled,
-              wandCursorEnabled: preferences.wandCursorEnabled,
-              pokemonThemesEnabled: preferences.pokemonThemesEnabled,
-              user: currentUser,
-              encryptionKey,
-              customKeysPath: preferences.customKeysPath,
-              e2eEncryptionOnTransfer: preferences.e2eEncryptionOnTransfer,
-              torrentPreferences: preferences.torrentPreferences,
-            }}
-          >
+        <PreferencesProvider
+          preferences={{
+            particlesEnabled: preferences.particlesEnabled,
+            wandCursorEnabled: preferences.wandCursorEnabled,
+            pokemonThemesEnabled: preferences.pokemonThemesEnabled,
+            user: currentUser,
+            encryptionKey,
+            customKeysPath: preferences.customKeysPath,
+            e2eEncryptionOnTransfer: preferences.e2eEncryptionOnTransfer,
+            torrentPreferences: preferences.torrentPreferences,
+          }}
+        >
+          <ThemeProvider>
             <UsersProvider initialUsers={initialUsers}>
               <FoldersProvider>
                 <ShortcutsProvider>
                   <ContextMenuProvider>
                     <FileViewerProvider>
-                      <UploadOverlayProvider>{children}</UploadOverlayProvider>
-                      <FileViewer />
-                      <AnimatedPokemon />
+                      <UploadOverlayProvider>
+                        {children}
+                        <FileViewer />
+                        <AnimatedPokemon />
+                      </UploadOverlayProvider>
                     </FileViewerProvider>
                   </ContextMenuProvider>
                 </ShortcutsProvider>
               </FoldersProvider>
             </UsersProvider>
-          </PreferencesProvider>
-        </ThemeProvider>
+          </ThemeProvider>
+        </PreferencesProvider>
       </body>
     </html>
   );

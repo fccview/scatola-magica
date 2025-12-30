@@ -60,7 +60,7 @@ const _checkRateLimit = (username: string): boolean => {
 
 const _checkTorrentsEnabled = async (username: string): Promise<boolean> => {
   const preferences = await getUserPreferences(username);
-  return !preferences?.torrentPreferences?.disabled;
+  return preferences?.torrentPreferences?.enabled ?? false;
 };
 
 const _getDownloadPath = async (
@@ -1012,6 +1012,11 @@ export const getFileTorrents = async (): Promise<
     const user = await getCurrentUser();
     if (!user) {
       return { success: false, error: "Unauthorized" };
+    }
+
+    const torrentsEnabled = await _checkTorrentsEnabled(user.username);
+    if (!torrentsEnabled) {
+      return { success: true, data: {} };
     }
 
     const createdTorrents = await loadCreatedTorrents(user.username);

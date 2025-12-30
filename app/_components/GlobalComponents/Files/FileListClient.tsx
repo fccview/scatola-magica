@@ -117,7 +117,7 @@ export default function FileListClient({
 
   const { hasTorrent, refresh: refreshTorrents } = useFileTorrents();
   const { torrentPreferences } = usePreferences();
-  const torrentsEnabled = !torrentPreferences?.disabled;
+  const torrentsEnabled = torrentPreferences?.enabled ?? false;
 
   if (allFiles.length === 0 && folders.length === 0 && !isLoadingMore) {
     return (

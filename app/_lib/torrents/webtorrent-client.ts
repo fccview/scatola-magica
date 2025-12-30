@@ -6,13 +6,17 @@
 
 const originalConsoleError = console.error;
 const originalConsoleWarn = console.warn;
+const originalConsoleLog = console.log;
+const originalStdoutWrite = process.stdout.write.bind(process.stdout);
+const originalStderrWrite = process.stderr.write.bind(process.stderr);
 
 const shouldSuppressUTPError = (message: string): boolean => {
   const msg = message.toLowerCase();
   return (
     msg.includes("utp not supported") ||
     msg.includes("utp-native") ||
-    msg.includes("no native build was found")
+    msg.includes("no native build was found") ||
+    msg.includes("webtorrent: utp")
   );
 };
 
@@ -32,8 +36,43 @@ const filteredWarn = (...args: unknown[]) => {
   originalConsoleWarn.apply(console, args);
 };
 
+const filteredLog = (...args: unknown[]) => {
+  const message = String(args[0] || "");
+  if (shouldSuppressUTPError(message)) {
+    return;
+  }
+  originalConsoleLog.apply(console, args);
+};
+
+process.stdout.write = ((chunk: any, encoding?: any, callback?: any) => {
+  const str = String(chunk);
+  if (shouldSuppressUTPError(str)) {
+    if (typeof encoding === 'function') {
+      encoding();
+    } else if (typeof callback === 'function') {
+      callback();
+    }
+    return true;
+  }
+  return originalStdoutWrite(chunk, encoding, callback);
+}) as typeof process.stdout.write;
+
+process.stderr.write = ((chunk: any, encoding?: any, callback?: any) => {
+  const str = String(chunk);
+  if (shouldSuppressUTPError(str)) {
+    if (typeof encoding === 'function') {
+      encoding();
+    } else if (typeof callback === 'function') {
+      callback();
+    }
+    return true;
+  }
+  return originalStderrWrite(chunk, encoding, callback);
+}) as typeof process.stderr.write;
+
 console.error = filteredError;
 console.warn = filteredWarn;
+console.log = filteredLog;
 
 // @ts-ignore - WebTorrent is not typed
 import WebTorrent from "webtorrent";

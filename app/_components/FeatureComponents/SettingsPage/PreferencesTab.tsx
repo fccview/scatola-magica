@@ -25,8 +25,8 @@ export default function PreferencesTab() {
   const [pokemonThemesEnabled, setPokemonThemesEnabled] = useState(
     initialPokemonThemes ?? false
   );
-  const [torrentsDisabled, setTorrentsDisabled] = useState(
-    torrentPreferences?.disabled ?? false
+  const [torrentsEnabled, setTorrentsEnabled] = useState(
+    torrentPreferences?.enabled ?? false
   );
 
   const handleParticlesToggle = async () => {
@@ -65,12 +65,12 @@ export default function PreferencesTab() {
     router.refresh();
   };
 
-  const handleTorrentsDisabledToggle = async () => {
-    const newValue = !torrentsDisabled;
-    setTorrentsDisabled(newValue);
+  const handleTorrentsEnabledToggle = async () => {
+    const newValue = !torrentsEnabled;
+    setTorrentsEnabled(newValue);
     await updateUserPreferences(user?.username ?? "", {
       torrentPreferences: {
-        disabled: newValue,
+        enabled: newValue,
       },
     });
     router.refresh();
@@ -127,14 +127,14 @@ export default function PreferencesTab() {
       </div>
 
       <div>
-        <h2 className="text-xl font-medium text-on-surface mb-6">Torrents</h2>
+        <h2 className="text-xl font-medium text-on-surface mb-6">Torrents (beta)</h2>
         <div className="p-6 bg-surface-container rounded-lg space-y-6">
           <Switch
-            id="disable-torrents"
-            checked={torrentsDisabled}
-            onChange={handleTorrentsDisabledToggle}
-            label="Disable Torrents"
-            description="Completely disable all torrent functionality. When toggled, torrent features will be hidden and unavailable."
+            id="enable-torrents"
+            checked={torrentsEnabled}
+            onChange={handleTorrentsEnabledToggle}
+            label="Enable Torrents"
+            description="Enable torrent functionality. When enabled, you can create, share, and download torrent files. This functionality is in beta and may have some issues."
           />
         </div>
       </div>

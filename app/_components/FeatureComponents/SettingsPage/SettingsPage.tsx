@@ -37,7 +37,7 @@ function SettingsPageContent() {
   const [activeTab, setActiveTab] = useState<Tab>("profile");
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const { toggleSidebar } = useSidebar();
-  const torrentsEnabled = !torrentPreferences?.disabled;
+  const torrentsEnabled = torrentPreferences?.enabled ?? false;
 
   const handleOpenUpload = () => {
     setIsUploadModalOpen(true);

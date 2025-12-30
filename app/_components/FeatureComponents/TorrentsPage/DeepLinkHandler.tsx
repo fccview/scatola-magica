@@ -16,7 +16,7 @@ export default function DeepLinkHandler({
   const searchParams = useSearchParams();
   const router = useRouter();
   const { torrentPreferences } = usePreferences();
-  const torrentsEnabled = !torrentPreferences?.disabled;
+  const torrentsEnabled = torrentPreferences?.enabled ?? false;
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

@@ -18,7 +18,7 @@ export default async function TorrentsPage() {
   }
 
   const preferences = await getUserPreferences(user.username);
-  if (preferences?.torrentPreferences?.disabled) {
+  if (!preferences?.torrentPreferences?.enabled) {
     notFound();
   }
 

@@ -116,7 +116,7 @@ export default function ContextMenuProvider({
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const [menuItems, setMenuItems] = useState<ContextMenuItem[]>([]);
   const { torrentPreferences } = usePreferences();
-  const torrentsEnabled = !torrentPreferences?.disabled;
+  const torrentsEnabled = torrentPreferences?.enabled ?? false;
 
   const showContextMenu = useCallback(
     (

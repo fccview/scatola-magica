@@ -97,7 +97,7 @@ export default function ActionButtons({
     };
 
     const { torrentPreferences } = usePreferences();
-    const torrentsEnabled = !torrentPreferences?.disabled;
+    const torrentsEnabled = torrentPreferences?.enabled ?? false;
 
     const uploadMenuItems: DropdownMenuItem[] = [
         {

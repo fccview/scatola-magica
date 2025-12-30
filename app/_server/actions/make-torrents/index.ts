@@ -124,7 +124,7 @@ const _getFilesRecursive = async (
 
 const _checkTorrentsEnabled = async (username: string): Promise<boolean> => {
   const preferences = await getUserPreferences(username);
-  return !preferences?.torrentPreferences?.disabled;
+  return preferences?.torrentPreferences?.enabled ?? false;
 };
 
 export const createTorrentFromFile = async (

@@ -27,7 +27,7 @@ export default function Header({
 }) {
   const router = useRouter();
   const { torrentPreferences } = usePreferences();
-  const torrentsEnabled = !torrentPreferences?.disabled;
+  const torrentsEnabled = torrentPreferences?.enabled ?? false;
 
   return (
     <TopAppBar

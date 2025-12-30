@@ -52,7 +52,7 @@ export default function UploadOverlayProvider({
   const pathname = usePathname();
   const { refreshFolders } = useFolders();
   const { torrentPreferences } = usePreferences();
-  const torrentsEnabled = !torrentPreferences?.disabled;
+  const torrentsEnabled = torrentPreferences?.enabled ?? false;
   const [isDragging, setIsDragging] = useState(false);
   const [dragCounter, setDragCounter] = useState(0);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);

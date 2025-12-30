@@ -48,7 +48,7 @@ export interface TorrentPreferences {
   maxUploadSpeed: number;
   trackers: string[];
   allowCustomTrackers: boolean;
-  disabled?: boolean;
+  enabled?: boolean;
 }
 
 export enum TorrentStatus {

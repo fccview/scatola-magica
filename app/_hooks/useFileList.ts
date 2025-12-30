@@ -15,7 +15,7 @@ import {
   decryptFile,
   encryptFolder,
   decryptFolder,
-} from "@/app/_server/actions/files/encryption";
+} from "@/app/_server/actions/file-encryption";
 import { useShortcuts } from "@/app/_providers/ShortcutsProvider";
 import { useFileViewer } from "@/app/_providers/FileViewerProvider";
 
@@ -333,7 +333,7 @@ export const useFileList = ({
       "@/app/_server/actions/make-torrents"
     );
     const { encryptFile, encryptFolder } = await import(
-      "@/app/_server/actions/files/encryption"
+      "@/app/_server/actions/file-encryption"
     );
 
     try {
@@ -342,15 +342,15 @@ export const useFileList = ({
       if (options.encryptBeforeCreate) {
         const encryptResult = createTorrentModal.isFolder
           ? await encryptFolder(
-              createTorrentModal.fileId,
-              false,
-              options.useOwnKey ? undefined : options.customPublicKey
-            )
+            createTorrentModal.fileId,
+            false,
+            options.useOwnKey ? undefined : options.customPublicKey
+          )
           : await encryptFile(
-              createTorrentModal.fileId,
-              false,
-              options.useOwnKey ? undefined : options.customPublicKey
-            );
+            createTorrentModal.fileId,
+            false,
+            options.useOwnKey ? undefined : options.customPublicKey
+          );
 
         if (!encryptResult.success) {
           setErrorModal({
@@ -375,13 +375,13 @@ export const useFileList = ({
 
       const result = createTorrentModal.isFolder
         ? await createTorrentFromFolder(fileIdToUse, {
-            isAnnounced: options.isAnnounced,
-            announce: options.trackers,
-          })
+          isAnnounced: options.isAnnounced,
+          announce: options.trackers,
+        })
         : await createTorrentFromFile(fileIdToUse, {
-            isAnnounced: options.isAnnounced,
-            announce: options.trackers,
-          });
+          isAnnounced: options.isAnnounced,
+          announce: options.trackers,
+        });
 
       if (result.success && result.data) {
         return {
