@@ -52,8 +52,8 @@ export default function ThemeSelector() {
     }
   }, [pokemonThemesEnabled]);
 
-  const handlePokemonChange = (newPokemon: PokemonTheme) => {
-    setPokemonTheme(newPokemon);
+  const handlePokemonChange = async (newPokemon: PokemonTheme) => {
+    await setPokemonTheme(newPokemon);
     if (pathname === "/") {
       window?.location.reload();
     } else {
@@ -61,8 +61,8 @@ export default function ThemeSelector() {
     }
   };
 
-  const handleColorModeToggle = () => {
-    toggleColorMode();
+  const handleColorModeToggle = async () => {
+    await toggleColorMode();
     if (pathname === "/") {
       window?.location.reload();
     } else {

@@ -8,13 +8,13 @@ These shortcuts work anywhere in the application to help you navigate and manage
 
 | Shortcut                                            | Action                                                                                    |
 | :-------------------------------------------------- | :---------------------------------------------------------------------------------------- |
-| <kbd>F</kbd>                                        | Focus the search bar to search for files                                                  |
-| <kbd>⌘ Cmd</kbd> + <kbd>Shift</kbd> + <kbd>U</kbd> | Open the upload file dialog                                                               |
-| <kbd>+</kbd>                                        | Open the create folder dialog                                                             |
-| <kbd>⌘ Cmd</kbd> + <kbd>V</kbd>                     | Upload files/images from clipboard (only works with files, not text)                      |
-| <kbd>V</kbd>                                        | Toggle between grid and list view                                                         |
-| <kbd>R</kbd>                                        | Toggle recursive mode (show all files from subfolders vs folders + direct files)          |
-| <kbd>X</kbd>                                        | Enter/exit selection mode to select multiple files                                        |
+| `F`                                        | Focus the search bar to search for files                                                  |
+| `⌘ Cmd` + `Shift` + `U` | Open the upload file dialog                                                               |
+| `+`                                        | Open the create folder dialog                                                             |
+| `⌘ Cmd` + `V`                     | Upload files/images from clipboard (only works with files, not text)                      |
+| `V`                                        | Toggle between grid and list view                                                         |
+| `R`                                        | Toggle recursive mode (show all files from subfolders vs folders + direct files)          |
+| `X`                                        | Enter/exit selection mode to select multiple files                                        |
 
 **\*Note:** For Windows/Linux shortcuts, use `Ctrl` instead of `⌘ Cmd`. Single-key shortcuts (like `/`, `V`, `R`, `X`) only work when you're not typing in an input field.\*
 

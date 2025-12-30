@@ -38,6 +38,9 @@ export const useFolderTree = ({
   const [renamingFolder, setRenamingFolder] = useState<string | null>(null);
   const [renameFolderName, setRenameFolderName] = useState("");
   const [isInitialized, setIsInitialized] = useState(false);
+  const [dropdownSelectedFolderId, setDropdownSelectedFolderId] = useState<
+    string | null
+  >(null);
 
   const STORAGE_KEY = "folder-tree-expanded";
 
@@ -68,6 +71,12 @@ export const useFolderTree = ({
       console.warn("Failed to save expanded folders to localStorage:", error);
     }
   }, [expandedFolders, isInitialized]);
+
+  useEffect(() => {
+    if (variant === "dropdown") {
+      setDropdownSelectedFolderId(currentFolderId ?? null);
+    }
+  }, [currentFolderId, variant]);
 
   useEffect(() => {
     if (!currentFolderId || !allFolders.length || !isInitialized) return;
@@ -203,9 +212,7 @@ export const useFolderTree = ({
       if (creatingInFolder) {
         setExpandedFolders((prev) => new Set([...prev, creatingInFolder]));
       }
-      if (onFolderSelect) {
-        onFolderSelect(result.data.id);
-      }
+      handleFolderSelect(result.data.id);
     } else {
       alert(result.error || "Failed to create folder");
     }
@@ -245,7 +252,22 @@ export const useFolderTree = ({
   };
 
   const isExpanded = (folderId: string) => expandedFolders.has(folderId);
-  const isActive = (folderId: string) => currentFolderId === folderId;
+
+  const isActive = (folderId: string) => {
+    if (variant === "dropdown") {
+      return dropdownSelectedFolderId === folderId;
+    }
+    return currentFolderId === folderId;
+  };
+
+  const handleFolderSelect = (folderId: string | null) => {
+    if (variant === "dropdown") {
+      setDropdownSelectedFolderId(folderId);
+    }
+    if (onFolderSelect) {
+      onFolderSelect(folderId);
+    }
+  };
 
   const startCreatingInFolder = (folderId: string) => {
     setCreatingInFolder(folderId);
@@ -292,5 +314,6 @@ export const useFolderTree = ({
     cancelRename,
     currentFolderId,
     allUsers,
+    handleFolderSelect,
   };
 };

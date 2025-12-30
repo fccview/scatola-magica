@@ -46,3 +46,7 @@ docker-compose.test.yml
 **/public/sw.js.map
 **/public/workbox-*.js.map
 **/public/worker-*.js.map
+
+# ide
+.idea
+

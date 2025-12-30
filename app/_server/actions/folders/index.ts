@@ -3,7 +3,7 @@
 import { mkdir, rmdir, rename as fsRename, readdir, lstat } from "fs/promises";
 import path from "path";
 import { ServerActionResponse } from "@/app/_types";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { unstable_cache } from "next/cache";
 import { getCurrentUser } from "@/app/_server/actions/user";
 
@@ -473,6 +473,7 @@ export const createFolder = async (
     };
 
     revalidatePath("/files", "layout");
+    revalidateTag("files");
 
     return {
       success: true,
@@ -592,6 +593,7 @@ export const updateFolder = async (
     };
 
     revalidatePath("/files", "layout");
+    revalidateTag("files");
 
     return {
       success: true,
@@ -643,6 +645,7 @@ export const deleteFolder = async (id: string): Promise<ServerActionResponse> =>
     }
 
     revalidatePath("/files", "layout");
+    revalidateTag("files");
 
     return {
       success: true,

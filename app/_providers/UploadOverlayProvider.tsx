@@ -16,6 +16,7 @@ import {
   FileWithPath,
 } from "@/app/_lib/folder-reader";
 import { useFolders } from "@/app/_providers/FoldersProvider";
+import { usePreferences } from "@/app/_providers/PreferencesProvider";
 
 interface UploadOverlayContextValue {
   openUploadWithFiles: (files: FileList, folderId?: string | null) => void;
@@ -50,6 +51,8 @@ export default function UploadOverlayProvider({
   const router = useRouter();
   const pathname = usePathname();
   const { refreshFolders } = useFolders();
+  const { torrentPreferences } = usePreferences();
+  const torrentsEnabled = torrentPreferences?.enabled ?? false;
   const [isDragging, setIsDragging] = useState(false);
   const [dragCounter, setDragCounter] = useState(0);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
@@ -70,43 +73,59 @@ export default function UploadOverlayProvider({
     []
   );
 
-  const handleDragEnter = useCallback((e: DragEvent) => {
-    if (isModalOpenRef.current) return;
-
-    e.preventDefault();
-
-    if (e.dataTransfer?.types?.includes("Files")) {
-      setDragCounter((prev) => prev + 1);
-      setIsDragging(true);
-    }
+  const isAnyModalOpen = useCallback(() => {
+    if (isModalOpenRef.current) return true;
+    return document.querySelector(".modal-overlay") !== null;
   }, []);
 
-  const handleDragOver = useCallback((e: DragEvent) => {
-    if (isModalOpenRef.current) return;
+  const handleDragEnter = useCallback(
+    (e: DragEvent) => {
+      if (isAnyModalOpen()) return;
 
-    e.preventDefault();
+      e.preventDefault();
 
-    if (e.dataTransfer) {
-      e.dataTransfer.dropEffect = "copy";
-    }
-  }, []);
-
-  const handleDragLeave = useCallback((e: DragEvent) => {
-    if (isModalOpenRef.current) return;
-
-    e.preventDefault();
-
-    setDragCounter((prev) => {
-      const newCount = prev - 1;
-      if (newCount === 0) {
-        setIsDragging(false);
+      if (e.dataTransfer?.types?.includes("Files")) {
+        setDragCounter((prev) => prev + 1);
+        setIsDragging(true);
       }
-      return newCount;
-    });
-  }, []);
+    },
+    [isAnyModalOpen]
+  );
+
+  const handleDragOver = useCallback(
+    (e: DragEvent) => {
+      if (isAnyModalOpen()) return;
+
+      e.preventDefault();
+
+      if (e.dataTransfer) {
+        e.dataTransfer.dropEffect = "copy";
+      }
+    },
+    [isAnyModalOpen]
+  );
+
+  const handleDragLeave = useCallback(
+    (e: DragEvent) => {
+      if (isAnyModalOpen()) return;
+
+      e.preventDefault();
+
+      setDragCounter((prev) => {
+        const newCount = prev - 1;
+        if (newCount === 0) {
+          setIsDragging(false);
+        }
+        return newCount;
+      });
+    },
+    [isAnyModalOpen]
+  );
 
   const handleDrop = useCallback(
     async (e: DragEvent) => {
+      if (isAnyModalOpen()) return;
+
       e.preventDefault();
       e.stopPropagation();
 
@@ -118,6 +137,59 @@ export default function UploadOverlayProvider({
       if (!e.dataTransfer) return;
 
       try {
+        const files = e.dataTransfer.files;
+        if (files && files.length > 0) {
+          for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            if (file.name.endsWith(".torrent")) {
+              if (!torrentsEnabled) {
+                const fileList = createFileList([file]);
+                setUploadFiles(fileList);
+                setUploadFilesWithPaths(null);
+                setRootFolderName("");
+
+                let currentFolderId: string | null = null;
+                if (pathname.startsWith("/files/")) {
+                  const pathAfterFiles = pathname.slice(7);
+                  if (pathAfterFiles) {
+                    const pathParts = pathAfterFiles
+                      .split("/")
+                      .map(decodeURIComponent);
+                    currentFolderId = pathParts.join("/");
+                  }
+                } else if (pathname === "/files") {
+                  currentFolderId = null;
+                }
+
+                setUploadFolderPath(currentFolderId || "");
+                setIsUploadModalOpen(true);
+                isModalOpenRef.current = true;
+                return;
+              }
+              const reader = new FileReader();
+              reader.onload = () => {
+                sessionStorage.setItem(
+                  "pendingTorrentFile",
+                  reader.result as string
+                );
+                sessionStorage.setItem("pendingTorrentFileName", file.name);
+                if (pathname === "/torrents") {
+                  window.dispatchEvent(
+                    new CustomEvent("torrent-paste", {
+                      detail: { torrentFile: file.name },
+                    })
+                  );
+                  router.replace("/torrents?tab=downloads&action=add");
+                } else {
+                  router.push("/torrents?tab=downloads&action=add");
+                }
+              };
+              reader.readAsDataURL(file);
+              return;
+            }
+          }
+        }
+
         let currentFolderId: string | null = null;
 
         if (pathname.startsWith("/files/")) {
@@ -156,12 +228,12 @@ export default function UploadOverlayProvider({
         alert("Failed to process dropped files. Please try again.");
       }
     },
-    [pathname, router]
+    [pathname, router, torrentsEnabled]
   );
 
   const handlePaste = useCallback(
     (e: ClipboardEvent) => {
-      if (isModalOpenRef.current) return;
+      if (isAnyModalOpen()) return;
 
       const target = e.target as HTMLElement;
       const isTypingInInput =
@@ -183,7 +255,35 @@ export default function UploadOverlayProvider({
           hasFiles = true;
           const file = item.getAsFile();
           if (file) {
-            files.push(file);
+            if (file.name.endsWith(".torrent")) {
+              e.preventDefault();
+              if (!torrentsEnabled) {
+                files.push(file);
+              } else {
+                const reader = new FileReader();
+                reader.onload = () => {
+                  sessionStorage.setItem(
+                    "pendingTorrentFile",
+                    reader.result as string
+                  );
+                  sessionStorage.setItem("pendingTorrentFileName", file.name);
+                  if (pathname === "/torrents") {
+                    window.dispatchEvent(
+                      new CustomEvent("torrent-paste", {
+                        detail: { torrentFile: file.name },
+                      })
+                    );
+                    router.replace("/torrents?tab=downloads&action=add");
+                  } else {
+                    router.push("/torrents?tab=downloads&action=add");
+                  }
+                };
+                reader.readAsDataURL(file);
+                return;
+              }
+            } else {
+              files.push(file);
+            }
           }
         }
       }
@@ -198,6 +298,61 @@ export default function UploadOverlayProvider({
 
           textItem.getAsString((text) => {
             if (!text.trim()) return;
+
+            if (text.trim().startsWith("magnet:")) {
+              if (!torrentsEnabled) {
+                const timestamp = new Date()
+                  .toISOString()
+                  .replace(/[:.]/g, "-")
+                  .slice(0, -5);
+                const filename = `pasted-text-${timestamp}.txt`;
+                const blob = new Blob([text], { type: "text/plain" });
+                const file = new File([blob], filename, { type: "text/plain" });
+
+                let currentFolderId: string | null = null;
+                if (pathname.startsWith("/files/")) {
+                  const pathAfterFiles = pathname.slice(7);
+                  if (pathAfterFiles) {
+                    const pathParts = pathAfterFiles
+                      .split("/")
+                      .map(decodeURIComponent);
+                    currentFolderId = pathParts.join("/");
+                  }
+                } else if (pathname === "/files") {
+                  currentFolderId = null;
+                }
+
+                const fileList = createFileList([file]);
+                setUploadFiles(fileList);
+                setUploadFilesWithPaths(null);
+                setRootFolderName("");
+                setUploadFolderPath(currentFolderId || "");
+                setIsUploadModalOpen(true);
+                isModalOpenRef.current = true;
+                return;
+              }
+
+              const magnet = text.trim();
+              if (pathname === "/torrents") {
+                sessionStorage.setItem("pendingMagnet", magnet);
+                window.dispatchEvent(
+                  new CustomEvent("torrent-paste", { detail: { magnet } })
+                );
+                router.replace(
+                  `/torrents?tab=downloads&action=add&magnet=${encodeURIComponent(
+                    magnet
+                  )}`
+                );
+              } else {
+                router.push(
+                  `/torrents?tab=downloads&action=add&magnet=${encodeURIComponent(
+                    magnet
+                  )}`
+                );
+              }
+              isModalOpenRef.current = true;
+              return;
+            }
 
             const timestamp = new Date()
               .toISOString()
@@ -255,7 +410,7 @@ export default function UploadOverlayProvider({
       setIsUploadModalOpen(true);
       isModalOpenRef.current = true;
     },
-    [pathname]
+    [pathname, router, isAnyModalOpen]
   );
 
   useEffect(() => {

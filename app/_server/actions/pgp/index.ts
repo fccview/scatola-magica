@@ -428,3 +428,38 @@ export const verifyPassword = async (
     return { success: false, message: "Invalid password" };
   }
 };
+
+export const encryptJsonData = async (
+  jsonData: string,
+  customPath?: string,
+  customPublicKey?: string
+): Promise<EncryptFileResult> => {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(jsonData);
+  return encryptFileData(data, "metadata.json", customPath, customPublicKey);
+};
+
+export const decryptJsonData = async (
+  encryptedData: string,
+  password: string,
+  customPath?: string,
+  customPrivateKey?: string
+): Promise<{ success: boolean; message: string; decryptedData?: string }> => {
+  const result = await decryptFileData(
+    encryptedData,
+    password,
+    customPath,
+    customPrivateKey
+  );
+
+  if (!result.success || !result.decryptedData) {
+    return { success: false, message: result.message };
+  }
+
+  const decoder = new TextDecoder();
+  return {
+    success: true,
+    message: result.message,
+    decryptedData: decoder.decode(result.decryptedData),
+  };
+};

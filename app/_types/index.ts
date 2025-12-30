@@ -1,5 +1,7 @@
 import { UploadStatus } from "@/app/_types/enums";
 
+export * from "@/app/_types/torrent";
+
 export interface FileMetadata {
   id: string;
   name: string;
@@ -68,6 +70,9 @@ export interface User {
   avatar?: string;
   apiKey?: string;
   encryptionKey?: string;
+  persistentTheme?: boolean;
+  pokemonTheme?: string | null;
+  colorMode?: "light" | "dark";
 }
 
 export interface Session {

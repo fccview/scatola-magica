@@ -7,6 +7,7 @@ import {
   updateAvatar,
   changePassword,
   removeAvatar,
+  updateThemePreferences,
 } from "@/app/_server/actions/user";
 import { usePreferences } from "@/app/_providers/PreferencesProvider";
 import Input from "@/app/_components/GlobalComponents/Form/Input";
@@ -14,6 +15,7 @@ import Button from "@/app/_components/GlobalComponents/Buttons/Button";
 import Icon from "@/app/_components/GlobalComponents/Icons/Icon";
 import UserAvatar from "@/app/_components/FeatureComponents/User/UserAvatar";
 import ApiKeySection from "@/app/_components/FeatureComponents/SettingsPage/ApiKeySection";
+import Switch from "@/app/_components/GlobalComponents/Form/Switch";
 
 export default function ProfileTab() {
   const { user } = usePreferences();
@@ -37,6 +39,10 @@ export default function ProfileTab() {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState("");
   const [passwordSuccess, setPasswordSuccess] = useState(false);
+
+  const [persistentTheme, setPersistentTheme] = useState(
+    user.persistentTheme ?? false
+  );
 
   const handleUsernameChange = async () => {
     if (username === user.username) return;
@@ -160,6 +166,13 @@ export default function ProfileTab() {
     }
   };
 
+  const handlePersistentThemeToggle = async () => {
+    const newValue = !persistentTheme;
+    setPersistentTheme(newValue);
+    await updateThemePreferences(newValue);
+    router.refresh();
+  };
+
   return (
     <div className="space-y-12">
       <div>
@@ -277,7 +290,7 @@ export default function ProfileTab() {
             }}
             disabled={isChangingPassword}
             required
-            helperText="Minimum 6 characters"
+            description="Minimum 6 characters"
           />
           <Input
             label="Confirm New Password"
@@ -323,6 +336,19 @@ export default function ProfileTab() {
       </div>
 
       <ApiKeySection />
+
+      <div>
+        <h2 className="text-xl font-medium text-on-surface mb-6">Theme</h2>
+        <div className="p-6 bg-surface-container rounded-lg space-y-6">
+          <Switch
+            id="persistent-theme"
+            checked={persistentTheme}
+            onChange={handlePersistentThemeToggle}
+            label="Persistent Theme"
+            description="Save your theme preferences to your account. When enabled, your selected theme (color mode and Pokemon theme) will persist across browsers and devices. When disabled, themes will only be stored in your browser's local storage."
+          />
+        </div>
+      </div>
 
       <div>
         <h2 className="text-xl font-medium text-on-surface mb-6">

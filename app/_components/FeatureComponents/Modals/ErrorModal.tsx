@@ -43,7 +43,7 @@ export default function ErrorModal({
   const config = variantConfig[variant];
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={config.title} size="sm">
+    <Modal isOpen={isOpen} onClose={onClose} title={config.title} size="sm" zIndex={200}>
       <div className="p-6 space-y-4">
         <div className="flex items-start gap-4">
           <div
