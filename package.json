@@ -6,11 +6,7 @@
     "dev": "next dev --turbo",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "db:generate": "prisma generate --schema=./app/_prisma/schema.prisma",
-    "db:push": "prisma db push --schema=./app/_prisma/schema.prisma",
-    "db:migrate": "prisma migrate dev --schema=./app/_prisma/schema.prisma",
-    "db:studio": "prisma studio --schema=./app/_prisma/schema.prisma"
+    "lint": "next lint"
   },
   "dependencies": {
     "@prisma/client": "^6.1.0",
@@ -31,6 +27,7 @@
     "bittorrent-tracker": "^11.2.2",
     "idb-keyval": "^6.2.1",
     "jose": "^6.1.2",
+    "lang-detector": "^1.0.6",
     "lottie-react": "^2.4.1",
     "next": "^15.5.9",
     "next-pwa": "^5.6.0",

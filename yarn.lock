@@ -4873,6 +4873,13 @@ keyv@^4.5.4:
   dependencies:
     json-buffer "3.0.1"
 
+lang-detector@^1.0.6:
+  version "1.0.6"
+  resolved "https://registry.yarnpkg.com/lang-detector/-/lang-detector-1.0.6.tgz#96157ea7e702f19778f1ef6488c593ebf7511fa2"
+  integrity sha512-YRt/OzgBlrCf8AGiFLWXuqbvEuOI9xHJQe73iKRGGfOZrylDyBAMUWWhWwVdCQxxX0yN5V52PDypqXnlVb4C/w==
+  dependencies:
+    underscore "^1.8.2"
+
 language-subtag-registry@^0.3.20:
   version "0.3.23"
   resolved "https://registry.npmjs.org/language-subtag-registry/-/language-subtag-registry-0.3.23.tgz"
@@ -5946,19 +5953,7 @@ parse-entities@^4.0.0:
     is-decimal "^2.0.0"
     is-hexadecimal "^2.0.0"
 
-parse-torrent@^11.0.18:
-  version "11.0.19"
-  resolved "https://registry.npmjs.org/parse-torrent/-/parse-torrent-11.0.19.tgz"
-  integrity sha512-T0lEkDdFVQsy0YxHIKjzDHSgt/yl57f3INs5jl7OZqAm77XDF0FgRgrv3LCKgSqsTOrMwYaF0t2761WKdvhgig==
-  dependencies:
-    bencode "^4.0.0"
-    cross-fetch-ponyfill "^1.0.3"
-    get-stdin "^9.0.0"
-    magnet-uri "^7.0.7"
-    queue-microtask "^1.2.3"
-    uint8-util "^2.2.5"
-
-parse-torrent@^11.0.19:
+parse-torrent@^11.0.18, parse-torrent@^11.0.19:
   version "11.0.19"
   resolved "https://registry.yarnpkg.com/parse-torrent/-/parse-torrent-11.0.19.tgz#ab9ccd51277cc271da1a78da18e92105219d3fbe"
   integrity sha512-T0lEkDdFVQsy0YxHIKjzDHSgt/yl57f3INs5jl7OZqAm77XDF0FgRgrv3LCKgSqsTOrMwYaF0t2761WKdvhgig==
@@ -7550,6 +7545,11 @@ unbox-primitive@^1.1.0:
     has-bigints "^1.0.2"
     has-symbols "^1.1.0"
     which-boxed-primitive "^1.1.1"
+
+underscore@^1.8.2:
+  version "1.13.7"
+  resolved "https://registry.yarnpkg.com/underscore/-/underscore-1.13.7.tgz#970e33963af9a7dda228f17ebe8399e5fbe63a10"
+  integrity sha512-GMXzWtsc57XAtguZgaQViUOzs0KTkk8ojr3/xAxXLITqf/3EMwxC0inyETfDFjH/Krbhuep0HNbbjI9i/q3F3g==
 
 undici-types@~6.21.0:
   version "6.21.0"

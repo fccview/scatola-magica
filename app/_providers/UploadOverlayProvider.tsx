@@ -18,6 +18,7 @@ import {
 } from "@/app/_lib/folder-reader";
 import { useFolders } from "@/app/_providers/FoldersProvider";
 import { usePreferences } from "@/app/_providers/PreferencesProvider";
+import { detectLanguage } from "@/app/_lib/language-detector";
 
 interface UploadOverlayContextValue {
   openUploadWithFiles: (files: FileList, folderId?: string | null) => void;
@@ -442,7 +443,8 @@ export default function UploadOverlayProvider({
                   .toISOString()
                   .replace(/[:.]/g, "-")
                   .slice(0, -5);
-                const filename = `pasted-text-${timestamp}.txt`;
+                const { extension } = detectLanguage(text);
+                const filename = `pasted-text-${timestamp}${extension}`;
                 const blob = new Blob([text], { type: "text/plain" });
                 const file = new File([blob], filename, { type: "text/plain" });
 
@@ -495,7 +497,8 @@ export default function UploadOverlayProvider({
               .toISOString()
               .replace(/[:.]/g, "-")
               .slice(0, -5);
-            const filename = `pasted-text-${timestamp}.txt`;
+            const { extension } = detectLanguage(text);
+            const filename = `pasted-text-${timestamp}${extension}`;
             const blob = new Blob([text], { type: "text/plain" });
             const file = new File([blob], filename, { type: "text/plain" });
 
