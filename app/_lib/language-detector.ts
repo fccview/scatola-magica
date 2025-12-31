@@ -1,3 +1,4 @@
+// @ts-ignore - No type definitions available for lang-detector
 import detectLang from "lang-detector";
 
 const LANGUAGE_TO_EXTENSION: Record<string, string> = {
