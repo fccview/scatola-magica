@@ -23,7 +23,7 @@ export default function ServiceWorkerRegistrar() {
           });
         })
         .catch((error) => {
-          console.error("Service Worker registration failed:", error);
+          console.warn("Service Worker registration failed:", error);
         });
     }
   }, []);

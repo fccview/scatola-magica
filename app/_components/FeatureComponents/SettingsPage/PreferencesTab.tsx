@@ -12,6 +12,7 @@ export default function PreferencesTab() {
     particlesEnabled: initialParticles,
     wandCursorEnabled: initialWand,
     pokemonThemesEnabled: initialPokemonThemes,
+    torrentPreferences,
     user,
   } = usePreferences();
 
@@ -23,6 +24,9 @@ export default function PreferencesTab() {
   const [wandCursorEnabled, setWandCursorEnabled] = useState(initialWand);
   const [pokemonThemesEnabled, setPokemonThemesEnabled] = useState(
     initialPokemonThemes ?? false
+  );
+  const [torrentsEnabled, setTorrentsEnabled] = useState(
+    torrentPreferences?.enabled ?? false
   );
 
   const handleParticlesToggle = async () => {
@@ -58,6 +62,17 @@ export default function PreferencesTab() {
       }
     }
 
+    router.refresh();
+  };
+
+  const handleTorrentsEnabledToggle = async () => {
+    const newValue = !torrentsEnabled;
+    setTorrentsEnabled(newValue);
+    await updateUserPreferences(user?.username ?? "", {
+      torrentPreferences: {
+        enabled: newValue,
+      },
+    });
     router.refresh();
   };
 
@@ -107,6 +122,19 @@ export default function PreferencesTab() {
                 dev.
               </>
             }
+          />
+        </div>
+      </div>
+
+      <div>
+        <h2 className="text-xl font-medium text-on-surface mb-6">Torrents (beta)</h2>
+        <div className="p-6 bg-surface-container rounded-lg space-y-6">
+          <Switch
+            id="enable-torrents"
+            checked={torrentsEnabled}
+            onChange={handleTorrentsEnabledToggle}
+            label="Enable Torrents"
+            description="Enable torrent functionality. When enabled, you can create, share, and download torrent files. This functionality is in beta and may have some issues."
           />
         </div>
       </div>

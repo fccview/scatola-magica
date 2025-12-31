@@ -10,12 +10,15 @@ import {
 } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import DragOverlay from "@/app/_components/GlobalComponents/Layout/DragOverlay";
+import MultipleDropzonesOverlay from "@/app/_components/GlobalComponents/Layout/MultipleDropzonesOverlay";
 import UploadProgressModal from "@/app/_components/FeatureComponents/Modals/UploadProgressModal";
 import {
   readFilesFromDataTransfer,
   FileWithPath,
 } from "@/app/_lib/folder-reader";
 import { useFolders } from "@/app/_providers/FoldersProvider";
+import { usePreferences } from "@/app/_providers/PreferencesProvider";
+import { detectLanguage } from "@/app/_lib/language-detector";
 
 interface UploadOverlayContextValue {
   openUploadWithFiles: (files: FileList, folderId?: string | null) => void;
@@ -50,6 +53,9 @@ export default function UploadOverlayProvider({
   const router = useRouter();
   const pathname = usePathname();
   const { refreshFolders } = useFolders();
+  const { torrentPreferences, dropzones } = usePreferences();
+  const torrentsEnabled = torrentPreferences?.enabled ?? false;
+  const multipleDropzonesEnabled = dropzones?.enabled ?? false;
   const [isDragging, setIsDragging] = useState(false);
   const [dragCounter, setDragCounter] = useState(0);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
@@ -59,7 +65,69 @@ export default function UploadOverlayProvider({
   >(null);
   const [uploadFolderPath, setUploadFolderPath] = useState<string>("");
   const [rootFolderName, setRootFolderName] = useState<string>("");
+  const [resumableUploads, setResumableUploads] = useState<Array<{
+    uploadId: string;
+    fileName: string;
+    progress: number;
+    localStorageKey: string;
+  }>>([]);
+  const [showResumableModal, setShowResumableModal] = useState(false);
   const isModalOpenRef = useRef(false);
+
+  useEffect(() => {
+    const loadResumableUploads = async () => {
+      const { listResumableUploads } = await import("@/app/_server/actions/upload");
+      const result = await listResumableUploads();
+
+      if (result.success && result.data) {
+        const uploads = result.data.uploads.map(upload => ({
+          uploadId: upload.uploadId,
+          fileName: upload.fileName,
+          progress: upload.progress,
+          localStorageKey: "",
+        }));
+        setResumableUploads(uploads);
+        if (uploads.length === 0) {
+          setShowResumableModal(false);
+        }
+      }
+    };
+
+    loadResumableUploads();
+  }, []);
+
+  useEffect(() => {
+    if (isUploadModalOpen) {
+      const interval = setInterval(async () => {
+        const { listResumableUploads } = await import("@/app/_server/actions/upload");
+        const result = await listResumableUploads();
+        if (result.success && result.data) {
+          const uploads = result.data.uploads.map(upload => ({
+            uploadId: upload.uploadId,
+            fileName: upload.fileName,
+            progress: upload.progress,
+            localStorageKey: "",
+          }));
+          setResumableUploads(uploads);
+          if (uploads.length === 0) {
+            setShowResumableModal(false);
+          }
+        }
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [isUploadModalOpen]);
+
+  const handleDeleteResumableUpload = async (uploadId: string) => {
+    const { deleteUploadSessionAction } = await import("@/app/_server/actions/upload");
+
+    try {
+      await deleteUploadSessionAction(uploadId);
+      setResumableUploads(prev => prev.filter(u => u.uploadId !== uploadId));
+    } catch (error) {
+      console.error("Failed to delete upload session:", error);
+    }
+  };
 
   const openUploadWithFiles = useCallback(
     (files: FileList, folderId?: string | null) => {
@@ -70,43 +138,132 @@ export default function UploadOverlayProvider({
     []
   );
 
-  const handleDragEnter = useCallback((e: DragEvent) => {
-    if (isModalOpenRef.current) return;
-
-    e.preventDefault();
-
-    if (e.dataTransfer?.types?.includes("Files")) {
-      setDragCounter((prev) => prev + 1);
-      setIsDragging(true);
-    }
+  const isAnyModalOpen = useCallback(() => {
+    if (isModalOpenRef.current) return true;
+    return document.querySelector(".modal-overlay") !== null;
   }, []);
 
-  const handleDragOver = useCallback((e: DragEvent) => {
-    if (isModalOpenRef.current) return;
+  const handleDragEnter = useCallback(
+    (e: DragEvent) => {
+      if (isAnyModalOpen()) return;
 
-    e.preventDefault();
+      e.preventDefault();
 
-    if (e.dataTransfer) {
-      e.dataTransfer.dropEffect = "copy";
-    }
-  }, []);
-
-  const handleDragLeave = useCallback((e: DragEvent) => {
-    if (isModalOpenRef.current) return;
-
-    e.preventDefault();
-
-    setDragCounter((prev) => {
-      const newCount = prev - 1;
-      if (newCount === 0) {
-        setIsDragging(false);
+      if (e.dataTransfer?.types?.includes("Files")) {
+        setDragCounter((prev) => prev + 1);
+        setIsDragging(true);
       }
-      return newCount;
-    });
-  }, []);
+    },
+    [isAnyModalOpen]
+  );
+
+  const handleDragOver = useCallback(
+    (e: DragEvent) => {
+      if (isAnyModalOpen()) return;
+
+      e.preventDefault();
+
+      if (e.dataTransfer) {
+        e.dataTransfer.dropEffect = "copy";
+      }
+    },
+    [isAnyModalOpen]
+  );
+
+  const handleDragLeave = useCallback(
+    (e: DragEvent) => {
+      if (isAnyModalOpen()) return;
+
+      e.preventDefault();
+
+      setDragCounter((prev) => {
+        const newCount = prev - 1;
+        if (newCount === 0) {
+          setIsDragging(false);
+        }
+        return newCount;
+      });
+    },
+    [isAnyModalOpen]
+  );
+
+  const handleMultipleDropzoneDrop = useCallback(
+    async (zone: "zone1" | "zone2" | "zone3" | "zone4", dataTransfer: DataTransfer) => {
+      isModalOpenRef.current = true;
+      setIsDragging(false);
+      setDragCounter(0);
+
+      const targetFolderPath = dropzones?.[zone] || "";
+
+      try {
+        const files = dataTransfer.files;
+        if (files && files.length > 0) {
+          for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            if (file.name.endsWith(".torrent")) {
+              if (!torrentsEnabled) {
+                const fileList = createFileList([file]);
+                setUploadFiles(fileList);
+                setUploadFilesWithPaths(null);
+                setRootFolderName("");
+                setUploadFolderPath(targetFolderPath);
+                setIsUploadModalOpen(true);
+                return;
+              }
+              const reader = new FileReader();
+              reader.onload = () => {
+                sessionStorage.setItem("pendingTorrentFile", reader.result as string);
+                sessionStorage.setItem("pendingTorrentFileName", file.name);
+                if (pathname === "/torrents") {
+                  window.dispatchEvent(new CustomEvent("torrent-paste", { detail: { torrentFile: file.name } }));
+                  router.replace("/torrents?tab=downloads&action=add");
+                } else {
+                  router.push("/torrents?tab=downloads&action=add");
+                }
+              };
+              reader.readAsDataURL(file);
+              return;
+            }
+          }
+        }
+
+        const { files: filesWithPaths, rootFolderName: folderName } =
+          await readFilesFromDataTransfer(dataTransfer);
+
+        if (filesWithPaths.length > 0) {
+          if (folderName) {
+            setUploadFilesWithPaths(filesWithPaths);
+            setRootFolderName(folderName);
+            setUploadFiles(null);
+          } else {
+            const allFiles = filesWithPaths.map((f) => f.file);
+            const fileList = createFileList(allFiles);
+            setUploadFiles(fileList);
+            setUploadFilesWithPaths(null);
+            setRootFolderName("");
+          }
+          setUploadFolderPath(targetFolderPath);
+          setIsUploadModalOpen(true);
+        } else {
+          isModalOpenRef.current = false;
+        }
+      } catch (error) {
+        console.error("Error processing dropped files:", error);
+        isModalOpenRef.current = false;
+        alert("Failed to process dropped files. Please try again.");
+      }
+    },
+    [dropzones, torrentsEnabled, router, pathname]
+  );
 
   const handleDrop = useCallback(
     async (e: DragEvent) => {
+      if (isAnyModalOpen()) return;
+
+      if (multipleDropzonesEnabled) {
+        return;
+      }
+
       e.preventDefault();
       e.stopPropagation();
 
@@ -118,6 +275,59 @@ export default function UploadOverlayProvider({
       if (!e.dataTransfer) return;
 
       try {
+        const files = e.dataTransfer.files;
+        if (files && files.length > 0) {
+          for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            if (file.name.endsWith(".torrent")) {
+              if (!torrentsEnabled) {
+                const fileList = createFileList([file]);
+                setUploadFiles(fileList);
+                setUploadFilesWithPaths(null);
+                setRootFolderName("");
+
+                let currentFolderId: string | null = null;
+                if (pathname.startsWith("/files/")) {
+                  const pathAfterFiles = pathname.slice(7);
+                  if (pathAfterFiles) {
+                    const pathParts = pathAfterFiles
+                      .split("/")
+                      .map(decodeURIComponent);
+                    currentFolderId = pathParts.join("/");
+                  }
+                } else if (pathname === "/files") {
+                  currentFolderId = null;
+                }
+
+                setUploadFolderPath(currentFolderId || "");
+                setIsUploadModalOpen(true);
+                isModalOpenRef.current = true;
+                return;
+              }
+              const reader = new FileReader();
+              reader.onload = () => {
+                sessionStorage.setItem(
+                  "pendingTorrentFile",
+                  reader.result as string
+                );
+                sessionStorage.setItem("pendingTorrentFileName", file.name);
+                if (pathname === "/torrents") {
+                  window.dispatchEvent(
+                    new CustomEvent("torrent-paste", {
+                      detail: { torrentFile: file.name },
+                    })
+                  );
+                  router.replace("/torrents?tab=downloads&action=add");
+                } else {
+                  router.push("/torrents?tab=downloads&action=add");
+                }
+              };
+              reader.readAsDataURL(file);
+              return;
+            }
+          }
+        }
+
         let currentFolderId: string | null = null;
 
         if (pathname.startsWith("/files/")) {
@@ -156,12 +366,12 @@ export default function UploadOverlayProvider({
         alert("Failed to process dropped files. Please try again.");
       }
     },
-    [pathname, router]
+    [pathname, router, torrentsEnabled]
   );
 
   const handlePaste = useCallback(
     (e: ClipboardEvent) => {
-      if (isModalOpenRef.current) return;
+      if (isAnyModalOpen()) return;
 
       const target = e.target as HTMLElement;
       const isTypingInInput =
@@ -183,7 +393,35 @@ export default function UploadOverlayProvider({
           hasFiles = true;
           const file = item.getAsFile();
           if (file) {
-            files.push(file);
+            if (file.name.endsWith(".torrent")) {
+              e.preventDefault();
+              if (!torrentsEnabled) {
+                files.push(file);
+              } else {
+                const reader = new FileReader();
+                reader.onload = () => {
+                  sessionStorage.setItem(
+                    "pendingTorrentFile",
+                    reader.result as string
+                  );
+                  sessionStorage.setItem("pendingTorrentFileName", file.name);
+                  if (pathname === "/torrents") {
+                    window.dispatchEvent(
+                      new CustomEvent("torrent-paste", {
+                        detail: { torrentFile: file.name },
+                      })
+                    );
+                    router.replace("/torrents?tab=downloads&action=add");
+                  } else {
+                    router.push("/torrents?tab=downloads&action=add");
+                  }
+                };
+                reader.readAsDataURL(file);
+                return;
+              }
+            } else {
+              files.push(file);
+            }
           }
         }
       }
@@ -199,11 +437,68 @@ export default function UploadOverlayProvider({
           textItem.getAsString((text) => {
             if (!text.trim()) return;
 
+            if (text.trim().startsWith("magnet:")) {
+              if (!torrentsEnabled) {
+                const timestamp = new Date()
+                  .toISOString()
+                  .replace(/[:.]/g, "-")
+                  .slice(0, -5);
+                const { extension } = detectLanguage(text);
+                const filename = `pasted-text-${timestamp}${extension}`;
+                const blob = new Blob([text], { type: "text/plain" });
+                const file = new File([blob], filename, { type: "text/plain" });
+
+                let currentFolderId: string | null = null;
+                if (pathname.startsWith("/files/")) {
+                  const pathAfterFiles = pathname.slice(7);
+                  if (pathAfterFiles) {
+                    const pathParts = pathAfterFiles
+                      .split("/")
+                      .map(decodeURIComponent);
+                    currentFolderId = pathParts.join("/");
+                  }
+                } else if (pathname === "/files") {
+                  currentFolderId = null;
+                }
+
+                const fileList = createFileList([file]);
+                setUploadFiles(fileList);
+                setUploadFilesWithPaths(null);
+                setRootFolderName("");
+                setUploadFolderPath(currentFolderId || "");
+                setIsUploadModalOpen(true);
+                isModalOpenRef.current = true;
+                return;
+              }
+
+              const magnet = text.trim();
+              if (pathname === "/torrents") {
+                sessionStorage.setItem("pendingMagnet", magnet);
+                window.dispatchEvent(
+                  new CustomEvent("torrent-paste", { detail: { magnet } })
+                );
+                router.replace(
+                  `/torrents?tab=downloads&action=add&magnet=${encodeURIComponent(
+                    magnet
+                  )}`
+                );
+              } else {
+                router.push(
+                  `/torrents?tab=downloads&action=add&magnet=${encodeURIComponent(
+                    magnet
+                  )}`
+                );
+              }
+              isModalOpenRef.current = true;
+              return;
+            }
+
             const timestamp = new Date()
               .toISOString()
               .replace(/[:.]/g, "-")
               .slice(0, -5);
-            const filename = `pasted-text-${timestamp}.txt`;
+            const { extension } = detectLanguage(text);
+            const filename = `pasted-text-${timestamp}${extension}`;
             const blob = new Blob([text], { type: "text/plain" });
             const file = new File([blob], filename, { type: "text/plain" });
 
@@ -255,7 +550,7 @@ export default function UploadOverlayProvider({
       setIsUploadModalOpen(true);
       isModalOpenRef.current = true;
     },
-    [pathname]
+    [pathname, router, isAnyModalOpen, multipleDropzonesEnabled]
   );
 
   useEffect(() => {
@@ -294,8 +589,70 @@ export default function UploadOverlayProvider({
 
   return (
     <UploadOverlayContext.Provider value={{ openUploadWithFiles, isDragging }}>
+      {resumableUploads.length > 0 && (
+        <>
+          {!showResumableModal && (
+            <button
+              onClick={() => setShowResumableModal(true)}
+              className="lg:hidden fixed top-1/2 -translate-y-1/2 right-0 z-[9999] bg-primary hover:bg-primary/90 text-on-primary p-3 transition-all"
+            >
+              <div className="relative">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+                <span className="absolute -top-1 -left-1 bg-error text-on-error text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                  {resumableUploads.length}
+                </span>
+              </div>
+            </button>
+          )}
+
+          <div className={`fixed z-[9999] bg-surface text-on-surface rounded-lg bottom-4 left-4 max-w-md w-auto min-w-[320px] ${showResumableModal ? 'block' : 'hidden'} lg:block`}>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-dashed border-outline-variant">
+              <div className="font-semibold text-sm">Interrupted Uploads</div>
+              <button
+                onClick={() => setShowResumableModal(false)}
+                className="lg:hidden text-on-surface-variant hover:text-on-surface"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="max-h-[300px] overflow-y-auto p-3 space-y-2">
+              {resumableUploads.map((upload) => (
+                <div key={upload.uploadId} className="flex items-center justify-between gap-3 p-3 bg-sidebar rounded-lg transition-colors">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate">{upload.fileName}</div>
+                    <div className="text-xs text-on-surface-variant mt-1">
+                      {upload.progress.toFixed(1)}% · Drag file to resume
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleDeleteResumableUpload(upload.uploadId)}
+                    className="px-3 py-1.5 bg-error hover:bg-error/90 text-on-error rounded-lg text-xs font-medium transition-colors"
+                  >
+                    Delete
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+
       {!isUploadModalOpen && (
-        <DragOverlay isVisible={isDragging} targetFolderName={null} />
+        <>
+          {multipleDropzonesEnabled ? (
+            <MultipleDropzonesOverlay
+              isVisible={isDragging}
+              dropzones={dropzones || {}}
+              onDrop={handleMultipleDropzoneDrop}
+            />
+          ) : (
+            <DragOverlay isVisible={isDragging} targetFolderName={null} />
+          )}
+        </>
       )}
 
       <UploadProgressModal

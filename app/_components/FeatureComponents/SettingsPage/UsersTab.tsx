@@ -186,8 +186,8 @@ export default function UsersTab() {
                     {user.isSuperAdmin
                       ? "Super Admin"
                       : user.isAdmin
-                        ? "Administrator"
-                        : "User"}
+                      ? "Administrator"
+                      : "User"}
                   </div>
                   <div className="text-xs text-on-surface-variant">
                     Created: {new Date(user.createdAt).toLocaleDateString()}
@@ -255,7 +255,7 @@ export default function UsersTab() {
                   value={editPassword}
                   onChange={(e) => setEditPassword(e.target.value)}
                   disabled={isUpdating}
-                  helperText="Minimum 6 characters"
+                  description="Minimum 6 characters"
                 />
                 <Input
                   label="Confirm New Password"

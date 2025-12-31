@@ -15,9 +15,8 @@ import {
   decryptFile,
   encryptFolder,
   decryptFolder,
-} from "@/app/_server/actions/files/encryption";
+} from "@/app/_server/actions/file-encryption";
 import { useShortcuts } from "@/app/_providers/ShortcutsProvider";
-import { useContextMenu } from "@/app/_providers/ContextMenuProvider";
 import { useFileViewer } from "@/app/_providers/FileViewerProvider";
 
 interface UseFileListProps {
@@ -66,6 +65,7 @@ export const useFileList = ({
 
   const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
   const [deletingFolderId, setDeletingFolderId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [moveFileIds, setMoveFileIds] = useState<string[]>([]);
   const [encryptingFileId, setEncryptingFileId] = useState<string | null>(null);
   const [decryptingFileId, setDecryptingFileId] = useState<string | null>(null);
@@ -99,6 +99,17 @@ export const useFileList = ({
     message: "",
     variant: "error",
   });
+  const [createdTorrent, setCreatedTorrent] = useState<{
+    magnetURI: string;
+    torrentFile: Buffer;
+    fileName: string;
+  } | null>(null);
+  const [createTorrentModal, setCreateTorrentModal] = useState<{
+    isOpen: boolean;
+    fileId: string;
+    fileName: string;
+    isFolder: boolean;
+  } | null>(null);
 
   const loadMore = useCallback(async () => {
     if (isLoadingMore || !hasMore) return;
@@ -196,6 +207,7 @@ export const useFileList = ({
     const fileId = confirmDeleteFileId;
     setDeletingFileId(fileId);
     setConfirmDeleteFileId(null);
+    setIsDeleting(true);
     try {
       const result = await deleteFile(fileId);
       if (result.success) {
@@ -216,6 +228,7 @@ export const useFileList = ({
       });
     } finally {
       setDeletingFileId(null);
+      setIsDeleting(false);
     }
   };
 
@@ -229,6 +242,7 @@ export const useFileList = ({
     const folderId = confirmDeleteFolderId;
     setDeletingFolderId(folderId);
     setConfirmDeleteFolderId(null);
+    setIsDeleting(true);
     try {
       const result = await deleteFolder(folderId);
       if (result.success) {
@@ -249,6 +263,7 @@ export const useFileList = ({
       });
     } finally {
       setDeletingFolderId(null);
+      setIsDeleting(false);
     }
   };
 
@@ -298,6 +313,103 @@ export const useFileList = ({
 
   const handleDownload = (id: string) => {
     window.open(`/api/download/${encodeURIComponent(id)}`, "_blank");
+  };
+
+  const handleCreateTorrent = (id: string, name: string) => {
+    const isFolder = folders.some((f) => f.id === id);
+    setCreateTorrentModal({
+      isOpen: true,
+      fileId: id,
+      fileName: name,
+      isFolder,
+    });
+  };
+
+  const handleCreateTorrentConfirm = async (options: {
+    isAnnounced: boolean;
+    trackers: string[];
+    encryptBeforeCreate: boolean;
+    useOwnKey: boolean;
+    customPublicKey?: string;
+  }): Promise<{ magnetURI: string; torrentFile: string } | null> => {
+    if (!createTorrentModal) return null;
+
+    const { createTorrentFromFile, createTorrentFromFolder } = await import(
+      "@/app/_server/actions/make-torrents"
+    );
+    const { encryptFile, encryptFolder } = await import(
+      "@/app/_server/actions/file-encryption"
+    );
+
+    try {
+      let fileIdToUse = createTorrentModal.fileId;
+
+      if (options.encryptBeforeCreate) {
+        const encryptResult = createTorrentModal.isFolder
+          ? await encryptFolder(
+            createTorrentModal.fileId,
+            false,
+            options.useOwnKey ? undefined : options.customPublicKey
+          )
+          : await encryptFile(
+            createTorrentModal.fileId,
+            false,
+            options.useOwnKey ? undefined : options.customPublicKey
+          );
+
+        if (!encryptResult.success) {
+          setErrorModal({
+            isOpen: true,
+            message: encryptResult.message || "Failed to encrypt file",
+            variant: "error",
+          });
+          return null;
+        }
+
+        if (encryptResult.encryptedFilePath) {
+          fileIdToUse = encryptResult.encryptedFilePath;
+        } else {
+          setErrorModal({
+            isOpen: true,
+            message: "Encryption succeeded but file path not returned",
+            variant: "error",
+          });
+          return null;
+        }
+      }
+
+      const result = createTorrentModal.isFolder
+        ? await createTorrentFromFolder(fileIdToUse, {
+          isAnnounced: options.isAnnounced,
+          announce: options.trackers,
+        })
+        : await createTorrentFromFile(fileIdToUse, {
+          isAnnounced: options.isAnnounced,
+          announce: options.trackers,
+        });
+
+      if (result.success && result.data) {
+        return {
+          magnetURI: result.data.magnetURI,
+          torrentFile: result.data.torrentFile,
+        };
+      } else {
+        setErrorModal({
+          isOpen: true,
+          message: result.error || "Failed to create torrent",
+          variant: "error",
+        });
+        return null;
+      }
+    } catch (error) {
+      console.error("Error creating torrent:", error);
+      setErrorModal({
+        isOpen: true,
+        message: "Failed to create torrent",
+        variant: "error",
+      });
+      return null;
+    }
   };
 
   const handleFileOpen = (id: string) => {
@@ -562,6 +674,7 @@ export const useFileList = ({
     if (totalSelected === 0) return;
 
     setShowBulkDeleteConfirm(false);
+    setIsDeleting(true);
     try {
       await Promise.all([
         ...Array.from(selectedFileIds).map((id) => deleteFile(id)),
@@ -576,6 +689,8 @@ export const useFileList = ({
         message: "Failed to delete some items",
         variant: "error",
       });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -636,6 +751,7 @@ export const useFileList = ({
     sentinelRef,
     deletingFileId,
     deletingFolderId,
+    isDeleting,
     moveFileIds,
     setMoveFileIds,
     encryptingFileId,
@@ -660,6 +776,11 @@ export const useFileList = ({
     setShowBulkDeleteConfirm,
     errorModal,
     setErrorModal,
+    createdTorrent,
+    setCreatedTorrent,
+    createTorrentModal,
+    setCreateTorrentModal,
+    handleCreateTorrentConfirm,
     toggleRecursive,
     handleDeleteFile,
     confirmDeleteFile,
@@ -669,6 +790,7 @@ export const useFileList = ({
     handleRenameFile,
     handleDownload,
     handleFileOpen,
+    handleCreateTorrent,
     handleEncrypt,
     handleDecrypt,
     handleEncryptFolder,
@@ -685,4 +807,4 @@ export const useFileList = ({
     handleBulkMove,
     handleViewModeChange,
   };
-}
+};

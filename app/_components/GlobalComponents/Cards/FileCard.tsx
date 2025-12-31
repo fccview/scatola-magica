@@ -15,6 +15,7 @@ interface FileCardProps {
   onOpen?: (id: string) => void;
   onEncrypt?: (id: string) => void;
   onDecrypt?: (id: string) => void;
+  onCreateTorrent?: (id: string, name: string) => void;
   viewMode?: "grid" | "list";
   isSelectionMode?: boolean;
   isSelected?: boolean;
@@ -22,6 +23,7 @@ interface FileCardProps {
   currentUser?: User;
   allUsers?: User[];
   recursive?: boolean;
+  hasTorrent?: boolean;
 }
 
 export default function FileCard({
@@ -34,6 +36,7 @@ export default function FileCard({
   onOpen,
   onEncrypt,
   onDecrypt,
+  onCreateTorrent,
   viewMode = "grid",
   isSelectionMode = false,
   isSelected = false,
@@ -41,6 +44,7 @@ export default function FileCard({
   currentUser,
   allUsers = [],
   recursive = false,
+  hasTorrent = false,
 }: FileCardProps) {
   if (viewMode === "list") {
     return (
@@ -54,12 +58,14 @@ export default function FileCard({
         onOpen={onOpen}
         onEncrypt={onEncrypt}
         onDecrypt={onDecrypt}
+        onCreateTorrent={onCreateTorrent}
         isSelectionMode={isSelectionMode}
         isSelected={isSelected}
         onToggleSelect={onToggleSelect}
         currentUser={currentUser}
         allUsers={allUsers}
         recursive={recursive}
+        hasTorrent={hasTorrent}
       />
     );
   }
@@ -75,12 +81,14 @@ export default function FileCard({
       onOpen={onOpen}
       onEncrypt={onEncrypt}
       onDecrypt={onDecrypt}
+      onCreateTorrent={onCreateTorrent}
       isSelectionMode={isSelectionMode}
       isSelected={isSelected}
       onToggleSelect={onToggleSelect}
       currentUser={currentUser}
       allUsers={allUsers}
       recursive={recursive}
+      hasTorrent={hasTorrent}
     />
   );
 }

@@ -33,7 +33,17 @@ export type AuditLogAction =
   | "user:delete"
   | "user:update"
   | "user:role_change"
-  | "settings:update";
+  | "settings:update"
+  | "torrent:create"
+  | "torrent:add"
+  | "torrent:pause"
+  | "torrent:resume"
+  | "torrent:stop"
+  | "torrent:remove"
+  | "torrent:start-seeding"
+  | "torrent:complete"
+  | "torrent:seed-complete"
+  | "torrent:error";
 
 export interface AuditLogEntry {
   id: string;

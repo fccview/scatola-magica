@@ -131,6 +131,9 @@ export const getCurrentUser = async (): Promise<{
   username: string;
   isAdmin: boolean;
   avatar?: string;
+  persistentTheme?: boolean;
+  pokemonTheme?: string | null;
+  colorMode?: "light" | "dark";
 } | null> => {
   const cookieStore = await cookies();
   const sessionId = cookieStore.get(COOKIE_NAME)?.value;
@@ -150,6 +153,9 @@ export const getCurrentUser = async (): Promise<{
     username: user.username,
     isAdmin: user.isAdmin || false,
     avatar: user.avatar,
+    persistentTheme: user.persistentTheme ?? false,
+    pokemonTheme: user.pokemonTheme,
+    colorMode: user.colorMode,
   };
 }
 
@@ -641,4 +647,34 @@ export const regenerateEncryptionKey = async (): Promise<{
   await writeUsers(users);
 
   return { success: true, encryptionKey };
+}
+
+export const updateThemePreferences = async (
+  persistentTheme?: boolean,
+  pokemonTheme?: string | null,
+  colorMode?: "light" | "dark"
+): Promise<{ success: boolean; error?: string }> => {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) {
+    return { success: false, error: "Unauthorized" };
+  }
+
+  const users = await readUsers();
+  const user = users.find((u) => u.username === currentUser.username);
+  if (!user) {
+    return { success: false, error: "User not found" };
+  }
+
+  if (persistentTheme !== undefined) {
+    user.persistentTheme = persistentTheme;
+  }
+  if (pokemonTheme !== undefined) {
+    user.pokemonTheme = pokemonTheme;
+  }
+  if (colorMode !== undefined) {
+    user.colorMode = colorMode;
+  }
+
+  await writeUsers(users);
+  return { success: true };
 }

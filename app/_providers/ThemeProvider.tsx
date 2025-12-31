@@ -7,6 +7,8 @@ import {
   useState,
   useCallback,
 } from "react";
+import { updateThemePreferences } from "@/app/_server/actions/user";
+import { usePreferences } from "@/app/_providers/PreferencesProvider";
 
 export type PokemonTheme = "pikachu" | "bulbasaur" | "charmander" | "squirtle" | "gengar" | null;
 export type ColorMode = "light" | "dark";
@@ -16,9 +18,9 @@ interface ThemeContextValue {
   colorMode: ColorMode;
   resolvedPokemonTheme: PokemonTheme;
   resolvedColorMode: ColorMode;
-  setPokemonTheme: (theme: PokemonTheme) => void;
-  setColorMode: (mode: ColorMode) => void;
-  toggleColorMode: () => void;
+  setPokemonTheme: (theme: PokemonTheme) => Promise<void>;
+  setColorMode: (mode: ColorMode) => Promise<void>;
+  toggleColorMode: () => Promise<void>;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -36,6 +38,7 @@ export default function ThemeProvider({
 }: {
   children: React.ReactNode;
 }) {
+  const { user } = usePreferences();
   const getSystemColorMode = useCallback((): ColorMode => {
     if (typeof window === "undefined") return "light";
     return window.matchMedia("(prefers-color-scheme: dark)").matches
@@ -71,8 +74,9 @@ export default function ThemeProvider({
   }, []);
 
   const setPokemonTheme = useCallback(
-    (newPokemonTheme: PokemonTheme) => {
+    async (newPokemonTheme: PokemonTheme) => {
       setPokemonThemeState(newPokemonTheme);
+
       if (typeof window !== "undefined") {
         if (newPokemonTheme) {
           localStorage.setItem("pokemonTheme", newPokemonTheme);
@@ -81,40 +85,63 @@ export default function ThemeProvider({
         }
       }
       applyTheme(newPokemonTheme, colorMode);
+
+      const persistentTheme = user?.persistentTheme ?? false;
+      if (persistentTheme && user) {
+        await updateThemePreferences(undefined, newPokemonTheme, undefined);
+      }
     },
-    [applyTheme, colorMode]
+    [applyTheme, colorMode, user]
   );
 
   const setColorMode = useCallback(
-    (newColorMode: ColorMode) => {
+    async (newColorMode: ColorMode) => {
       setColorModeState(newColorMode);
+
       if (typeof window !== "undefined") {
         localStorage.setItem("colorMode", newColorMode);
       }
       applyTheme(pokemonTheme, newColorMode);
+
+      const persistentTheme = user?.persistentTheme ?? false;
+      if (persistentTheme && user) {
+        await updateThemePreferences(undefined, undefined, newColorMode);
+      }
     },
-    [applyTheme, pokemonTheme]
+    [applyTheme, pokemonTheme, user]
   );
 
-  const toggleColorMode = useCallback(() => {
+  const toggleColorMode = useCallback(async () => {
     const newMode = resolvedColorMode === "light" ? "dark" : "light";
-    setColorMode(newMode);
+    await setColorMode(newMode);
   }, [resolvedColorMode, setColorMode]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    
-    const storedPokemon = localStorage.getItem("pokemonTheme") as PokemonTheme | null;
-    const storedColorMode = localStorage.getItem("colorMode") as ColorMode | null;
-    
+
+    const persistentTheme = user?.persistentTheme ?? false;
     const validPokemonThemes: PokemonTheme[] = ["pikachu", "bulbasaur", "charmander", "squirtle", "gengar"];
-    const initialPokemon = storedPokemon && validPokemonThemes.includes(storedPokemon) ? storedPokemon : null;
-    const initialColorMode = storedColorMode === "light" || storedColorMode === "dark" ? storedColorMode : getSystemColorMode();
-    
+
+    let initialPokemon: PokemonTheme = null;
+    let initialColorMode: ColorMode;
+
+    if (persistentTheme && user) {
+      initialPokemon = user.pokemonTheme && validPokemonThemes.includes(user.pokemonTheme as PokemonTheme)
+        ? (user.pokemonTheme as PokemonTheme)
+        : null;
+      initialColorMode = user.colorMode || getSystemColorMode();
+    } else {
+      const storedPokemon = localStorage.getItem("pokemonTheme") as PokemonTheme | null;
+      const storedColorMode = localStorage.getItem("colorMode") as ColorMode | null;
+
+      initialPokemon = storedPokemon && validPokemonThemes.includes(storedPokemon) ? storedPokemon : null;
+      initialColorMode = storedColorMode === "light" || storedColorMode === "dark" ? storedColorMode : getSystemColorMode();
+    }
+
     setPokemonThemeState(initialPokemon);
     setColorModeState(initialColorMode);
     applyTheme(initialPokemon, initialColorMode);
-  }, [applyTheme, getSystemColorMode]);
+  }, [applyTheme, getSystemColorMode, user]);
 
   return (
     <ThemeContext.Provider

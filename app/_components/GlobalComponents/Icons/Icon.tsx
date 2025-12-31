@@ -2,10 +2,14 @@ import { HTMLAttributes } from "react";
 
 interface IconProps extends HTMLAttributes<HTMLSpanElement> {
   icon: string;
-  size?: "xs" | "sm" | "md" | "lg" | "xl" | "2xl" | "3xl";
+  size?: "xxs" | "xs" | "sm" | "md" | "lg" | "xl" | "2xl" | "3xl";
 }
 
-const sizeMap: Record<string, { fontSize: string; width: string; height: string }> = {
+const sizeMap: Record<
+  string,
+  { fontSize: string; width: string; height: string }
+> = {
+  xxs: { fontSize: "12px", width: "12px", height: "12px" },
   xs: { fontSize: "16px", width: "16px", height: "16px" },
   sm: { fontSize: "20px", width: "20px", height: "20px" },
   md: { fontSize: "24px", width: "24px", height: "24px" },
@@ -29,7 +33,7 @@ export default function Icon({
     fontSize: sizeConfig.fontSize,
     width: sizeConfig.width,
     height: sizeConfig.height,
-    ...style
+    ...style,
   };
 
   return (

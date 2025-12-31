@@ -1,16 +1,12 @@
 {
   "name": "scatola-magica",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "private": true,
   "scripts": {
     "dev": "next dev --turbo",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "db:generate": "prisma generate --schema=./app/_prisma/schema.prisma",
-    "db:push": "prisma db push --schema=./app/_prisma/schema.prisma",
-    "db:migrate": "prisma migrate dev --schema=./app/_prisma/schema.prisma",
-    "db:studio": "prisma studio --schema=./app/_prisma/schema.prisma"
+    "lint": "next lint"
   },
   "dependencies": {
     "@prisma/client": "^6.1.0",
@@ -26,13 +22,18 @@
     "archiver": "^7.0.1",
     "babel-plugin-react-compiler": "^1.0.0",
     "bcryptjs": "^3.0.3",
+    "bittorrent-dht": "^11.0.11",
+    "bittorrent-protocol": "^4.1.21",
+    "bittorrent-tracker": "^11.2.2",
     "idb-keyval": "^6.2.1",
     "jose": "^6.1.2",
+    "lang-detector": "^1.0.6",
     "lottie-react": "^2.4.1",
-    "next": "15.5.7",
+    "next": "^15.5.9",
     "next-pwa": "^5.6.0",
     "openpgp": "^6.2.2",
     "papaparse": "^5.5.3",
+    "parse-torrent": "^11.0.19",
     "prismjs": "^1.30.0",
     "proper-lockfile": "^4.1.2",
     "react": "^19.0.0",
@@ -41,12 +42,18 @@
     "react-markdown": "^10.1.0",
     "react-simple-code-editor": "^0.14.1",
     "react-syntax-highlighter": "^16.1.0",
-    "remark-gfm": "^4.0.1"
+    "remark-gfm": "^4.0.1",
+    "ut_metadata": "^4.0.3",
+    "ut_pex": "^4.0.4",
+    "utp-native": "^2.5.3",
+    "webtorrent": "^2.8.5"
   },
   "devDependencies": {
     "@types/bcryptjs": "^3.0.0",
+    "@types/bittorrent-protocol": "^3.1.7",
     "@types/node": "^22.10.2",
     "@types/papaparse": "^5.5.1",
+    "@types/parse-torrent": "^5.8.8",
     "@types/proper-lockfile": "^4.1.4",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
