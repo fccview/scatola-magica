@@ -84,6 +84,7 @@ export const middleware = async (request: NextRequest) => {
     }
   } catch (error) {
     console.error("Session check error:", error);
+    return NextResponse.redirect(loginUrl);
   }
 
   const response = NextResponse.next();
