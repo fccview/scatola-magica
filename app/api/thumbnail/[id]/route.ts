@@ -11,7 +11,7 @@ const THUMBNAIL_SIZE = 256;
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await validateRequest(request);
@@ -29,7 +29,10 @@ export async function GET(
 
     const resolvedPath = path.resolve(filePath);
     const resolvedUploadDir = path.resolve(UPLOAD_DIR);
-    if (!resolvedPath.startsWith(resolvedUploadDir + path.sep) && resolvedPath !== resolvedUploadDir) {
+    if (
+      !resolvedPath.startsWith(resolvedUploadDir + path.sep) &&
+      resolvedPath !== resolvedUploadDir
+    ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -55,8 +58,7 @@ export async function GET(
       if (thumbStats.mtimeMs >= fileStats.mtimeMs) {
         thumbBuffer = await readFile(thumbPath);
       }
-    } catch {
-    }
+    } catch {}
 
     if (!thumbBuffer) {
       await mkdir(thumbDir, { recursive: true });
@@ -68,6 +70,7 @@ export async function GET(
       await writeFile(thumbPath, thumbBuffer);
     }
 
+    // @ts-ignore
     return new NextResponse(thumbBuffer, {
       headers: {
         "Content-Type": "image/jpeg",
@@ -77,6 +80,9 @@ export async function GET(
     });
   } catch (error) {
     console.error("Thumbnail error:", error);
-    return NextResponse.json({ error: "Failed to generate thumbnail" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to generate thumbnail" },
+      { status: 500 },
+    );
   }
 }

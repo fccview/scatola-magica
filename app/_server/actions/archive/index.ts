@@ -3,37 +3,35 @@
 import archiver from "archiver";
 import AdmZip from "adm-zip";
 import fs from "fs/promises";
-import { createWriteStream, statSync } from "fs";
+import { createWriteStream } from "fs";
 import path from "path";
 
 export const createArchiveToFile = async (
   sourcePath: string,
   outputPath: string
 ): Promise<void> => {
+  await fs.mkdir(path.dirname(outputPath), { recursive: true });
+
   return new Promise((resolve, reject) => {
     const output = createWriteStream(outputPath);
-    const archive = archiver("zip", {
-      zlib: { level: 9 },
-    });
+    const archive = archiver("zip", { zlib: { level: 9 } });
 
-    output.on("close", () => {
-      resolve();
-    });
-
-    archive.on("error", (err) => {
-      reject(err);
-    });
+    output.on("close", resolve);
+    output.on("error", reject);
+    archive.on("error", reject);
 
     archive.pipe(output);
 
-    const stats = statSync(sourcePath);
-    if (stats.isDirectory()) {
-      archive.directory(sourcePath, false);
-    } else {
-      archive.file(sourcePath, { name: path.basename(sourcePath) });
-    }
+    void (async () => {
+      const stats = await fs.stat(sourcePath);
+      if (stats.isDirectory()) {
+        archive.directory(sourcePath, false);
+      } else {
+        archive.file(sourcePath, { name: path.basename(sourcePath) });
+      }
 
-    archive.finalize();
+      await archive.finalize();
+    })().catch(reject);
   });
 }
 

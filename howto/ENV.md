@@ -36,6 +36,7 @@ DISABLE_PASSWORD_LOGIN=true
 - `AUDIT_LOG_DIR=/app/data/audit-logs` Optional. Directory where audit logs are stored. Defaults to `data/audit-logs` relative to the app root. Map a volume to this path if running as a non-root container user.
 - `THUMBNAIL_CACHE_DIR=/app/data/thumbnails` Optional. Directory where generated image thumbnails are cached. Defaults to `data/thumbnails` relative to the app root. Map a volume to this path to persist the cache across container restarts.
 - `ENCRYPTION_KEY=your-secret-key` Optional. Encrypts folder paths in browser URLs for additional security. Can be any length string. When set, folder paths like `/documents/reports` will appear as encrypted strings in the URL bar. Leave unset for plain folder paths.
+- `BRUTEFORCE_PROTECTION=true` Optional. Locks out an IP for 15 minutes after 10 consecutive failed login attempts. Recommended for publicly exposed instances.
 
 ## SSO Configuration (Optional)
 
@@ -52,11 +53,3 @@ DISABLE_PASSWORD_LOGIN=true
 - `OIDC_GROUPS_SCOPE=groups` Optional. Scope to request for groups. Defaults to "groups". Set to empty string or "no" to disable for providers like Entra ID that don't support the groups scope.
 - `OIDC_LOGOUT_URL=https://authprovider.local/realms/master/logout` Optional. Custom logout URL for global logout.
 - `DISABLE_PASSWORD_LOGIN=true` Optional. When set to "true" and OIDC is properly configured, disables username/password login and only shows OIDC login. If OIDC is not configured, password login will still be available as a fallback.
-
-
-
-
-
-
-
-

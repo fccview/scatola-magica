@@ -183,7 +183,7 @@ export const createUser = async (
     encryptionKey = process.env.ENCRYPTION_KEY;
   } else {
     const crypto = await import("crypto");
-    encryptionKey = crypto.randomUUID().slice(0, 13);
+    encryptionKey = crypto.randomBytes(32).toString("hex");
   }
 
   users.push({
@@ -594,7 +594,7 @@ export const ensureEncryptionPassword = async (
     encryptionKey = process.env.ENCRYPTION_KEY;
   } else {
     const crypto = await import("crypto");
-    encryptionKey = crypto.randomUUID().slice(0, 13);
+    encryptionKey = crypto.randomBytes(32).toString("hex");
   }
 
   user.encryptionKey = encryptionKey;
@@ -641,7 +641,7 @@ export const regenerateEncryptionKey = async (): Promise<{
   }
 
   const crypto = await import("crypto");
-  const encryptionKey = crypto.randomUUID().slice(0, 13);
+  const encryptionKey = crypto.randomBytes(32).toString("hex");
 
   user.encryptionKey = encryptionKey;
   await writeUsers(users);

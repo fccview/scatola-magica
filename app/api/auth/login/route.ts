@@ -6,6 +6,39 @@ import { COOKIE_NAME } from "@/app/_lib/auth-constants";
 
 export const dynamic = "force-dynamic";
 
+const _failedAttempts = new Map<string, { count: number; until: number }>();
+const LOCKOUT_THRESHOLD = 10;
+const LOCKOUT_MS = 15 * 60 * 1000;
+
+function _getClientIp(request: NextRequest): string {
+  return (
+    request.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
+    request.headers.get("x-real-ip") ||
+    "unknown"
+  );
+}
+
+function _checkBruteForce(ip: string): boolean {
+  const entry = _failedAttempts.get(ip);
+  if (!entry) return false;
+  if (Date.now() < entry.until) return true;
+  _failedAttempts.delete(ip);
+  return false;
+}
+
+function _recordFailure(ip: string) {
+  const entry = _failedAttempts.get(ip) ?? { count: 0, until: 0 };
+  entry.count += 1;
+  if (entry.count >= LOCKOUT_THRESHOLD) {
+    entry.until = Date.now() + LOCKOUT_MS;
+  }
+  _failedAttempts.set(ip, entry);
+}
+
+function _clearFailures(ip: string) {
+  _failedAttempts.delete(ip);
+}
+
 function base64UrlEncode(buffer: Buffer) {
   return buffer
     .toString("base64")
@@ -16,6 +49,16 @@ function base64UrlEncode(buffer: Buffer) {
 
 export async function POST(request: NextRequest) {
   try {
+    const bruteForceEnabled = process.env.BRUTEFORCE_PROTECTION === "true";
+    const ip = bruteForceEnabled ? _getClientIp(request) : "";
+
+    if (bruteForceEnabled && _checkBruteForce(ip)) {
+      return NextResponse.json(
+        { error: "Too many failed attempts. Try again later." },
+        { status: 429 }
+      );
+    }
+
     const { username, password } = await request.json();
 
     if (!username || !password) {
@@ -29,6 +72,7 @@ export async function POST(request: NextRequest) {
     const user = users.find((u) => u.username === username);
 
     if (!user) {
+      if (bruteForceEnabled) _recordFailure(ip);
       return NextResponse.json(
         { error: "Invalid credentials" },
         { status: 401 }
@@ -36,6 +80,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!user.passwordHash) {
+      if (bruteForceEnabled) _recordFailure(ip);
       return NextResponse.json(
         { error: "Invalid credentials" },
         { status: 401 }
@@ -45,11 +90,14 @@ export async function POST(request: NextRequest) {
     const isValid = await bcrypt.compare(password, user.passwordHash);
 
     if (!isValid) {
+      if (bruteForceEnabled) _recordFailure(ip);
       return NextResponse.json(
         { error: "Invalid credentials" },
         { status: 401 }
       );
     }
+
+    if (bruteForceEnabled) _clearFailures(ip);
 
     const { ensureEncryptionPassword } = await import(
       "@/app/_server/actions/user"

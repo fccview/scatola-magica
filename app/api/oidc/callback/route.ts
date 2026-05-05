@@ -26,7 +26,7 @@ async function ensureUser(username: string, isAdmin: boolean) {
     encryptionKey = process.env.ENCRYPTION_KEY;
   } else {
     const crypto = await import("crypto");
-    encryptionKey = crypto.randomUUID().slice(0, 13);
+    encryptionKey = crypto.randomBytes(32).toString("hex");
   }
 
   if (users.length === 0) {

@@ -125,7 +125,11 @@ const _assembleFile = async (
 
     await mkdir(targetDir, { recursive: true });
 
-    const finalPath = path.join(targetDir, session.fileName);
+    const safeFileName = path.basename(session.fileName);
+    const finalPath = path.join(targetDir, safeFileName);
+    if (!path.resolve(finalPath).startsWith(path.resolve(targetDir) + path.sep)) {
+      throw new Error("Invalid file path");
+    }
 
     const writeStream = createWriteStream(finalPath);
 
