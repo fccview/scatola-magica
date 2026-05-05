@@ -12,6 +12,7 @@ export interface UserPreferences {
   pokemonThemesEnabled?: boolean;
   customKeysPath?: string;
   e2eEncryptionOnTransfer?: boolean;
+  showThumbnails?: boolean;
   torrentPreferences?: TorrentPreferences;
   dropzones?: {
     enabled?: boolean;
@@ -158,6 +159,8 @@ export const updateUserPreferences = async (
         updates.e2eEncryptionOnTransfer ??
         existing?.e2eEncryptionOnTransfer ??
         true,
+      showThumbnails:
+        updates.showThumbnails ?? existing?.showThumbnails ?? false,
       torrentPreferences: updates.torrentPreferences
         ? {
           ...defaultTorrentPrefs,

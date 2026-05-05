@@ -57,7 +57,9 @@ export default function MobileSidebarWrapper({
       touchStartY.current = null;
     };
 
-    document.addEventListener("touchstart", handleTouchStart, { passive: true });
+    document.addEventListener("touchstart", handleTouchStart, {
+      passive: true,
+    });
     document.addEventListener("touchmove", handleTouchMove, { passive: true });
     document.addEventListener("touchend", handleTouchEnd);
 
@@ -104,7 +106,8 @@ export default function MobileSidebarWrapper({
 
       <aside
         ref={sidebarRef}
-        className={`fixed inset-y-0 left-0 w-[80%] bg-sidebar z-50 transform transition-transform duration-300 medium:hidden overflow-hidden ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+        className={`fixed inset-y-0 left-0 w-[80%] bg-sidebar z-50 transform transition-transform duration-300 medium:hidden overflow-hidden ${
+          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         <div className="h-full flex flex-col">

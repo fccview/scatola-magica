@@ -31,6 +31,7 @@ interface GridCardProps {
   allUsers?: User[];
   recursive?: boolean;
   hasTorrent?: boolean;
+  showThumbnails?: boolean;
 }
 
 export default function GridCard({
@@ -51,6 +52,7 @@ export default function GridCard({
   allUsers = [],
   recursive = false,
   hasTorrent = false,
+  showThumbnails = false,
 }: GridCardProps) {
   const { showContextMenu } = useContextMenu();
   const { encryptPath } = usePathEncryption();
@@ -356,12 +358,19 @@ export default function GridCard({
                 );
               })()
               : (() => {
-                const iconInfo = getFileIconInfo(
-                  (item as FileMetadata).originalName
-                );
+                const fileItem = item as FileMetadata;
+                const iconInfo = getFileIconInfo(fileItem.originalName);
+                const isImage = fileItem.mimeType?.startsWith("image/");
                 return (
                   <div className="relative mb-3">
-                    {iconInfo.extension ? (
+                    {showThumbnails && isImage ? (
+                      <img
+                        src={`/api/thumbnail/${encodeURIComponent(fileItem.id)}`}
+                        alt={fileItem.originalName}
+                        loading="lazy"
+                        className="w-16 h-16 object-cover rounded transition-transform group-hover:scale-105"
+                      />
+                    ) : iconInfo.extension ? (
                       <FileIconComponent
                         extension={iconInfo.extension}
                         size="2xl"

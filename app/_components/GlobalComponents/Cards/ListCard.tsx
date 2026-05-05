@@ -31,6 +31,7 @@ interface ListCardProps {
   allUsers?: User[];
   recursive?: boolean;
   hasTorrent?: boolean;
+  showThumbnails?: boolean;
 }
 
 export default function ListCard({
@@ -51,6 +52,7 @@ export default function ListCard({
   allUsers = [],
   recursive = false,
   hasTorrent = false,
+  showThumbnails = false,
 }: ListCardProps) {
   const { showContextMenu } = useContextMenu();
   const { encryptPath } = usePathEncryption();
@@ -200,7 +202,19 @@ export default function ListCard({
       );
     }
 
-    const iconInfo = getFileIconInfo((item as FileMetadata).originalName);
+    const fileItem = item as FileMetadata;
+    const iconInfo = getFileIconInfo(fileItem.originalName);
+    const isImage = fileItem.mimeType?.startsWith("image/");
+    if (showThumbnails && isImage) {
+      return (
+        <img
+          src={`/api/thumbnail/${encodeURIComponent(fileItem.id)}`}
+          alt={fileItem.originalName}
+          loading="lazy"
+          className="w-10 h-10 object-cover rounded flex-shrink-0"
+        />
+      );
+    }
     return iconInfo.extension ? (
       <FileIconComponent
         extension={iconInfo.extension}
