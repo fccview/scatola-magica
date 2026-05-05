@@ -29,6 +29,16 @@ const UploadOverlayContext = createContext<UploadOverlayContextValue | null>(
   null
 );
 
+function _renameClipboardFile(file: File): File {
+  const mainType = file.type.split("/")[0] || "file";
+  const ext = file.name.includes(".") ? file.name.slice(file.name.lastIndexOf(".")) : "";
+  const bytes = new Uint8Array(4);
+  crypto.getRandomValues(bytes);
+  const hex = Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+  const halfId = `${hex.slice(0, 4)}-${hex.slice(4, 8)}`;
+  return new File([file], `clipboard-${mainType}-${halfId}${ext}`, { type: file.type });
+}
+
 function createFileList(files: File[]): FileList {
   const dataTransfer = new DataTransfer();
   files.forEach((file) => dataTransfer.items.add(file));
@@ -420,7 +430,7 @@ export default function UploadOverlayProvider({
                 return;
               }
             } else {
-              files.push(file);
+              files.push(_renameClipboardFile(file));
             }
           }
         }

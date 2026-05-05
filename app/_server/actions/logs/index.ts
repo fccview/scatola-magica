@@ -59,7 +59,7 @@ export interface AuditLogEntry {
 }
 
 const _getLogsDir = (): string => {
-  return path.join(process.cwd(), "data", "audit-logs");
+  return process.env.AUDIT_LOG_DIR || path.join(process.cwd(), "data", "audit-logs");
 };
 
 const _getUserLogFile = (username: string): string => {

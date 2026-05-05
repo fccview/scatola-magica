@@ -20,7 +20,17 @@ export async function GET(
     const { id } = await params;
 
     const relativePath = decodeURIComponent(id);
-    const filePath = path.join(UPLOAD_DIR, relativePath);
+    const scopedPath = user.isAdmin
+      ? relativePath
+      : `${user.username}/${relativePath}`;
+
+    const filePath = path.join(UPLOAD_DIR, scopedPath);
+
+    const resolvedPath = path.resolve(filePath);
+    const resolvedUploadDir = path.resolve(UPLOAD_DIR);
+    if (!resolvedPath.startsWith(resolvedUploadDir + path.sep) && resolvedPath !== resolvedUploadDir) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     let fileStats;
     try {
@@ -72,7 +82,7 @@ export async function GET(
       "Content-Disposition": `${disposition}; filename="${encodeURIComponent(
         fileName
       )}"`,
-      "Cache-Control": "public, max-age=31536000",
+      "Cache-Control": "private, no-store",
     };
 
     if (!viewInline && !isViewable) {
