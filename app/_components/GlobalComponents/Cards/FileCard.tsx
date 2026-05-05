@@ -24,6 +24,7 @@ interface FileCardProps {
   allUsers?: User[];
   recursive?: boolean;
   hasTorrent?: boolean;
+  showThumbnails?: boolean;
 }
 
 export default function FileCard({
@@ -45,6 +46,7 @@ export default function FileCard({
   allUsers = [],
   recursive = false,
   hasTorrent = false,
+  showThumbnails = false,
 }: FileCardProps) {
   if (viewMode === "list") {
     return (
@@ -66,6 +68,7 @@ export default function FileCard({
         allUsers={allUsers}
         recursive={recursive}
         hasTorrent={hasTorrent}
+        showThumbnails={showThumbnails}
       />
     );
   }
@@ -89,6 +92,7 @@ export default function FileCard({
       allUsers={allUsers}
       recursive={recursive}
       hasTorrent={hasTorrent}
+      showThumbnails={showThumbnails}
     />
   );
 }

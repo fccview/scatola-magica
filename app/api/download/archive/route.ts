@@ -39,12 +39,9 @@ export async function POST(request: NextRequest) {
       const resolvedPath = path.resolve(fullPath);
       const resolvedUploadDir = path.resolve(UPLOAD_DIR);
 
-      if (!resolvedPath.startsWith(resolvedUploadDir)) {
+      if (!resolvedPath.startsWith(resolvedUploadDir + path.sep)) {
         return NextResponse.json(
-          {
-            error: "Invalid path",
-            debug: { actualPath, resolvedPath, resolvedUploadDir },
-          },
+          { error: "Invalid path" },
           { status: 403 }
         );
       }

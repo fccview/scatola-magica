@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import ProfileTab from "@/app/_components/FeatureComponents/SettingsPage/ProfileTab";
 import PreferencesTab from "@/app/_components/FeatureComponents/SettingsPage/PreferencesTab";
@@ -35,8 +35,8 @@ type Tab =
 
 function SettingsPageContent() {
   const { user, torrentPreferences } = usePreferences();
-  const searchParams = useSearchParams();
-  const [activeTab, setActiveTab] = useState<Tab>("profile");
+  const pathname = usePathname();
+  const router = useRouter();
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const { toggleSidebar } = useSidebar();
   const torrentsEnabled = torrentPreferences?.enabled ?? false;
@@ -45,30 +45,24 @@ function SettingsPageContent() {
     setIsUploadModalOpen(true);
   };
 
-  useEffect(() => {
-    if (activeTab === "torrents" && !torrentsEnabled) {
-      setActiveTab("profile");
-    }
-  }, [torrentsEnabled, activeTab]);
+  const validTabs: Tab[] = [
+    "profile",
+    "preferences",
+    "upload",
+    "encryption",
+    ...(torrentsEnabled ? ["torrents" as Tab] : []),
+    ...(user?.isAdmin ? ["users" as Tab, "audit-logs" as Tab] : []),
+  ];
+
+  const tabFromPath = pathname.split("/")[2] as Tab | undefined;
+  const activeTab: Tab =
+    tabFromPath && validTabs.includes(tabFromPath) ? tabFromPath : "profile";
 
   useEffect(() => {
-    const tabParam = searchParams.get("tab");
-    if (tabParam) {
-      const validTabs: Tab[] = [
-        "profile",
-        "preferences",
-        "encryption",
-        "users",
-        "audit-logs",
-        ...(torrentsEnabled ? ["torrents" as Tab] : []),
-      ];
-      if (validTabs.includes(tabParam as Tab)) {
-        setActiveTab(tabParam as Tab);
-      } else if (tabParam === "torrents" && !torrentsEnabled) {
-        setActiveTab("profile");
-      }
+    if (activeTab === "torrents" && !torrentsEnabled) {
+      router.replace("/settings/profile");
     }
-  }, [searchParams, torrentsEnabled]);
+  }, [torrentsEnabled, activeTab]);
 
   if (!user) {
     return null;
@@ -116,7 +110,7 @@ function SettingsPageContent() {
               <SettingsSidebar
                 tabs={tabs}
                 activeTab={activeTab}
-                onTabChange={setActiveTab}
+                onTabChange={(tab) => router.push(`/settings/${tab}`)}
               />
             }
           >
@@ -125,7 +119,7 @@ function SettingsPageContent() {
                 <div className="lg:hidden mb-6">
                   <Select
                     value={activeTab}
-                    onChange={(e) => setActiveTab(e.target.value as Tab)}
+                    onChange={(e) => router.push(`/settings/${e.target.value}`)}
                   >
                     {tabs.map((tab) => (
                       <option key={tab.id} value={tab.id}>

@@ -12,6 +12,7 @@ export default function PreferencesTab() {
     particlesEnabled: initialParticles,
     wandCursorEnabled: initialWand,
     pokemonThemesEnabled: initialPokemonThemes,
+    showThumbnails: initialShowThumbnails,
     torrentPreferences,
     user,
   } = usePreferences();
@@ -24,6 +25,9 @@ export default function PreferencesTab() {
   const [wandCursorEnabled, setWandCursorEnabled] = useState(initialWand);
   const [pokemonThemesEnabled, setPokemonThemesEnabled] = useState(
     initialPokemonThemes ?? false
+  );
+  const [showThumbnails, setShowThumbnails] = useState(
+    initialShowThumbnails ?? false
   );
   const [torrentsEnabled, setTorrentsEnabled] = useState(
     torrentPreferences?.enabled ?? false
@@ -62,6 +66,15 @@ export default function PreferencesTab() {
       }
     }
 
+    router.refresh();
+  };
+
+  const handleShowThumbnailsToggle = async () => {
+    const newValue = !showThumbnails;
+    setShowThumbnails(newValue);
+    await updateUserPreferences(user?.username ?? "", {
+      showThumbnails: newValue,
+    });
     router.refresh();
   };
 
@@ -122,6 +135,19 @@ export default function PreferencesTab() {
                 dev.
               </>
             }
+          />
+        </div>
+      </div>
+
+      <div>
+        <h2 className="text-xl font-medium text-on-surface mb-6">Files</h2>
+        <div className="p-6 bg-surface-container rounded-lg space-y-6">
+          <Switch
+            id="show-thumbnails"
+            checked={showThumbnails}
+            onChange={handleShowThumbnailsToggle}
+            label="Image Thumbnails"
+            description="Show image previews instead of file icons in the file list. Thumbnails are cached server-side."
           />
         </div>
       </div>

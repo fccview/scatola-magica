@@ -99,6 +99,7 @@ const RootLayout = async ({
             encryptionKey,
             customKeysPath: preferences.customKeysPath,
             e2eEncryptionOnTransfer: preferences.e2eEncryptionOnTransfer,
+            showThumbnails: preferences.showThumbnails ?? false,
             torrentPreferences: preferences.torrentPreferences,
             dropzones: preferences.dropzones,
           }}

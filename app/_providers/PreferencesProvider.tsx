@@ -12,6 +12,7 @@ interface PreferencesContextType {
   encryptionKey: string | null;
   customKeysPath?: string;
   e2eEncryptionOnTransfer?: boolean;
+  showThumbnails?: boolean;
   torrentPreferences?: TorrentPreferences;
   dropzones?: UserPreferences["dropzones"];
 }
@@ -24,6 +25,7 @@ const PreferencesContext = createContext<PreferencesContextType>({
   encryptionKey: null,
   customKeysPath: undefined,
   e2eEncryptionOnTransfer: true,
+  showThumbnails: false,
   torrentPreferences: {
     seedRatio: 1.0,
     autoStartTorrents: true,

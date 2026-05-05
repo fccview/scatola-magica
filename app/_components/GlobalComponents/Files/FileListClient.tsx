@@ -118,7 +118,7 @@ export default function FileListClient({
   });
 
   const { hasTorrent, refresh: refreshTorrents } = useFileTorrents();
-  const { torrentPreferences } = usePreferences();
+  const { torrentPreferences, showThumbnails } = usePreferences();
   const torrentsEnabled = torrentPreferences?.enabled ?? false;
 
   if (allFiles.length === 0 && folders.length === 0 && !isLoadingMore) {
@@ -218,6 +218,7 @@ export default function FileListClient({
               onToggleSelect={() => toggleFileSelection(file.id)}
               recursive={isRecursive}
               hasTorrent={hasTorrent(filePath)}
+              showThumbnails={showThumbnails}
             />
           );
         })}
