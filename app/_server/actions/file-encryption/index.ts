@@ -7,7 +7,7 @@ import { getCurrentUser } from "@/app/_lib/current-user";
 import { decryptFor, encryptFor, readKeyInfo } from "@/app/_lib/pgp";
 import { createArchiveToFile, extractArchive } from "@/app/_lib/archive";
 import { auditLog } from "@/app/_lib/audit-log";
-import { bustFileCache } from "@/app/_lib/cache-tags";
+import { bustFileCache } from "@/app/_lib/cache/bust";
 import { isValidName, scopedPath, userRoot } from "@/app/_lib/storage";
 import { logger } from "@/app/_lib/logger";
 
@@ -93,7 +93,7 @@ export const encryptFile = async (
       details: { customKey: !!customPublicKey, deletedOriginal: deleteOriginal },
       success: true,
     });
-    bustFileCache();
+    await bustFileCache(source.absolute, encryptedPath);
 
     return {
       success: true,
@@ -175,7 +175,7 @@ const _decryptInto = async (
     details: { outputName, deletedEncrypted: deleteEncrypted },
     success: true,
   });
-  bustFileCache();
+  await bustFileCache(source.absolute, output.absolute);
 
   return {
     success: true,
@@ -275,7 +275,7 @@ export const encryptFolder = async (
       details: { customKey: !!customPublicKey, deletedOriginal: deleteOriginal },
       success: true,
     });
-    bustFileCache();
+    await bustFileCache(folder.absolute, encryptedPath);
 
     return {
       success: true,

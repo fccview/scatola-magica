@@ -3,6 +3,7 @@ import { getFiles } from "@/app/_server/actions/files";
 import { getFolders, getFolderPath } from "@/app/_server/actions/folders";
 import { listUsers } from "@/app/_server/actions/user";
 import { logger } from "@/app/_lib/logger";
+import { FILES_PAGE_SIZE } from "@/app/_lib/constants";
 import type { PublicUser } from "@/app/_types";
 import { SortBy } from "@/app/_types/enums";
 import FileListClient from "@/app/_components/GlobalComponents/Files/FileListClient";
@@ -49,7 +50,7 @@ export default async function FilesContent({
   const [filesResult, foldersResult, breadcrumbResult] = await Promise.all([
     getFiles({
       page: 1,
-      pageSize: 15,
+      pageSize: FILES_PAGE_SIZE,
       search,
       sortBy,
       folderPath,

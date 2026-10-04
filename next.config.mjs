@@ -28,6 +28,7 @@ const nextConfig = {
   },
   serverExternalPackages: [
     "proper-lockfile",
+    "iovalkey",
     "webtorrent",
     "sharp",
   ],

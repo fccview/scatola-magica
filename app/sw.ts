@@ -1,4 +1,5 @@
 import type { PrecacheEntry, SerwistGlobalConfig } from "serwist";
+import { LIVE_EVENTS_PATH } from "@/app/_lib/live-events";
 import {
   CacheFirst,
   ExpirationPlugin,
@@ -26,7 +27,9 @@ const serwist = new Serwist({
   runtimeCaching: [
     {
       matcher: ({ sameOrigin, url }) =>
-        sameOrigin && url.pathname.startsWith("/api/"),
+        sameOrigin &&
+        url.pathname.startsWith("/api/") &&
+        url.pathname !== LIVE_EVENTS_PATH,
       handler: new NetworkOnly(),
     },
     {

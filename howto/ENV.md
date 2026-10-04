@@ -37,6 +37,8 @@ DISABLE_PASSWORD_LOGIN=true
 - `TORRENTS_DATA_DIR=/app/data/config/torrents` Optional. Where torrent metadata is stored. Defaults to `data/config/torrents`.
 - `DEV_ORIGINS=192.168.1.10,my-dev-host` Optional, development only. Extra origins allowed to reach the dev server.
 - `BRUTEFORCE_PROTECTION=true` Optional. Locks out an IP for 15 minutes after 10 consecutive failed login attempts. Recommended for publicly exposed instances.
+- `VALKEY_URL=valkey://scatola-magica-valkey:6379` Optional. Stores the listing cache in Valkey (or any Redis compatible server) and relays live update events between instances. Supports `valkey://`, `valkeys://`, `redis://` and `rediss://` URLs, credentials included. Can also be read from a file with `VALKEY_URL_FILE`. Leave unset to use the built in in-memory cache. See [DOCKER.md](DOCKER.md#valkey-cache-optional).
+- `VALKEY_PREFIX=scatola:` Optional. Prefix for every key and channel, useful when sharing one Valkey between apps. Defaults to `scatola:`.
 
 ## SSO Configuration (Optional)
 

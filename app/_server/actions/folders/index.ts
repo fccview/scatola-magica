@@ -2,7 +2,6 @@
 
 import { lstat, mkdir, rename, rm } from "fs/promises";
 import path from "path";
-import { unstable_cache } from "next/cache";
 import { ServerActionResponse } from "@/app/_types";
 import { getCurrentUser } from "@/app/_lib/current-user";
 import { readUsers } from "@/app/_lib/auth-utils";
@@ -19,11 +18,9 @@ import {
   userRoot,
   UPLOAD_DIR,
 } from "@/app/_lib/storage";
-import {
-  bustFileCache,
-  CACHE_TTL_SECONDS,
-  CacheTag,
-} from "@/app/_lib/cache-tags";
+import { bustFileCache } from "@/app/_lib/cache/bust";
+import { pensieve } from "@/app/_lib/cache/pensieve";
+import { dirScopes, rootScope } from "@/app/_lib/cache/scopes";
 import { logger } from "@/app/_lib/logger";
 
 export type { FolderMetadata } from "@/app/_lib/folder-scan";
@@ -31,21 +28,17 @@ export type { FolderMetadata } from "@/app/_lib/folder-scan";
 const SCOPE = "folder-actions";
 const UNAUTHORIZED = { success: false, error: "Unauthorized" };
 
-const _cachedTree = unstable_cache(
-  async (ownerRoot: string) =>
-    sortFolderTree(await scanFolders(ownerRoot, ownerRoot, true)),
-  ["all-folders"],
-  { revalidate: CACHE_TTL_SECONDS, tags: [CacheTag.FOLDERS] }
-);
+const _cachedTree = (ownerRoot: string) =>
+  pensieve("folder-tree", [ownerRoot], [rootScope(ownerRoot)], async () =>
+    sortFolderTree(await scanFolders(ownerRoot, ownerRoot, true))
+  );
 
-const _cachedLevel = unstable_cache(
-  async (ownerRoot: string, dirAbs: string) =>
+const _cachedLevel = (ownerRoot: string, dirAbs: string) =>
+  pensieve("folder-level", [ownerRoot, dirAbs], dirScopes(dirAbs), async () =>
     (await scanFolders(ownerRoot, dirAbs, false)).sort((a, b) =>
       a.name.localeCompare(b.name)
-    ),
-  ["folders-by-path"],
-  { revalidate: CACHE_TTL_SECONDS, tags: [CacheTag.FOLDERS] }
-);
+    )
+  );
 
 const _isDirectory = async (absolute: string): Promise<boolean> => {
   try {
@@ -96,7 +89,8 @@ export const getFolders = async (
   try {
     const root = userRoot(currentUser);
     const parent = scopedPath(currentUser, parentId ?? "");
-    return { success: true, data: await _cachedLevel(root, parent.absolute) };
+    const data = await _cachedLevel(root, parent.absolute);
+    return { success: true, data };
   } catch (error) {
     logger.error(SCOPE, "Failed to fetch folders", error);
     return { success: false, error: "Failed to fetch folders" };
@@ -149,7 +143,7 @@ export const createFolder = async (
 
     await mkdir(target.absolute, { recursive: true });
     await auditLog("folder:create", { resource: target.relative, success: true });
-    bustFileCache();
+    await bustFileCache(target.absolute);
 
     return {
       success: true,
@@ -199,7 +193,7 @@ export const updateFolder = async (
       details: { newName: folderName },
       success: true,
     });
-    bustFileCache();
+    await bustFileCache(source.absolute, destination.absolute);
 
     return {
       success: true,
@@ -227,7 +221,7 @@ export const deleteFolder = async (id: string): Promise<ServerActionResponse> =>
 
     await rm(target.absolute, { recursive: true });
     await auditLog("folder:delete", { resource: target.relative, success: true });
-    bustFileCache();
+    await bustFileCache(target.absolute);
 
     return { success: true, message: "Folder deleted successfully" };
   } catch (error) {

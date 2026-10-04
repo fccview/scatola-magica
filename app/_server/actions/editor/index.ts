@@ -4,7 +4,7 @@ import { lstat, writeFile } from "fs/promises";
 import { getCurrentUser } from "@/app/_lib/current-user";
 import { decryptPath } from "@/app/_lib/path-encryption";
 import { scopedPath } from "@/app/_lib/storage";
-import { bustFileCache } from "@/app/_lib/cache-tags";
+import { bustFileCache } from "@/app/_lib/cache/bust";
 import { logger } from "@/app/_lib/logger";
 
 const SCOPE = "editor";
@@ -27,7 +27,7 @@ export const saveFileContent = async (fileId: string, content: string) => {
     }
 
     await writeFile(target.absolute, content, "utf-8");
-    bustFileCache();
+    await bustFileCache(target.absolute);
 
     return { success: true };
   } catch (error) {

@@ -77,3 +77,6 @@ export const VIDEO_EXTENSIONS = ["mp4", "webm", "ogg", "mov", "avi", "mkv"];
 export const PDF_EXTENSIONS = ["pdf"];
 export const CSV_EXTENSIONS = ["csv"];
 export const MARKDOWN_EXTENSIONS = ["md", "markdown"];
+
+export const FILES_PAGE_SIZE = 15;
+export const FILES_MAX_PAGE_SIZE = 500;
