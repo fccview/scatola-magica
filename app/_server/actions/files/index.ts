@@ -2,7 +2,6 @@
 
 import { lstat, mkdir, rename, unlink } from "fs/promises";
 import path from "path";
-import { unstable_cache } from "next/cache";
 import {
   FileMetadata,
   PaginatedResponse,
@@ -13,11 +12,9 @@ import { getCurrentUser } from "@/app/_lib/current-user";
 import { auditLog } from "@/app/_lib/audit-log";
 import { scanFiles } from "@/app/_lib/file-scan";
 import { isValidName, scopedPath, userRoot } from "@/app/_lib/storage";
-import {
-  bustFileCache,
-  CACHE_TTL_SECONDS,
-  CacheTag,
-} from "@/app/_lib/cache-tags";
+import { bustFileCache } from "@/app/_lib/cache/bust";
+import { pensieve } from "@/app/_lib/cache/pensieve";
+import { dirScopes, rootScope } from "@/app/_lib/cache/scopes";
 import { logger } from "@/app/_lib/logger";
 
 const SCOPE = "file-actions";
@@ -34,12 +31,13 @@ interface GetFilesOptions {
   recursive?: boolean;
 }
 
-const _cachedScan = unstable_cache(
-  (ownerRoot: string, scanRoot: string, recursive: boolean) =>
-    scanFiles(ownerRoot, scanRoot, recursive),
-  ["files-by-path"],
-  { revalidate: CACHE_TTL_SECONDS, tags: [CacheTag.FILES] }
-);
+const _cachedScan = (ownerRoot: string, scanRoot: string, recursive: boolean) =>
+  pensieve(
+    "files",
+    [ownerRoot, scanRoot, recursive],
+    recursive ? [rootScope(ownerRoot)] : dirScopes(scanRoot),
+    () => scanFiles(ownerRoot, scanRoot, recursive)
+  );
 
 const SORTERS: Record<SortBy, (a: FileMetadata, b: FileMetadata) => number> = {
   [SortBy.NAME_ASC]: (a, b) => a.originalName.localeCompare(b.originalName),
@@ -120,7 +118,7 @@ export const deleteFile = async (id: string): Promise<ServerActionResponse> => {
 
     await unlink(target.absolute);
     await auditLog("file:delete", { resource, success: true });
-    bustFileCache();
+    await bustFileCache(target.absolute);
 
     return { success: true, message: "File deleted successfully" };
   } catch (error) {
@@ -177,7 +175,7 @@ export const renameFile = async (
       details: { newName: name },
       success: true,
     });
-    bustFileCache();
+    await bustFileCache(source.absolute, destination.absolute);
 
     return { success: true, message: "File renamed successfully" };
   } catch (error) {
@@ -222,7 +220,7 @@ export const moveFile = async (
       details: { targetPath: targetDir.relative },
       success: true,
     });
-    bustFileCache();
+    await bustFileCache(source.absolute, destination.absolute);
 
     return { success: true, message: "File moved successfully" };
   } catch (error) {

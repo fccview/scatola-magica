@@ -8,7 +8,7 @@ import { pipeline } from "stream/promises";
 import type { StorageOwner } from "@/app/_lib/storage";
 import { isValidName, scopedPath, userRoot } from "@/app/_lib/storage";
 import { readAppSettings } from "@/app/_lib/app-settings-store";
-import { bustFileCache } from "@/app/_lib/cache-tags";
+import { bustFileCache } from "@/app/_lib/cache/bust";
 import { logger } from "@/app/_lib/logger";
 import {
   ASSEMBLY_IN_PROGRESS,
@@ -187,7 +187,7 @@ const _assemble = async (
     throw error;
   }
 
-  bustFileCache();
+  await bustFileCache(target.absolute);
   return path.relative(userRoot(owner), target.absolute).split(path.sep).join("/");
 };
 

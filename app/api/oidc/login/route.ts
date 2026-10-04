@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import {
   callbackUrl,
-  envOrFile,
   fetchDiscovery,
   getOidcConfig,
   loginRedirect,
@@ -10,6 +9,7 @@ import {
   OidcError,
   setOidcCookie,
 } from "@/app/_lib/oidc";
+import { envOrFile } from "@/app/_lib/env";
 import { logger } from "@/app/_lib/logger";
 
 export const dynamic = "force-dynamic";

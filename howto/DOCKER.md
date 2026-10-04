@@ -122,6 +122,27 @@ environment:
 - `- OIDC_CLIENT_SECRET=your_client_secret` Optional. Client secret for confidential OIDC client authentication.
 - `- OIDC_ADMIN_GROUPS=admins` Optional. Comma-separated list of OIDC groups that should have admin privileges.
 
+## Valkey Cache (Optional)
+
+Scatola Magica caches folder and file listings in memory by default, which is all a single container needs. If you run more than one instance, or want the cache to survive restarts, add a [Valkey](https://valkey.io) sidecar and point `VALKEY_URL` at it:
+
+```yaml
+services:
+  scatola-magica:
+    environment:
+      - VALKEY_URL=valkey://valkey:6379
+    depends_on:
+      - valkey
+
+  valkey:
+    image: valkey/valkey:8-alpine
+    container_name: scatola-magica-valkey
+    restart: unless-stopped
+    command: ["valkey-server", "--save", "", "--appendonly", "no"]
+```
+
+Valkey also relays live update events between instances, so every open browser refreshes when files change, no matter which instance it is connected to. If Valkey goes down the app keeps working and simply reads from disk until it comes back.
+
 ## Platform Configuration
 
 ```yaml

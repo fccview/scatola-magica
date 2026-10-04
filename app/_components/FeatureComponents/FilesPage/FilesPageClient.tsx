@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useDragAndDrop } from "@/app/_hooks/useDragAndDrop";
+import { useLiveFiles } from "@/app/_hooks/useLiveFiles";
 import UploadModal from "@/app/_components/FeatureComponents/Modals/UploadModal";
 import UploadProgressModal from "@/app/_components/FeatureComponents/Modals/UploadProgressModal";
 import CreateFolderModal from "@/app/_components/FeatureComponents/Modals/CreateFolderModal";
@@ -33,6 +34,7 @@ const FilesPageClient = ({
   );
   const [uploadFiles, setUploadFiles] = useState<FileList | null>(null);
   const { toggleSidebar } = useSidebar();
+  useLiveFiles();
 
   useEffect(() => {
     setUploadFolderPath(currentFolderId || "");
