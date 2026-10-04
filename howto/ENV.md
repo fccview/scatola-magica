@@ -15,7 +15,7 @@ OIDC_ADMIN_GROUPS=admins
 DISABLE_PASSWORD_LOGIN=true
 ```
 
-### Mandatory (for production instances)
+### Mandatory
 
 - `NODE_ENV=production` Sets the Node.js environment to production mode for optimal performance and security.
 
