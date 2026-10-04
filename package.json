@@ -19,14 +19,17 @@
     "adm-zip": "0.6.1",
     "archiver": "7.0.1",
     "bcryptjs": "3.0.3",
+    "dompurify": "3.4.16",
     "iovalkey": "^0.4.0",
     "jose": "6.2.12",
     "lang-detector": "1.0.6",
     "lottie-react": "2.4.2",
+    "mammoth": "1.13.0",
     "next": "16.3.8",
     "openpgp": "6.3.2",
     "papaparse": "5.7.0",
     "parse-torrent": "11.0.24",
+    "pptx-preview": "1.0.7",
     "prismjs": "1.30.0",
     "proper-lockfile": "4.1.2",
     "react": "19.3.0",
@@ -38,7 +41,8 @@
     "remark-gfm": "4.0.1",
     "server-only": "0.0.1",
     "sharp": "0.35.5",
-    "webtorrent": "2.8.5"
+    "webtorrent": "2.8.5",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

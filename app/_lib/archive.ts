@@ -6,6 +6,7 @@ import fs from "fs/promises";
 import { createWriteStream } from "fs";
 import path from "path";
 import { isInside } from "@/app/_lib/storage";
+import { ArchiveListing } from "@/app/_types";
 
 const SYMLINK_MODE = 0o120000;
 const FILE_TYPE_MASK = 0o170000;
@@ -65,4 +66,20 @@ export const extractArchive = async (
     await fs.mkdir(path.dirname(target), { recursive: true });
     await fs.writeFile(target, entry.getData(), { flag: "wx" });
   }
+};
+
+export const listArchive = (
+  archivePath: string,
+  limit: number
+): ArchiveListing => {
+  const entries = new AdmZip(archivePath).getEntries();
+
+  return {
+    total: entries.length,
+    entries: entries.slice(0, limit).map((entry) => ({
+      name: entry.entryName,
+      size: entry.header.size,
+      isDirectory: entry.isDirectory,
+    })),
+  };
 };

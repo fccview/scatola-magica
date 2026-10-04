@@ -101,3 +101,14 @@ export interface Session {
   expiresAt: string;
   authMethod: "normal" | "sso";
 }
+
+export interface ArchiveEntry {
+  name: string;
+  size: number;
+  isDirectory: boolean;
+}
+
+export interface ArchiveListing {
+  entries: ArchiveEntry[];
+  total: number;
+}

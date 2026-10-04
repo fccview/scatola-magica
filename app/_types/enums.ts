@@ -51,3 +51,39 @@ export enum SelectKind {
   FILE = "file",
   FOLDER = "folder",
 }
+
+export enum TooltipSide {
+  TOP = "TOP",
+  BOTTOM = "BOTTOM",
+}
+
+export enum ItemActionId {
+  OPEN = "OPEN",
+  RENAME = "RENAME",
+  MOVE = "MOVE",
+  DOWNLOAD = "DOWNLOAD",
+  DECRYPT = "DECRYPT",
+  ENCRYPT = "ENCRYPT",
+  DELETE = "DELETE",
+}
+
+export enum ItemActionGroup {
+  BASIC = "BASIC",
+  CRYPTO = "CRYPTO",
+  DANGER = "DANGER",
+}
+
+export enum PreviewKind {
+  TEXT = "TEXT",
+  IMAGE = "IMAGE",
+  VIDEO = "VIDEO",
+  AUDIO = "AUDIO",
+  PDF = "PDF",
+  CSV = "CSV",
+  ARCHIVE = "ARCHIVE",
+  DOCUMENT = "DOCUMENT",
+  SHEET = "SHEET",
+  SLIDES = "SLIDES",
+  FONT = "FONT",
+  NONE = "NONE",
+}

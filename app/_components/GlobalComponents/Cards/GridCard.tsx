@@ -14,6 +14,9 @@ import UserAvatar from "@/app/_components/FeatureComponents/User/UserAvatar";
 import { useContextMenu } from "@/app/_providers/ContextMenuProvider";
 import { usePathEncryption } from "@/app/_hooks/usePathEncryption";
 
+const ICON_SLOT = "flex items-center justify-center w-16 h-16 mb-3";
+const NAME_CLAMP = "line-clamp-2 [overflow-wrap:anywhere]";
+
 interface GridCardProps {
   file?: FileMetadata;
   folder?: FolderMetadata;
@@ -155,7 +158,10 @@ export default function GridCard({
 
       if (!fullPath) {
         return (
-          <h3 className="text-sm font-normal text-on-surface w-full px-1">
+          <h3
+            className={`text-sm font-normal text-on-surface w-full px-1 ${NAME_CLAMP}`}
+            title={fileName}
+          >
             {fileName}
           </h3>
         );
@@ -175,7 +181,7 @@ export default function GridCard({
                 .split("/")
                 .map(encodeURIComponent)
                 .join("/")}`}
-              className="text-sm font-normal text-on-surface-variant hover:text-primary hover:underline break-all"
+              className="text-on-surface-variant hover:text-primary hover:underline"
               onClick={(e) => e.stopPropagation()}
             >
               {part}
@@ -192,16 +198,19 @@ export default function GridCard({
         }
       });
 
-      elements.push(
-        <span
-          key="filename"
-          className="text-sm font-normal text-on-surface break-all"
-        >
-          {fileName}
-        </span>
+      return (
+        <div className="w-full px-1">
+          <div className="text-xs truncate" title={fullPath}>
+            {elements}
+          </div>
+          <h3
+            className={`text-sm font-normal text-on-surface ${NAME_CLAMP}`}
+            title={fileName}
+          >
+            {fileName}
+          </h3>
+        </div>
       );
-
-      return <div className="w-full px-1 break-all">{elements}</div>;
     }
 
     if (isFolder && !isSelectionMode) {
@@ -212,9 +221,12 @@ export default function GridCard({
             .split("/")
             .map(encodeURIComponent)
             .join("/")}`}
-          className="w-full break-all"
+          className="w-full"
+          title={itemName}
         >
-          <h3 className="text-sm font-normal text-on-surface w-full px-1 break-all">
+          <h3
+            className={`text-sm font-normal text-on-surface w-full px-1 ${NAME_CLAMP}`}
+          >
             {itemName}
           </h3>
         </Link>
@@ -224,12 +236,18 @@ export default function GridCard({
     return (
       <div className="w-full px-1">
         {!isFolder && file?.folderPath && (
-          <span className="text-on-surface-variant/60 font-normal text-xs block">
+          <span
+            className="text-on-surface-variant/60 font-normal text-xs block truncate"
+            title={file.folderPath}
+          >
             {file.folderPath}/
           </span>
         )}
         <div className="flex items-center gap-1.5">
-          <h3 className="text-sm font-normal text-on-surface break-all flex-1">
+          <h3
+            className={`text-sm font-normal text-on-surface flex-1 ${NAME_CLAMP}`}
+            title={itemName}
+          >
             {itemName}
           </h3>
         </div>
@@ -269,7 +287,7 @@ export default function GridCard({
               .split("/")
               .map(encodeURIComponent)
               .join("/")}`}
-            className="block mb-3"
+            className={ICON_SLOT}
           >
             {(() => {
               const folderData = item as FolderMetadata;
@@ -340,11 +358,13 @@ export default function GridCard({
 
                 if (folderUser) {
                   return (
-                    <UserAvatar
-                      user={folderUser}
-                      size="xl"
-                      className="mb-3 transition-transform group-hover:scale-105"
-                    />
+                    <div className={ICON_SLOT}>
+                      <UserAvatar
+                        user={folderUser}
+                        size="xl"
+                        className="transition-transform group-hover:scale-105"
+                      />
+                    </div>
                   );
                 }
 
@@ -353,11 +373,13 @@ export default function GridCard({
                   (folderData.folderCount || 0) >
                   0;
                 return (
-                  <Icon
-                    icon={hasItems ? "folder_open" : "folder"}
-                    size="2xl"
-                    className="mb-3 transition-transform group-hover:scale-105"
-                  />
+                  <div className={ICON_SLOT}>
+                    <Icon
+                      icon={hasItems ? "folder_open" : "folder"}
+                      size="2xl"
+                      className="transition-transform group-hover:scale-105"
+                    />
+                  </div>
                 );
               })()
               : (() => {
@@ -365,7 +387,7 @@ export default function GridCard({
                 const iconInfo = getFileIconInfo(fileItem.originalName);
                 const isImage = fileItem.mimeType?.startsWith("image/");
                 return (
-                  <div className="relative mb-3">
+                  <div className={`relative ${ICON_SLOT}`}>
                     {showThumbnails && isImage ? (
                       <img
                         src={`/api/thumbnail/${encodeURIComponent(fileItem.id)}`}
@@ -417,7 +439,7 @@ export default function GridCard({
           renderItemName()
         )}
 
-        <p className="text-sm text-on-surface-variant mt-1">
+        <p className="text-xs text-on-surface-variant mt-1 tabular-nums">
           {isFolder
             ? (() => {
               const folder = item as FolderMetadata;

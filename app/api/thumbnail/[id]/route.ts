@@ -5,12 +5,16 @@ import sharp from "sharp";
 import { getFileMimeType } from "@/app/_lib/file-utils";
 import { validateRequest } from "@/app/_lib/request-auth";
 import { resolveIn, scopedPath, THUMBNAIL_DIR } from "@/app/_lib/storage";
-import { pathErrorResponse } from "@/app/_lib/file-response";
+import {
+  pathErrorResponse,
+  SANDBOX_CSP,
+  streamFile,
+} from "@/app/_lib/file-response";
 
 const THUMBNAIL_SIZE = 256;
 const THUMBNAIL_QUALITY = 80;
 const MAX_INPUT_PIXELS = 100_000_000;
-const SKIPPED_TYPES = ["image/svg+xml"];
+const PASSTHROUGH_TYPES = ["image/svg+xml", "image/x-icon", "image/bmp"];
 
 const _cachedThumb = async (
   thumbPath: string,
@@ -50,13 +54,25 @@ export const GET = async (
     const source = scopedPath(user, decodeURIComponent(id));
     const mimeType = getFileMimeType(path.basename(source.absolute));
 
-    if (!mimeType.startsWith("image/") || SKIPPED_TYPES.includes(mimeType)) {
+    if (!mimeType.startsWith("image/")) {
       return NextResponse.json({ error: "Not a supported image" }, { status: 400 });
     }
 
     const sourceStats = await stat(source.absolute).catch(() => null);
     if (!sourceStats?.isFile()) {
       return NextResponse.json({ error: "File not found" }, { status: 404 });
+    }
+
+    if (PASSTHROUGH_TYPES.includes(mimeType)) {
+      return new NextResponse(streamFile(source.absolute), {
+        headers: {
+          "Content-Type": mimeType,
+          "Content-Length": sourceStats.size.toString(),
+          "Content-Security-Policy": SANDBOX_CSP,
+          "X-Content-Type-Options": "nosniff",
+          "Cache-Control": "private, max-age=86400",
+        },
+      });
     }
 
     const thumbPath = resolveIn(THUMBNAIL_DIR, `${source.relative}.jpg`);

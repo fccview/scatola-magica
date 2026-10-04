@@ -1,29 +1,19 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { Fragment, MouseEvent, useState, useRef, useEffect } from "react";
 import IconButton from "@/app/_components/GlobalComponents/Buttons/IconButton";
 import Icon from "@/app/_components/GlobalComponents/Icons/Icon";
+import Tooltip from "@/app/_components/GlobalComponents/Layout/Tooltip";
+import { buildActions, ItemAction, ItemHandlers } from "@/app/_lib/item-actions";
+import { ItemActionGroup, ItemActionId } from "@/app/_types/enums";
 
-interface ItemActionsMenuProps {
-  onOpen?: () => void;
-  onRename?: () => void;
-  onMove?: () => void;
-  onDownload?: () => void;
-  onDelete?: () => void;
-  onEncrypt?: () => void;
-  onDecrypt?: () => void;
+interface ItemActionsMenuProps extends ItemHandlers {
   fileName?: string;
 }
 
 export default function ItemActionsMenu({
-  onOpen,
-  onRename,
-  onMove,
-  onDownload,
-  onDelete,
-  onEncrypt,
-  onDecrypt,
   fileName,
+  ...handlers
 }: ItemActionsMenuProps) {
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -32,7 +22,7 @@ export default function ItemActionsMenu({
     fileName?.endsWith(".gpg") || fileName?.endsWith(".folder.gpg") || false;
 
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent | TouchEvent) {
+    function handleClickOutside(event: globalThis.MouseEvent | TouchEvent) {
       const target = event.target as Node;
       if (
         menuRef.current &&
@@ -56,16 +46,27 @@ export default function ItemActionsMenu({
     }
   }, [showMenu]);
 
-  if (
-    !onRename &&
-    !onMove &&
-    !onDownload &&
-    !onDelete &&
-    !onEncrypt &&
-    !onDecrypt
-  ) {
+  const actions = buildActions(handlers, isEncrypted);
+  const pillActions = actions.filter(
+    (action) => action.id !== ItemActionId.OPEN
+  );
+
+  if (pillActions.length === 0) {
     return null;
   }
+
+  const fire = (action: ItemAction) => (e: MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setShowMenu(false);
+    action.run();
+  };
+
+  const toggle = (e: MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setShowMenu(!showMenu);
+  };
 
   return (
     <>
@@ -73,12 +74,9 @@ export default function ItemActionsMenu({
         <IconButton
           icon="more_vert"
           size="md"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            setShowMenu(!showMenu);
-          }}
-          title="More actions"
+          onClick={toggle}
+          ariaLabel="More actions"
+          aria-expanded={showMenu}
           className="opacity-100"
         />
 
@@ -88,134 +86,31 @@ export default function ItemActionsMenu({
             className="absolute right-0 top-full mt-2 min-w-[140px] bg-surface rounded-lg elevation-3 py-2 z-50 shadow-lg"
             style={{ touchAction: "none" }}
           >
-            {onOpen && (
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onOpen();
-                  setShowMenu(false);
-                }}
-                className="w-full text-left px-4 py-2 text-sm flex items-center gap-3 transition-colors hover:bg-surface-variant active:bg-surface-variant text-on-surface"
-                style={{ touchAction: "manipulation" }}
-              >
-                <Icon icon="open_in_new" size="sm" />
-                <span>Open</span>
-              </button>
-            )}
-            {onRename && (
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onRename();
-                  setShowMenu(false);
-                }}
-                className="w-full text-left px-4 py-2 text-sm flex items-center gap-3 transition-colors hover:bg-surface-variant active:bg-surface-variant text-on-surface"
-                style={{ touchAction: "manipulation" }}
-              >
-                <Icon icon="edit" size="sm" />
-                <span>Rename</span>
-              </button>
-            )}
-            {onMove && (
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onMove();
-                  setShowMenu(false);
-                }}
-                className="w-full text-left px-4 py-2 text-sm flex items-center gap-3 transition-colors hover:bg-surface-variant active:bg-surface-variant text-on-surface"
-                style={{ touchAction: "manipulation" }}
-              >
-                <Icon icon="drive_file_move" size="sm" />
-                <span>Move</span>
-              </button>
-            )}
-            {onDownload && (
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onDownload();
-                  setShowMenu(false);
-                }}
-                className="w-full text-left px-4 py-2 text-sm flex items-center gap-3 transition-colors hover:bg-surface-variant active:bg-surface-variant text-on-surface"
-                style={{ touchAction: "manipulation" }}
-              >
-                <Icon icon="download" size="sm" />
-                <span>Download</span>
-              </button>
-            )}
-            {(onEncrypt || onDecrypt) && (
-              <>
-                {(onOpen || onRename || onMove || onDownload) && (
-                  <div className="h-px bg-outline-variant my-2" />
-                )}
-                {isEncrypted && onDecrypt && (
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      onDecrypt();
-                      setShowMenu(false);
-                    }}
-                    className="w-full text-left px-4 py-2 text-sm flex items-center gap-3 transition-colors hover:bg-surface-variant active:bg-surface-variant text-on-surface"
-                    style={{ touchAction: "manipulation" }}
-                  >
-                    <Icon icon="lock_open" size="sm" />
-                    <span>Decrypt</span>
-                  </button>
-                )}
-                {!isEncrypted && onEncrypt && (
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      onEncrypt();
-                      setShowMenu(false);
-                    }}
-                    className="w-full text-left px-4 py-2 text-sm flex items-center gap-3 transition-colors hover:bg-surface-variant active:bg-surface-variant text-on-surface"
-                    style={{ touchAction: "manipulation" }}
-                  >
-                    <Icon icon="lock" size="sm" />
-                    <span>Encrypt</span>
-                  </button>
-                )}
-              </>
-            )}
-            {onDelete && (
-              <>
-                {(onOpen ||
-                  onRename ||
-                  onMove ||
-                  onDownload ||
-                  onEncrypt ||
-                  onDecrypt) && (
+            {actions.map((action, index) => (
+              <Fragment key={action.id}>
+                {index > 0 && actions[index - 1].group !== action.group && (
                   <div className="h-px bg-outline-variant my-2" />
                 )}
                 <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onDelete();
-                    setShowMenu(false);
-                  }}
-                  className="w-full text-left px-4 py-2 text-sm flex items-center gap-3 transition-colors hover:bg-surface-variant active:bg-surface-variant text-error"
+                  onClick={fire(action)}
+                  className={`w-full text-left px-4 py-2 text-sm flex items-center gap-3 transition-colors hover:bg-surface-variant active:bg-surface-variant ${
+                    action.group === ItemActionGroup.DANGER
+                      ? "text-error"
+                      : "text-on-surface"
+                  }`}
                   style={{ touchAction: "manipulation" }}
                 >
-                  <Icon icon="delete" size="sm" />
-                  <span>Delete</span>
+                  <Icon icon={action.icon} size="sm" />
+                  <span>{action.label}</span>
                 </button>
-              </>
-            )}
+              </Fragment>
+            ))}
           </div>
         )}
       </div>
 
       <div
-        className="hidden medium:block opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto"
+        className="hidden medium:block opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto focus-within:pointer-events-auto"
         ref={menuRef}
       >
         <div
@@ -227,97 +122,26 @@ export default function ItemActionsMenu({
         >
           <div className="flex items-center gap-2.5 whitespace-nowrap px-1">
             {!showMenu ? (
-              <IconButton
-                icon="more_vert"
-                size="md"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setShowMenu(true);
-                }}
-                title="More actions"
-              />
+              <Tooltip label="More actions">
+                <IconButton
+                  icon="more_vert"
+                  size="md"
+                  onClick={toggle}
+                  ariaLabel="More actions"
+                  aria-expanded={showMenu}
+                />
+              </Tooltip>
             ) : (
-              <>
-                {onRename && (
+              pillActions.map((action) => (
+                <Tooltip key={action.id} label={action.hint}>
                   <IconButton
-                    icon="edit"
+                    icon={action.icon}
                     size="md"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setShowMenu(false);
-                      onRename();
-                    }}
-                    title="Rename"
+                    onClick={fire(action)}
+                    ariaLabel={action.hint}
                   />
-                )}
-                {onMove && (
-                  <IconButton
-                    icon="drive_file_move"
-                    size="md"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setShowMenu(false);
-                      onMove();
-                    }}
-                    title="Move"
-                  />
-                )}
-                {onDownload && (
-                  <IconButton
-                    icon="download"
-                    size="md"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setShowMenu(false);
-                      onDownload();
-                    }}
-                    title="Download"
-                  />
-                )}
-                {isEncrypted && onDecrypt && (
-                  <IconButton
-                    icon="lock_open"
-                    size="md"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setShowMenu(false);
-                      onDecrypt();
-                    }}
-                    title="Decrypt"
-                  />
-                )}
-                {!isEncrypted && onEncrypt && (
-                  <IconButton
-                    icon="lock"
-                    size="md"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setShowMenu(false);
-                      onEncrypt();
-                    }}
-                    title="Encrypt"
-                  />
-                )}
-                {onDelete && (
-                  <IconButton
-                    icon="delete"
-                    size="md"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setShowMenu(false);
-                      onDelete();
-                    }}
-                    title="Delete"
-                  />
-                )}
-              </>
+                </Tooltip>
+              ))
             )}
           </div>
         </div>
