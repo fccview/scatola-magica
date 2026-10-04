@@ -18,6 +18,7 @@ enum KeyKind {
   CHANNEL = "disk-changes",
 }
 
+const EPOCH_TTL_SECONDS = 24 * 60 * 60;
 const COMMAND_OPTIONS = { enableOfflineQueue: false, maxRetriesPerRequest: 1 };
 
 const _watchHealth = (client: Valkey, role: string) => {
@@ -70,7 +71,13 @@ export const valkeyBackend = (url: string, prefix: string): CacheBackend => {
   const _claimEpoch = async (scope: string): Promise<string> => {
     const key = _key(KeyKind.EPOCH, scope);
     const created = newEpoch();
-    const claimed = await client.set(key, created, "NX");
+    const claimed = await client.set(
+      key,
+      created,
+      "EX",
+      EPOCH_TTL_SECONDS,
+      "NX"
+    );
     return claimed ? created : ((await client.get(key)) ?? created);
   };
 
@@ -93,11 +100,19 @@ export const valkeyBackend = (url: string, prefix: string): CacheBackend => {
     bump: async (scopes) => {
       if (scopes.length === 0) return;
 
-      const pairs = scopes.flatMap((scope) => [
-        _key(KeyKind.EPOCH, scope),
-        newEpoch(),
-      ]);
-      await client.mset(...pairs);
+      const pipeline = client.pipeline();
+      for (const scope of scopes) {
+        pipeline.set(
+          _key(KeyKind.EPOCH, scope),
+          newEpoch(),
+          "EX",
+          EPOCH_TTL_SECONDS
+        );
+      }
+
+      const results = (await pipeline.exec()) ?? [];
+      const failure = results.find(([error]) => error)?.[0];
+      if (failure) throw failure;
     },
 
     announce: async (change) => {

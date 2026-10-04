@@ -81,7 +81,7 @@ export const memoryBackend = (): CacheBackend => {
     epochs: async (scopes) => scopes.map(_epochOf),
 
     bump: async (scopes) => {
-      for (const scope of scopes) counters.set(scope, newEpoch());
+      for (const scope of scopes) counters.delete(scope);
     },
 
     announce: async (change) => {

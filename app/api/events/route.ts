@@ -88,10 +88,15 @@ export const GET = async (request: NextRequest) => {
       const recheck = async () => {
         try {
           const current = await validateRequest(request);
-          if (current?.username === user.username) return send(": ping\n\n");
+          const isSameScope =
+            current?.username === user.username &&
+            toRelative(userRoot(current)) === rootRelative;
+
+          if (isSameScope) return send(": ping\n\n");
           hangUp();
         } catch (error) {
-          logger.warn(SCOPE, "Session recheck failed", error);
+          logger.warn(SCOPE, "Session recheck failed, closing stream", error);
+          hangUp();
         }
       };
 

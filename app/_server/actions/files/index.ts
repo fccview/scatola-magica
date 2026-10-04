@@ -16,10 +16,10 @@ import { bustFileCache } from "@/app/_lib/cache/bust";
 import { pensieve } from "@/app/_lib/cache/pensieve";
 import { dirScopes, rootScope } from "@/app/_lib/cache/scopes";
 import { logger } from "@/app/_lib/logger";
+import { FILES_MAX_PAGE_SIZE } from "@/app/_lib/constants";
 
 const SCOPE = "file-actions";
 const DEFAULT_PAGE_SIZE = 15;
-const MAX_PAGE_SIZE = 500;
 const UNAUTHORIZED = { success: false, error: "Unauthorized" };
 
 interface GetFilesOptions {
@@ -64,7 +64,7 @@ export const getFiles = async (
 
   try {
     const page = _clampPage(options.page, 1, Number.MAX_SAFE_INTEGER);
-    const pageSize = _clampPage(options.pageSize, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE);
+    const pageSize = _clampPage(options.pageSize, DEFAULT_PAGE_SIZE, FILES_MAX_PAGE_SIZE);
     const search = String(options.search ?? "").toLowerCase();
     const sorter = SORTERS[options.sortBy ?? SortBy.DATE_DESC] ?? SORTERS[SortBy.DATE_DESC];
 

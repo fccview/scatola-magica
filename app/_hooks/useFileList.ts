@@ -18,7 +18,9 @@ import {
 } from "@/app/_server/actions/file-encryption";
 import { useShortcuts } from "@/app/_providers/ShortcutsProvider";
 import { useFileViewer } from "@/app/_providers/FileViewerProvider";
-import { FILES_PAGE_SIZE } from "@/app/_lib/constants";
+import { FILES_MAX_PAGE_SIZE, FILES_PAGE_SIZE } from "@/app/_lib/constants";
+
+const MAX_RELOAD_PAGES = Math.floor(FILES_MAX_PAGE_SIZE / FILES_PAGE_SIZE);
 
 interface UseFileListProps {
   initialFiles: FileMetadata[];
@@ -194,7 +196,7 @@ export const useFileList = ({
       try {
         const result = await getFiles({
           page: 1,
-          pageSize: pages * FILES_PAGE_SIZE,
+          pageSize: Math.min(pages, MAX_RELOAD_PAGES) * FILES_PAGE_SIZE,
           search,
           sortBy,
           folderPath,

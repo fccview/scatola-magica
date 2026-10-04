@@ -8,6 +8,7 @@ import { logger } from "@/app/_lib/logger";
 
 const SCOPE = "disk-watch";
 const FLUSH_DELAY_MS = 250;
+const RETRY_DELAY_MS = 5_000;
 const MAX_BATCH_PATHS = 500;
 
 interface WatchState {
@@ -36,6 +37,30 @@ const _state = (): WatchState => {
 const _isTempEntry = (relative: string): boolean =>
   relative === TEMP_DIR_NAME || relative.startsWith(`${TEMP_DIR_NAME}/`);
 
+const _schedule = (delayMs: number): void => {
+  const state = _state();
+
+  state.timer ??= setTimeout(() => {
+    flushChanges().catch((error) =>
+      logger.error(SCOPE, "Change flush crashed", error)
+    );
+  }, delayMs);
+};
+
+const _requeue = (paths: string[], everything: boolean): void => {
+  const state = _state();
+
+  if (everything) state.overflow = true;
+  for (const relative of paths) state.pending.add(relative);
+
+  if (state.pending.size > MAX_BATCH_PATHS) {
+    state.pending.clear();
+    state.overflow = true;
+  }
+
+  _schedule(RETRY_DELAY_MS);
+};
+
 export const flushChanges = async (): Promise<void> => {
   const state = _state();
   if (state.timer) clearTimeout(state.timer);
@@ -54,7 +79,8 @@ export const flushChanges = async (): Promise<void> => {
   try {
     await backend.bump(scopes);
   } catch (error) {
-    logger.warn(SCOPE, "Failed to invalidate cached listings", error);
+    logger.warn(SCOPE, "Failed to invalidate cached listings, retrying", error);
+    _requeue(paths, everything);
   }
 
   await backend.announce({ paths: everything ? [] : paths, everything });
@@ -75,11 +101,7 @@ export const recordChange = (relatives: string[]): void => {
 
   if (state.pending.size === 0 && !state.overflow) return;
 
-  state.timer ??= setTimeout(() => {
-    flushChanges().catch((error) =>
-      logger.error(SCOPE, "Change flush crashed", error)
-    );
-  }, FLUSH_DELAY_MS);
+  _schedule(FLUSH_DELAY_MS);
 };
 
 const _onEvent = (_event: string, filename: string | null): void => {
