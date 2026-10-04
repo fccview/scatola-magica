@@ -56,7 +56,7 @@ export default function Modal({
 
   return (
     <div
-      className="modal-overlay fixed inset-0 flex justify-center items-end lg:items-center lg:align-middle lg:p-4 bg-black/60"
+      className="modal-overlay fx-fade fixed inset-0 flex justify-center items-end lg:items-center lg:align-middle lg:p-4 bg-black/60"
       style={{ zIndex }}
       onClick={(e) => {
         if (e.target === e.currentTarget) {
@@ -66,7 +66,7 @@ export default function Modal({
     >
       <div
         ref={modalRef}
-        className={`bg-surface rounded-t-lg lg:rounded-b-lg shadow-xl w-full max-w-full ${sizeClasses[size]} max-h-[90vh] flex flex-col overflow-hidden`}
+        className={`fx-pop bg-surface rounded-t-lg lg:rounded-b-lg shadow-xl w-full max-w-full ${sizeClasses[size]} max-h-[90vh] flex flex-col overflow-hidden`}
         onClick={(e) => e.stopPropagation()}
       >
         {title && (

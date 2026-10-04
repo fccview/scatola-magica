@@ -599,7 +599,7 @@ export default function UploadOverlayProvider({
 
   return (
     <UploadOverlayContext.Provider value={{ openUploadWithFiles, isDragging }}>
-      {resumableUploads.length > 0 && (
+      {resumableUploads.length > 0 && !isUploadModalOpen && (
         <>
           {!showResumableModal && (
             <button

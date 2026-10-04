@@ -29,7 +29,7 @@ export default function FAB({
 
   return (
     <button
-      className={`rounded-lg bg-surface-container text-on-surface transition-colors inline-flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:border-primary focus:border focus:border-dashed ${sizeMap[size]} ${className}`}
+      className={`fx-press rounded-lg bg-surface-container text-on-surface transition-colors inline-flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:border-primary focus:border focus:border-dashed ${sizeMap[size]} ${className}`}
       {...props}
     >
       <span className={`material-symbols-outlined ${iconSizeMap[size]}`}>

@@ -2,21 +2,26 @@
 
 import { useRef, useEffect } from "react";
 import IconButton from "@/app/_components/GlobalComponents/Buttons/IconButton";
+import BrandLink from "@/app/_components/GlobalComponents/Layout/BrandLink";
+import SidebarResizeHandle from "@/app/_components/GlobalComponents/Layout/SidebarResizeHandle";
 import { useSidebar } from "@/app/_providers/SidebarProvider";
 
 interface MobileSidebarWrapperProps {
   sidebar: React.ReactNode;
   children: React.ReactNode;
   title?: string;
+  header?: React.ReactNode;
 }
 
 export default function MobileSidebarWrapper({
   sidebar,
   children,
   title = "Folders",
+  header,
 }: MobileSidebarWrapperProps) {
   const { isSidebarOpen, openSidebar, closeSidebar } = useSidebar();
   const sidebarRef = useRef<HTMLDivElement>(null);
+  const desktopRef = useRef<HTMLElement>(null);
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
 
@@ -95,13 +100,28 @@ export default function MobileSidebarWrapper({
     <>
       {isSidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-50 medium:hidden"
+          className="fx-fade fixed inset-0 bg-black/50 z-50 medium:hidden"
           onClick={closeSidebar}
         />
       )}
 
-      <aside className="w-96 bg-sidebar flex-shrink-0 hidden medium:block overflow-hidden">
-        {sidebar}
+      <aside
+        ref={desktopRef}
+        className={`relative w-[var(--sidebar-width,24rem)] bg-sidebar flex-shrink-0 hidden overflow-hidden ${
+          header ? "medium:flex flex-col" : "medium:block"
+        }`}
+      >
+        {header ? (
+          <>
+            <div className="relative z-10 h-16 px-4 flex items-center flex-shrink-0">
+              <BrandLink />
+            </div>
+            <div className="flex-1 min-h-0">{sidebar}</div>
+          </>
+        ) : (
+          sidebar
+        )}
+        <SidebarResizeHandle targetRef={desktopRef} />
       </aside>
 
       <aside
@@ -124,7 +144,14 @@ export default function MobileSidebarWrapper({
         </div>
       </aside>
 
-      {children}
+      {header ? (
+        <div className="flex-1 flex flex-col min-w-0 min-h-0">
+          <div className="flex-shrink-0">{header}</div>
+          <div className="flex flex-1 overflow-hidden min-h-0">{children}</div>
+        </div>
+      ) : (
+        children
+      )}
     </>
   );
 }

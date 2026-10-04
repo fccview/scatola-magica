@@ -24,7 +24,7 @@ export default function FileListSelectionBar({
   const allSelected = totalSelected === totalItems && totalItems > 0;
 
   return (
-    <div className="flex items-center justify-between mb-4 p-4 border-2 border-outline-variant border-dashed rounded-lg flex-shrink-0">
+    <div className="fx-rise flex items-center justify-between mb-4 p-4 border-2 border-outline-variant border-dashed rounded-lg flex-shrink-0">
       <div className="flex items-center gap-4">
         <IconButton
           icon="close"

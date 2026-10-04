@@ -167,13 +167,10 @@ function TorrentsPageContent() {
   return (
     <FilesPageBorderWrapper>
       <FilesPageWrapper folderPath="">
-        <div className="flex-shrink-0">
-          <Header showTorrentsButton={false} />
-        </div>
-
         <div className="flex flex-1 overflow-hidden min-h-0">
           <MobileSidebarWrapper
             title="Torrents"
+            header={<Header showTorrentsButton={false} docked />}
             sidebar={
               <TorrentsSidebar
                 tabs={tabs}
@@ -248,8 +245,10 @@ function TorrentsPageContent() {
                       </Select>
                     </div>
 
-                    {activeTab === "my-torrents" && <MyTorrentsList />}
-                    {activeTab === "downloads" && <DownloadsList />}
+                    <div key={activeTab} className="fx-rise">
+                      {activeTab === "my-torrents" && <MyTorrentsList />}
+                      {activeTab === "downloads" && <DownloadsList />}
+                    </div>
                   </div>
                 </>
               )}

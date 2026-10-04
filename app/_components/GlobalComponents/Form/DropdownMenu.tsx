@@ -73,8 +73,10 @@ export default function DropdownMenu({
 
       {isOpen && (
         <div
-          className={`absolute right-0 ${
-            position === "top" ? "bottom-full mb-2" : "top-full mt-2"
+          className={`fx-menu absolute right-0 ${
+            position === "top"
+              ? "bottom-full mb-2 origin-bottom-right"
+              : "top-full mt-2 origin-top-right"
           } min-w-[180px] bg-surface-container rounded-lg elevation-3 py-2 z-50 shadow-lg max-h-[230px] custom-scrollbar`}
         >
           {items.map((item, index) => (

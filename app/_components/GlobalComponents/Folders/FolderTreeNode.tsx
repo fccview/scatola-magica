@@ -108,9 +108,11 @@ export default function FolderTreeNode({
         >
           {hasChildren && (
             <Icon
-              icon={folderIsExpanded ? "expand_more" : "chevron_right"}
+              icon="chevron_right"
               size="xs"
-              className="flex-shrink-0 text-on-surface-variant"
+              className={`fx-turn flex-shrink-0 text-on-surface-variant ${
+                folderIsExpanded ? "rotate-90" : ""
+              }`}
               onClick={(e) => {
                 e.stopPropagation();
                 toggleFolder(folder.id);
@@ -144,7 +146,7 @@ export default function FolderTreeNode({
         </button>
 
         {folderIsExpanded && folder.children && folder.children.length > 0 && (
-          <div className="mt-0.5">
+          <div className="fx-unfold mt-0.5">
             {folder.children.map((child) => (
               <FolderTreeNode
                 key={child.id}
@@ -190,15 +192,11 @@ export default function FolderTreeNode({
             onContextMenu={handleContextMenuEvent}
           >
             <Icon
-              icon={
-                folderIsExpanded && hasChildren
-                  ? "expand_more"
-                  : "chevron_right"
-              }
+              icon="chevron_right"
               size="xs"
-              className={`flex-shrink-0 text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer ${
+              className={`fx-turn flex-shrink-0 text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer ${
                 !hasChildren ? "opacity-0" : ""
-              }`}
+              } ${folderIsExpanded && hasChildren ? "rotate-90" : ""}`}
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -369,7 +367,7 @@ export default function FolderTreeNode({
       )}
 
       {folderIsExpanded && folder.children && folder.children.length > 0 && (
-        <div className="mt-1">
+        <div className="fx-unfold mt-1">
           {folder.children.map((child) => (
             <FolderTreeNode
               key={child.id}

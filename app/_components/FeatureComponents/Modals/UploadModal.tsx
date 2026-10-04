@@ -45,7 +45,12 @@ const UploadModal = ({
     handleDragEnter,
     handleDragLeave,
     handleDrop,
+    structure,
+    dismissStructure,
     cancelUpload,
+    cancelAll,
+    retryUpload,
+    retryFailed,
     removeFile,
   } = useUploadPage();
   const previousIsOpen = useRef(false);
@@ -179,12 +184,19 @@ const UploadModal = ({
             onFileSelect={handleE2EFileSelect}
           />
 
-          <UploadFileList
-            files={files}
-            onCancel={cancelUpload}
-            onRemove={removeFile}
-            onClose={onClose}
-          />
+          <div className="mt-6">
+            <UploadFileList
+              files={files}
+              structure={structure}
+              onCancel={cancelUpload}
+              onRemove={removeFile}
+              onRetry={retryUpload}
+              onRetryFailed={retryFailed}
+              onCancelAll={cancelAll}
+              onDismissStructure={dismissStructure}
+              onClose={onClose}
+            />
+          </div>
         </div>
       </Modal>
 

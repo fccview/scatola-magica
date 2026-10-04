@@ -1,4 +1,6 @@
+import type { CSSProperties } from "react";
 import type { Metadata, Viewport } from "next";
+import { cookies } from "next/headers";
 import ServiceWorkerRegistrar from "@/app/_components/GlobalComponents/Layout/ServiceWorkerRegistrar";
 import PWAInstallPrompt from "@/app/_components/GlobalComponents/Layout/PWAInstallPrompt";
 import ThemeScript from "@/app/_components/GlobalComponents/Layout/ThemeScript";
@@ -17,7 +19,10 @@ import { getUserPreferences } from "@/app/_lib/preferences-store";
 import { pathTokenFor } from "@/app/_lib/path-encryption";
 import type { CurrentUser, PublicUser } from "@/app/_types";
 import AnimatedPokemon from "@/app/_components/GlobalComponents/Layout/AnimatedPokemon";
+import { SIDEBAR_COOKIE } from "@/app/_lib/constants";
+import { parseWidth, widthStyle } from "@/app/_lib/sidebar-width";
 import "@/app/globals.css";
+import "@/app/_styles/effects.css";
 
 export const metadata: Metadata = {
   title: "Scatola Magica",
@@ -59,7 +64,13 @@ const RootLayout = async ({
     : null;
   const preferences = currentUser
     ? await getUserPreferences(currentUser.username)
-    : { particlesEnabled: true, wandCursorEnabled: true, username: "" };
+    : {
+        particlesEnabled: true,
+        wandCursorEnabled: true,
+        username: "",
+      };
+  const cookieStore = await cookies();
+  const sidebarWidth = parseWidth(cookieStore.get(SIDEBAR_COOKIE)?.value);
   const encryptionKey = record?.encryptionKey || null;
   const pathToken = encryptionKey ? pathTokenFor(encryptionKey) : null;
 
@@ -71,7 +82,11 @@ const RootLayout = async ({
         .map(toPublicUser);
 
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html
+      lang="en"
+      suppressHydrationWarning
+      style={widthStyle(sidebarWidth) as CSSProperties}
+    >
       <head>
         <ThemeScript
           persistentTheme={currentUser?.persistentTheme ?? false}
@@ -110,6 +125,7 @@ const RootLayout = async ({
           preferences={{
             particlesEnabled: preferences.particlesEnabled,
             wandCursorEnabled: preferences.wandCursorEnabled,
+            sidebarWidth,
             pokemonThemesEnabled: preferences.pokemonThemesEnabled,
             user: currentUser,
             encryptionKey,

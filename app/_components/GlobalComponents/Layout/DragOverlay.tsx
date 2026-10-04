@@ -20,12 +20,14 @@ export default function DragOverlay({ isVisible }: DragOverlayProps) {
   if (isHomePage || isNotFoundPage) return null;
 
   return (
-    <div className="fixed w-[calc(100vw-10px)] h-[calc(100vh-10px)] top-[50%] left-[50%] translate-x-[-50%] translate-y-[-50%] z-[100] pointer-events-none transition-all duration-300 flex items-center justify-center backdrop-blur-[1.5px]">
-      <Logo
-        className="w-48 h-48 md:w-64 md:h-64"
-        hideBox={false}
-        hoverEffect={true}
-      />
+    <div className="fx-fade fixed w-[calc(100vw-10px)] h-[calc(100vh-10px)] top-[50%] left-[50%] translate-x-[-50%] translate-y-[-50%] z-[100] pointer-events-none transition-all duration-300 flex items-center justify-center backdrop-blur-[1.5px]">
+      <div className="fx-breathe">
+        <Logo
+          className="w-48 h-48 md:w-64 md:h-64"
+          hideBox={false}
+          hoverEffect={true}
+        />
+      </div>
     </div>
   );
 }

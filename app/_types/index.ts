@@ -1,4 +1,4 @@
-import { UploadStatus } from "@/app/_types/enums";
+import { ChunkState, UploadPhase, UploadStatus } from "@/app/_types/enums";
 
 export * from "@/app/_types/torrent";
 
@@ -25,6 +25,10 @@ export interface UploadProgress {
   remainingTime: number;
   chunksCompleted: number;
   totalChunks: number;
+  phase: UploadPhase;
+  chunksInFlight: number;
+  chunksRetrying: number;
+  chunkMap?: ChunkState[];
 }
 
 export interface ChunkMetadata {

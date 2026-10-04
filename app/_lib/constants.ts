@@ -80,3 +80,24 @@ export const MARKDOWN_EXTENSIONS = ["md", "markdown"];
 
 export const FILES_PAGE_SIZE = 15;
 export const FILES_MAX_PAGE_SIZE = 500;
+
+export const UPLOAD_QUEUE = {
+  MAX_PARALLEL_FILES: 4,
+  PROGRESS_THROTTLE_MS: 120,
+  SPEED_SAMPLE_MS: 250,
+  SPEED_SMOOTHING: 0.3,
+  MAX_CHUNK_MAP: 64,
+  QUEUE_PREVIEW: 3,
+} as const;
+
+export const SIDEBAR_COOKIE = "scatola-sidebar-width";
+export const SIDEBAR_CSS_VAR = "--sidebar-width";
+export const SIDEBAR_COOKIE_MAX_AGE = 365 * 24 * 60 * 60;
+export const SIDEBAR_WIDTH = {
+  DEFAULT: 384,
+  MIN: 240,
+  MAX: 640,
+  STEP: 16,
+  VIEWPORT_RATIO: 0.6,
+} as const;
+export const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";

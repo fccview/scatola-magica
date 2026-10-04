@@ -690,6 +690,12 @@ export const useFileList = ({
     setIsSelectionMode(true);
   };
 
+  const selectMany = (fileIds: string[], folderIds: string[]) => {
+    setSelectedFileIds(new Set(fileIds));
+    setSelectedFolderIds(new Set(folderIds));
+    setIsSelectionMode(fileIds.length + folderIds.length > 0);
+  };
+
   const clearSelection = () => {
     setSelectedFileIds(new Set());
     setSelectedFolderIds(new Set());
@@ -846,6 +852,7 @@ export const useFileList = ({
     toggleFileSelection,
     toggleFolderSelection,
     selectAll,
+    selectMany,
     clearSelection,
     exitSelectionMode,
     handleBulkDelete,

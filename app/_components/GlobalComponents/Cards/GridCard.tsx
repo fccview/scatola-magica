@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
+import { SelectKind } from "@/app/_types/enums";
 import Link from "next/link";
 import { FileMetadata, PublicUser } from "@/app/_types";
 import { formatBytes } from "@/app/_lib/file-utils";
@@ -238,6 +239,8 @@ export default function GridCard({
 
   return (
     <div
+      data-select-id={itemId}
+      data-select-kind={isFolder ? SelectKind.FOLDER : SelectKind.FILE}
       className={`group relative p-3 rounded-lg hover:bg-surface-container transition-all ${isSelectionMode ? "cursor-pointer" : ""
         } ${isSelected ? "bg-primary/10 hover:bg-primary/15" : ""}`}
       onClick={isSelectionMode ? onToggleSelect : undefined}

@@ -10,10 +10,13 @@ import { isValidName, scopedPath, userRoot } from "@/app/_lib/storage";
 import { readAppSettings } from "@/app/_lib/app-settings-store";
 import { bustFileCache } from "@/app/_lib/cache/bust";
 import { logger } from "@/app/_lib/logger";
+import { promoteFile, vaultKey, writeAt } from "@/app/_lib/chunk-writer";
 import {
   ASSEMBLY_IN_PROGRESS,
+  ChunkLayout,
   chunkPath,
   createUploadSession,
+  dataPath,
   deleteUploadSession,
   isValidUploadId,
   listSessionDirs,
@@ -31,8 +34,6 @@ const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 12;
 const SALT_LENGTH = 16;
 const AUTH_TAG_LENGTH = 16;
-const PBKDF2_ITERATIONS = 600000;
-const KEY_LENGTH = 32;
 const MAX_TOTAL_CHUNKS = 1_000_000;
 const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
 const FINALIZE_POLL_MS = 200;
@@ -109,6 +110,7 @@ export const initUpload = async (
     totalChunks,
     createdAt: Date.now(),
     chunkSize: _isPositiveInt(input.chunkSize) ? input.chunkSize : undefined,
+    layout: _isPositiveInt(input.chunkSize) ? ChunkLayout.DIRECT : ChunkLayout.FILES,
     folderPath: path.relative(userRoot(owner), folder.absolute),
     e2eEncrypted,
     e2ePassword: e2eEncrypted ? (input.e2ePassword as string) : undefined,
@@ -117,13 +119,6 @@ export const initUpload = async (
 
   return { success: true };
 };
-
-const _keyFromPassword = (password: string, salt: Buffer): Promise<Buffer> =>
-  new Promise((resolve, reject) => {
-    crypto.pbkdf2(password, salt, PBKDF2_ITERATIONS, KEY_LENGTH, "sha256", (err, key) =>
-      err ? reject(err) : resolve(key)
-    );
-  });
 
 const _decryptChunk = (encrypted: Buffer, key: Buffer): Buffer => {
   const iv = encrypted.subarray(SALT_LENGTH, SALT_LENGTH + IV_LENGTH);
@@ -155,18 +150,39 @@ const _appendChunk = async (
   await pipeline(createReadStream(file), out, { end: false });
 };
 
-const _assemble = async (
+const _sessionKey = (
+  session: PersistedUploadSession
+): Promise<Buffer> | undefined =>
+  session.e2eEncrypted && session.e2ePassword && session.e2eSalt
+    ? vaultKey(session.e2ePassword, Buffer.from(session.e2eSalt))
+    : undefined;
+
+const _targetId = (owner: StorageOwner, absolute: string): string =>
+  path.relative(userRoot(owner), absolute).split(path.sep).join("/");
+
+const _promote = async (
   owner: StorageOwner,
   session: PersistedUploadSession
 ): Promise<string> => {
   const dir = sessionDir(owner.username, session.uploadId);
   const target = scopedPath(owner, path.join(session.folderPath, session.fileName));
+
+  await promoteFile(dataPath(dir), target.absolute);
+  await bustFileCache(target.absolute);
+  return _targetId(owner, target.absolute);
+};
+
+const _assemble = async (
+  owner: StorageOwner,
+  session: PersistedUploadSession
+): Promise<string> => {
+  if (session.layout === ChunkLayout.DIRECT) return _promote(owner, session);
+
+  const dir = sessionDir(owner.username, session.uploadId);
+  const target = scopedPath(owner, path.join(session.folderPath, session.fileName));
   const tempTarget = `${target.absolute}.${crypto.randomBytes(4).toString("hex")}.part`;
 
-  const key =
-    session.e2eEncrypted && session.e2ePassword && session.e2eSalt
-      ? await _keyFromPassword(session.e2ePassword, Buffer.from(session.e2eSalt))
-      : undefined;
+  const key = await _sessionKey(session);
 
   await fs.mkdir(path.dirname(target.absolute), { recursive: true });
   const out = createWriteStream(tempTarget, { flags: "wx" });
@@ -188,11 +204,48 @@ const _assemble = async (
   }
 
   await bustFileCache(target.absolute);
-  return path.relative(userRoot(owner), target.absolute).split(path.sep).join("/");
+  return _targetId(owner, target.absolute);
 };
 
 const _looksEncrypted = (chunk: Buffer): boolean =>
-  chunk.length > SALT_LENGTH + IV_LENGTH + AUTH_TAG_LENGTH;
+  chunk.length >= SALT_LENGTH + IV_LENGTH + AUTH_TAG_LENGTH;
+
+const _expectedLength = (session: PersistedUploadSession, index: number): number => {
+  const size = session.chunkSize ?? 0;
+  return Math.max(0, Math.min(size, session.fileSize - index * size));
+};
+
+const _plainChunk = async (
+  session: PersistedUploadSession,
+  buffer: Buffer
+): Promise<Buffer> => {
+  const key = await _sessionKey(session);
+  return key ? _decryptChunk(buffer, key) : buffer;
+};
+
+const _storeDirect = async (
+  session: PersistedUploadSession,
+  dir: string,
+  index: number,
+  buffer: Buffer
+): Promise<UploadResult> => {
+  let plain: Buffer;
+  try {
+    plain = await _plainChunk(session, buffer);
+  } catch (error) {
+    logger.warn(SCOPE, `Chunk ${index} of ${session.uploadId} failed to decrypt`, error);
+    return _fail("Chunk could not be decrypted");
+  }
+
+  if (plain.length !== _expectedLength(session, index)) {
+    logger.warn(SCOPE, `Chunk ${index} of ${session.uploadId} has an unexpected size`);
+    return _fail("Unexpected chunk size");
+  }
+
+  await writeAt(dataPath(dir), plain, index * (session.chunkSize ?? 0));
+  await fs.writeFile(chunkPath(dir, index), "");
+  return { success: true };
+};
 
 export const storeChunk = async (
   owner: StorageOwner,
@@ -218,7 +271,12 @@ export const storeChunk = async (
   }
 
   const dir = sessionDir(owner.username, uploadId);
-  await fs.writeFile(chunkPath(dir, index), buffer);
+  if (session.layout === ChunkLayout.DIRECT) {
+    const stored = await _storeDirect(session, dir, index, buffer);
+    if (!stored.success) return _fail(stored.error ?? "Failed to store chunk", stored.status);
+  } else {
+    await fs.writeFile(chunkPath(dir, index), buffer);
+  }
 
   const chunks = await writtenChunks(dir);
   const progress = (chunks.length / session.totalChunks) * 100;

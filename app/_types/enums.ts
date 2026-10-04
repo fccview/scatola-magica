@@ -28,3 +28,26 @@ export enum CacheStrategy {
   NETWORK_ONLY = "NETWORK_ONLY",
   CACHE_ONLY = "CACHE_ONLY",
 }
+
+export enum UploadPhase {
+  QUEUED = "QUEUED",
+  PREPARING = "PREPARING",
+  SECURING = "SECURING",
+  RESUMING = "RESUMING",
+  HANDSHAKE = "HANDSHAKE",
+  SENDING = "SENDING",
+  ASSEMBLING = "ASSEMBLING",
+  DONE = "DONE",
+}
+
+export enum ChunkState {
+  WAITING = "WAITING",
+  SENDING = "SENDING",
+  RETRYING = "RETRYING",
+  DONE = "DONE",
+}
+
+export enum SelectKind {
+  FILE = "file",
+  FOLDER = "folder",
+}

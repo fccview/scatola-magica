@@ -1,9 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import TopAppBar from "@/app/_components/GlobalComponents/Layout/TopAppBar";
-import Logo from "@/app/_components/GlobalComponents/Layout/Logo";
+import BrandLink from "@/app/_components/GlobalComponents/Layout/BrandLink";
 import IconButton from "@/app/_components/GlobalComponents/Buttons/IconButton";
 import HelpButton from "@/app/_components/GlobalComponents/Layout/HelpButton";
 import ThemeSelector from "@/app/_components/GlobalComponents/Layout/ThemeSelector";
@@ -17,6 +16,7 @@ export default function Header({
   showSettingsButton = true,
   showThemeSelector = true,
   showUserMenu = true,
+  docked = false,
 }: {
   showHelpButton?: boolean;
   showTorrentsButton?: boolean;
@@ -24,6 +24,7 @@ export default function Header({
   showSettingsButton?: boolean;
   showThemeSelector?: boolean;
   showUserMenu?: boolean;
+  docked?: boolean;
 }) {
   const router = useRouter();
   const { torrentPreferences } = usePreferences();
@@ -31,14 +32,8 @@ export default function Header({
 
   return (
     <TopAppBar
-      leading={
-        <Link
-          href="/"
-          className="flex items-center justify-center leading-[0] gap-2 pt-8 pb-2 -ml-4"
-        >
-          <Logo className="w-16 h-16 lg:w-20 lg:h-20" hideBox={true} />
-        </Link>
-      }
+      docked={docked}
+      leading={<BrandLink />}
       trailing={
         <div className="flex items-center gap-2">
           {showTorrentsButton && torrentsEnabled && (

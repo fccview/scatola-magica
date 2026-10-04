@@ -33,7 +33,7 @@ export default function IconButton({
   return (
     <button
       aria-label={ariaLabel}
-      className={`rounded-full aspect-square inline-flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none ${
+      className={`fx-press rounded-full aspect-square inline-flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none ${
         paddingMap[size]
       } ${
         isActive

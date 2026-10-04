@@ -3,10 +3,12 @@
 import { createContext, useContext, ReactNode } from "react";
 import { CurrentUser, TorrentPreferences } from "@/app/_types";
 import { UserPreferences } from "@/app/_types/preferences";
+import { SIDEBAR_WIDTH } from "@/app/_lib/constants";
 
 interface PreferencesContextType {
   particlesEnabled: boolean;
   wandCursorEnabled: boolean;
+  sidebarWidth: number;
   pokemonThemesEnabled?: boolean;
   user: CurrentUser | null;
   encryptionKey: string | null;
@@ -21,6 +23,7 @@ interface PreferencesContextType {
 const PreferencesContext = createContext<PreferencesContextType>({
   particlesEnabled: true,
   wandCursorEnabled: true,
+  sidebarWidth: SIDEBAR_WIDTH.DEFAULT,
   pokemonThemesEnabled: false,
   user: null,
   encryptionKey: null,

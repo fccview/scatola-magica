@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
+import { SelectKind } from "@/app/_types/enums";
 import Link from "next/link";
 import { FileMetadata, PublicUser } from "@/app/_types";
 import { formatBytes } from "@/app/_lib/file-utils";
@@ -328,6 +329,8 @@ export default function ListCard({
 
   return (
     <div
+      data-select-id={itemId}
+      data-select-kind={isFolder ? SelectKind.FOLDER : SelectKind.FILE}
       className={`group flex items-center gap-4 pl-4 pr-12 py-3 rounded-lg hover:bg-surface-container transition-colors ${isSelectionMode ? "cursor-pointer" : ""
         } ${isSelected ? "bg-primary/10 hover:bg-primary/15" : ""}`}
       onClick={isSelectionMode ? onToggleSelect : undefined}

@@ -11,8 +11,14 @@ const SCOPE = "upload-sessions";
 const UPLOAD_ID_PATTERN = /^[a-zA-Z0-9_-]{1,200}$/;
 const OWNER_SEPARATOR = "__";
 const SESSION_FILE = "session.json";
+const DATA_FILE = "data.part";
 
 export const ASSEMBLY_IN_PROGRESS = "__ASSEMBLING__";
+
+export enum ChunkLayout {
+  FILES = "files",
+  DIRECT = "direct",
+}
 
 export interface PersistedUploadSession {
   uploadId: string;
@@ -27,6 +33,7 @@ export interface PersistedUploadSession {
   e2ePassword?: string;
   e2eSalt?: number[];
   fileId?: string;
+  layout?: ChunkLayout;
 }
 
 const _ownerKey = (owner: string): string =>
@@ -49,16 +56,30 @@ export const sessionDir = (owner: string, uploadId: string): string => {
 export const chunkPath = (dir: string, index: number): string =>
   path.join(dir, `chunk-${index}`);
 
+export const dataPath = (dir: string): string => path.join(dir, DATA_FILE);
+
+const _preallocate = async (file: string, size: number): Promise<void> => {
+  const handle = await fs.open(file, "w", 0o600);
+  try {
+    await handle.truncate(size);
+  } finally {
+    await handle.close();
+  }
+};
+
 const _sessionFile = (owner: string, uploadId: string): string =>
   path.join(sessionDir(owner, uploadId), SESSION_FILE);
 
 export const createUploadSession = async (
   session: PersistedUploadSession
 ): Promise<void> => {
-  await fs.mkdir(sessionDir(session.owner, session.uploadId), {
-    recursive: true,
-    mode: 0o700,
-  });
+  const dir = sessionDir(session.owner, session.uploadId);
+  await fs.mkdir(dir, { recursive: true, mode: 0o700 });
+
+  if (session.layout === ChunkLayout.DIRECT) {
+    await _preallocate(dataPath(dir), session.fileSize);
+  }
+
   await writeJson(_sessionFile(session.owner, session.uploadId), session);
 };
 

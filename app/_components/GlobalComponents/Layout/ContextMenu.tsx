@@ -75,7 +75,7 @@ export default function ContextMenu({
   return (
     <div
       ref={menuRef}
-      className="fixed z-[9999] min-w-[200px] bg-surface-container rounded-lg shadow-lg py-2 border border-outline-variant"
+      className="fx-menu origin-top-left fixed z-[9999] min-w-[200px] bg-surface-container rounded-lg shadow-lg py-2 border border-outline-variant"
       style={{ left: x, top: y }}
     >
       {items.map((item, index) => (
