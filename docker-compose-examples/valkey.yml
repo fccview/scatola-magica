@@ -1,0 +1,43 @@
+# Scatola Magica + Valkey shared cache.
+# Good for: multiple replicas, large libraries, or keeping the listing cache warm across restarts.
+# Valkey stores folder and file listings and relays live update events between instances,
+# so every open browser refreshes no matter which instance it is connected to.
+# If Valkey goes down the app keeps working and reads straight from disk until it is back.
+#
+# Setup:
+#   Copy this file next to your data folders as docker-compose.yml, then:
+#   mkdir -p uploads/temp config cache
+#   sudo chown -R 1000:1000 uploads config cache
+#   docker compose up -d
+
+services:
+  scatola-magica:
+    image: ghcr.io/fccview/scatola-magica:latest
+    container_name: scatola-magica
+    user: "1000:1000"
+    ports:
+      - "1133:3000"
+    volumes:
+      - ./uploads:/app/data/uploads:rw
+      - ./config:/app/data/config:rw
+      - ./cache:/app/.next/cache:rw
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      # Do not change this if you use docker.
+      - UPLOAD_DIR=/app/data/uploads
+      - VALKEY_URL=valkey://scatola-magica-valkey:6379
+    depends_on:
+      - scatola-magica-valkey
+
+  scatola-magica-valkey:
+    image: valkey/valkey:8-alpine
+    container_name: scatola-magica-valkey
+    command: ["valkey-server", "--save", "", "--appendonly", "no"]
+    restart: unless-stopped
+    user: "1000:1000"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true

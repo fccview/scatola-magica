@@ -1,0 +1,237 @@
+:root {
+  --fx-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --fx-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --fx-step: 18ms;
+}
+
+body.sidebar-resizing,
+body.sidebar-resizing * {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
+
+body.marquee-active {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.bar-busy {
+  position: relative;
+  overflow: hidden;
+  background-color: color-mix(in srgb, var(--primary) 22%, transparent);
+}
+
+.bar-busy::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: calc(100% + 46px);
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--primary) 0 8px,
+    transparent 8px 16px
+  );
+  opacity: 0.55;
+}
+
+.fx-spark {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  margin: -2.5px 0 0 -2.5px;
+  border-radius: 9999px;
+  background: var(--primary);
+  opacity: 0;
+  pointer-events: none;
+}
+
+@keyframes fx-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fx-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes fx-pop {
+  from { opacity: 0; transform: translateY(14px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes fx-sheet {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+
+@keyframes fx-menu {
+  from { opacity: 0; transform: translateY(-4px) scale(0.95); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes fx-unfold {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes fx-check {
+  0% { opacity: 0; transform: scale(0.2) rotate(-40deg); }
+  60% { opacity: 1; transform: scale(1.18) rotate(0deg); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes fx-spark {
+  0% { opacity: 1; transform: rotate(var(--fx-angle)) translateY(0) scale(1); }
+  100% { opacity: 0; transform: rotate(var(--fx-angle)) translateY(-26px) scale(0.2); }
+}
+
+@keyframes fx-stripes {
+  to { transform: translateX(-22.627px); }
+}
+
+@keyframes fx-shimmer {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(100%); }
+}
+
+@keyframes fx-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes fx-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+@keyframes fx-blink {
+  from { opacity: 0.45; }
+  to { opacity: 1; }
+}
+
+@keyframes fx-nudge {
+  0%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-3px); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .fx-fade {
+    animation: fx-fade 180ms ease-out backwards;
+  }
+
+  .fx-rise {
+    animation: fx-rise 280ms var(--fx-ease-out) backwards;
+  }
+
+  .fx-pop {
+    animation: fx-pop 260ms var(--fx-ease-out) backwards;
+  }
+
+  .fx-menu {
+    animation: fx-menu 160ms var(--fx-ease-out) backwards;
+  }
+
+  .fx-unfold {
+    animation: fx-unfold 200ms var(--fx-ease-out) backwards;
+  }
+
+  .fx-stagger > :not(.marquee-box) {
+    animation: fx-rise 300ms var(--fx-ease-out) backwards;
+    animation-delay: calc(var(--fx-i, 14) * var(--fx-step));
+  }
+
+  .fx-stagger > :nth-child(1) { --fx-i: 0; }
+  .fx-stagger > :nth-child(2) { --fx-i: 1; }
+  .fx-stagger > :nth-child(3) { --fx-i: 2; }
+  .fx-stagger > :nth-child(4) { --fx-i: 3; }
+  .fx-stagger > :nth-child(5) { --fx-i: 4; }
+  .fx-stagger > :nth-child(6) { --fx-i: 5; }
+  .fx-stagger > :nth-child(7) { --fx-i: 6; }
+  .fx-stagger > :nth-child(8) { --fx-i: 7; }
+  .fx-stagger > :nth-child(9) { --fx-i: 8; }
+  .fx-stagger > :nth-child(10) { --fx-i: 9; }
+  .fx-stagger > :nth-child(11) { --fx-i: 10; }
+  .fx-stagger > :nth-child(12) { --fx-i: 11; }
+  .fx-stagger > :nth-child(13) { --fx-i: 12; }
+  .fx-stagger > :nth-child(14) { --fx-i: 13; }
+
+  .fx-press {
+    transition-property: color, background-color, border-color, opacity, box-shadow, transform;
+    transition-duration: 150ms;
+    transition-timing-function: var(--fx-ease-out);
+  }
+
+  .fx-press:active:not(:disabled) {
+    transform: scale(0.95);
+  }
+
+  .fx-turn {
+    transition: transform 200ms var(--fx-ease-out), color 150ms ease;
+  }
+
+  .fx-spring {
+    transition-duration: 280ms;
+    transition-timing-function: var(--fx-spring);
+  }
+
+  .fx-float {
+    animation: fx-float 3.2s ease-in-out infinite;
+  }
+
+  .fx-breathe {
+    animation: fx-breathe 1.6s ease-in-out infinite;
+  }
+
+  .fx-blink {
+    animation: fx-blink 700ms ease-in-out infinite alternate;
+  }
+
+  .fx-nudge:hover .fx-nudge-target {
+    animation: fx-nudge 420ms var(--fx-spring);
+  }
+
+  .fx-check {
+    animation: fx-check 420ms var(--fx-spring) backwards;
+  }
+
+  .fx-spark {
+    animation: fx-spark 650ms var(--fx-ease-out) both;
+  }
+
+  .bar-busy::after {
+    animation: fx-stripes 700ms linear infinite;
+  }
+
+  .fx-shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .fx-shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.35),
+      transparent
+    );
+    animation: fx-shimmer 1.4s ease-in-out infinite;
+  }
+
+  .fx-handle {
+    box-shadow: 0 0 10px var(--primary);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) and (max-width: 1023px) {
+  .fx-pop {
+    animation: fx-sheet 300ms var(--fx-ease-out) backwards;
+  }
+}

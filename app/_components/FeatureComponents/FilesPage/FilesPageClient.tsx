@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useDragAndDrop } from "@/app/_hooks/useDragAndDrop";
+import { useLiveFiles } from "@/app/_hooks/useLiveFiles";
 import UploadModal from "@/app/_components/FeatureComponents/Modals/UploadModal";
 import UploadProgressModal from "@/app/_components/FeatureComponents/Modals/UploadProgressModal";
 import CreateFolderModal from "@/app/_components/FeatureComponents/Modals/CreateFolderModal";
@@ -12,6 +13,7 @@ import MobileBottomBar from "@/app/_components/FeatureComponents/FilesPage/Mobil
 import { useFolders } from "@/app/_providers/FoldersProvider";
 import { useSidebar } from "@/app/_providers/SidebarProvider";
 import { useShortcuts } from "@/app/_providers/ShortcutsProvider";
+import { useContextMenu } from "@/app/_providers/ContextMenuProvider";
 
 interface FilesPageClientProps {
   currentFolderId?: string | null;
@@ -33,6 +35,8 @@ const FilesPageClient = ({
   );
   const [uploadFiles, setUploadFiles] = useState<FileList | null>(null);
   const { toggleSidebar } = useSidebar();
+  const { showContextMenu } = useContextMenu();
+  useLiveFiles();
 
   useEffect(() => {
     setUploadFolderPath(currentFolderId || "");
@@ -65,6 +69,17 @@ const FilesPageClient = ({
     }
   };
 
+  const handleVoidClick = (e: React.MouseEvent) => {
+    showContextMenu(
+      e,
+      { type: "empty" },
+      {
+        onCreateFolder: () => setIsCreateFolderModalOpen(true),
+        onUpload: handleOpenUpload,
+      }
+    );
+  };
+
   useEffect(() => {
     registerActions({
       onUpload: () => {
@@ -84,6 +99,7 @@ const FilesPageClient = ({
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
+        onContextMenu={handleVoidClick}
       >
         <div
           data-current-folder={currentFolderId || "root"}

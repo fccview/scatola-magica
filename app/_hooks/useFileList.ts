@@ -18,6 +18,9 @@ import {
 } from "@/app/_server/actions/file-encryption";
 import { useShortcuts } from "@/app/_providers/ShortcutsProvider";
 import { useFileViewer } from "@/app/_providers/FileViewerProvider";
+import { FILES_MAX_PAGE_SIZE, FILES_PAGE_SIZE } from "@/app/_lib/constants";
+
+const MAX_RELOAD_PAGES = Math.floor(FILES_MAX_PAGE_SIZE / FILES_PAGE_SIZE);
 
 interface UseFileListProps {
   initialFiles: FileMetadata[];
@@ -56,12 +59,6 @@ export const useFileList = ({
       setViewMode(FileViewMode.LIST);
     }
   }, []);
-
-  useEffect(() => {
-    setAllFiles(initialFiles);
-    setCurrentPage(1);
-    setHasMore(initialHasMore);
-  }, [initialFiles, initialHasMore, folderPath, search, sortBy]);
 
   const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
   const [deletingFolderId, setDeletingFolderId] = useState<string | null>(null);
@@ -119,7 +116,7 @@ export const useFileList = ({
       const nextPage = currentPage + 1;
       const result = await getFiles({
         page: nextPage,
-        pageSize: 15,
+        pageSize: FILES_PAGE_SIZE,
         search,
         sortBy,
         folderPath,
@@ -185,6 +182,55 @@ export const useFileList = ({
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, [hasMore, isLoadingMore, loadMore]);
+
+  const viewKey = [folderPath, search, sortBy, isRecursive].join("|");
+  const viewKeyRef = useRef(viewKey);
+  const pageRef = useRef(currentPage);
+
+  useEffect(() => {
+    pageRef.current = currentPage;
+  }, [currentPage]);
+
+  const reloadPages = useCallback(
+    async (pages: number, key: string) => {
+      try {
+        const result = await getFiles({
+          page: 1,
+          pageSize: Math.min(pages, MAX_RELOAD_PAGES) * FILES_PAGE_SIZE,
+          search,
+          sortBy,
+          folderPath,
+          recursive: isRecursive || !!search,
+        });
+
+        if (viewKeyRef.current !== key || !result.success || !result.data) {
+          return;
+        }
+
+        setAllFiles(result.data.items);
+        const loaded = Math.ceil(result.data.items.length / FILES_PAGE_SIZE);
+        setCurrentPage(Math.max(1, loaded));
+        setHasMore(result.data.hasMore);
+      } catch (error) {
+        console.error("Failed to reload loaded pages:", error);
+      }
+    },
+    [search, sortBy, folderPath, isRecursive]
+  );
+
+  useEffect(() => {
+    const isSameView = viewKeyRef.current === viewKey;
+    viewKeyRef.current = viewKey;
+
+    if (isSameView && pageRef.current > 1) {
+      reloadPages(pageRef.current, viewKey);
+      return;
+    }
+
+    setAllFiles(initialFiles);
+    setCurrentPage(1);
+    setHasMore(initialHasMore);
+  }, [initialFiles, initialHasMore, viewKey, reloadPages]);
 
   const totalSelected = selectedFileIds.size + selectedFolderIds.size;
 
@@ -644,6 +690,12 @@ export const useFileList = ({
     setIsSelectionMode(true);
   };
 
+  const selectMany = (fileIds: string[], folderIds: string[]) => {
+    setSelectedFileIds(new Set(fileIds));
+    setSelectedFolderIds(new Set(folderIds));
+    setIsSelectionMode(fileIds.length + folderIds.length > 0);
+  };
+
   const clearSelection = () => {
     setSelectedFileIds(new Set());
     setSelectedFolderIds(new Set());
@@ -800,6 +852,7 @@ export const useFileList = ({
     toggleFileSelection,
     toggleFolderSelection,
     selectAll,
+    selectMany,
     clearSelection,
     exitSelectionMode,
     handleBulkDelete,

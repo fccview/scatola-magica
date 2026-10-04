@@ -1,4 +1,6 @@
+import type { CSSProperties } from "react";
 import type { Metadata, Viewport } from "next";
+import { cookies } from "next/headers";
 import ServiceWorkerRegistrar from "@/app/_components/GlobalComponents/Layout/ServiceWorkerRegistrar";
 import PWAInstallPrompt from "@/app/_components/GlobalComponents/Layout/PWAInstallPrompt";
 import ThemeScript from "@/app/_components/GlobalComponents/Layout/ThemeScript";
@@ -11,10 +13,16 @@ import ContextMenuProvider from "@/app/_providers/ContextMenuProvider";
 import FileViewerProvider from "@/app/_providers/FileViewerProvider";
 import FileViewer from "@/app/_components/FeatureComponents/Modals/FileViewer";
 import { PreferencesProvider } from "@/app/_providers/PreferencesProvider";
-import { getCurrentUser, readUsers } from "@/app/_server/actions/user";
-import { getUserPreferences } from "@/app/_lib/preferences";
+import { getUserRecord } from "@/app/_lib/current-user";
+import { readUsers, toPublicUser } from "@/app/_lib/auth-utils";
+import { getUserPreferences } from "@/app/_lib/preferences-store";
+import { pathTokenFor } from "@/app/_lib/path-encryption";
+import type { CurrentUser, PublicUser } from "@/app/_types";
 import AnimatedPokemon from "@/app/_components/GlobalComponents/Layout/AnimatedPokemon";
+import { SIDEBAR_COOKIE } from "@/app/_lib/constants";
+import { parseWidth, widthStyle } from "@/app/_lib/sidebar-width";
 import "@/app/globals.css";
+import "@/app/_styles/effects.css";
 
 export const metadata: Metadata = {
   title: "Scatola Magica",
@@ -42,20 +50,43 @@ const RootLayout = async ({
 }: Readonly<{
   children: React.ReactNode;
 }>) => {
-  const currentUser = await getCurrentUser();
+  const record = await getUserRecord();
+  const currentUser: CurrentUser | null = record
+    ? {
+        username: record.username,
+        isAdmin: !!record.isAdmin,
+        isSuperAdmin: !!record.isSuperAdmin,
+        avatar: record.avatar,
+        persistentTheme: record.persistentTheme ?? false,
+        pokemonTheme: record.pokemonTheme,
+        colorMode: record.colorMode,
+      }
+    : null;
   const preferences = currentUser
     ? await getUserPreferences(currentUser.username)
-    : { particlesEnabled: true, wandCursorEnabled: true, username: "" };
-  const initialUsers = await readUsers();
+    : {
+        particlesEnabled: true,
+        wandCursorEnabled: true,
+        username: "",
+      };
+  const cookieStore = await cookies();
+  const sidebarWidth = parseWidth(cookieStore.get(SIDEBAR_COOKIE)?.value);
+  const encryptionKey = record?.encryptionKey || null;
+  const pathToken = encryptionKey ? pathTokenFor(encryptionKey) : null;
 
-  let encryptionKey: string | null = null;
-  if (currentUser) {
-    const user = initialUsers.find((u) => u.username === currentUser.username);
-    encryptionKey = user?.encryptionKey || null;
-  }
+  const allUsers = currentUser ? await readUsers() : [];
+  const initialUsers: PublicUser[] = currentUser?.isAdmin
+    ? allUsers.map(toPublicUser)
+    : allUsers
+        .filter((u) => u.username === currentUser?.username)
+        .map(toPublicUser);
 
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html
+      lang="en"
+      suppressHydrationWarning
+      style={widthStyle(sidebarWidth) as CSSProperties}
+    >
       <head>
         <ThemeScript
           persistentTheme={currentUser?.persistentTheme ?? false}
@@ -94,9 +125,11 @@ const RootLayout = async ({
           preferences={{
             particlesEnabled: preferences.particlesEnabled,
             wandCursorEnabled: preferences.wandCursorEnabled,
+            sidebarWidth,
             pokemonThemesEnabled: preferences.pokemonThemesEnabled,
             user: currentUser,
             encryptionKey,
+            pathToken,
             customKeysPath: preferences.customKeysPath,
             e2eEncryptionOnTransfer: preferences.e2eEncryptionOnTransfer,
             showThumbnails: preferences.showThumbnails ?? false,

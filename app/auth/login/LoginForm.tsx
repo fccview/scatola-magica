@@ -9,17 +9,19 @@ interface LoginFormProps {
   oidcAvailable: boolean;
   isFirstUser: boolean;
   passwordLoginDisabled: boolean;
+  initialError?: string;
 }
 
 export default function LoginForm({
   oidcAvailable,
   isFirstUser,
   passwordLoginDisabled,
+  initialError,
 }: LoginFormProps) {
   const router = useRouter();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError] = useState(initialError ?? "");
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -86,6 +88,12 @@ export default function LoginForm({
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div className="p-4 rounded-lg bg-error-container text-on-error-container">
+          {error}
+        </div>
+      )}
+
       {oidcAvailable && (
         <div className="space-y-4">
           <Button
@@ -111,12 +119,6 @@ export default function LoginForm({
 
       {showPasswordLogin && (
         <form onSubmit={handleSubmit} className="space-y-6">
-          {error && (
-            <div className="p-4 rounded-lg bg-error-container text-on-error-container">
-              {error}
-            </div>
-          )}
-
           {isFirstUser && (
             <div className="p-4 rounded-lg bg-primary-container text-on-primary-container">
               <p className="text-sm font-medium">

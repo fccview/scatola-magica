@@ -103,7 +103,8 @@ export const useClientEncryption = () => {
           );
           throw new Error(
             `Failed to encrypt ${file.name}: ${error instanceof Error ? error.message : "Unknown error"
-            }`
+            }`,
+            { cause: error }
           );
         }
       }

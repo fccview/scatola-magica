@@ -60,7 +60,7 @@ const Switch = forwardRef<HTMLDivElement, SwitchProps>(
           }}
         >
           <span
-            className={`inline-block h-4 w-4 transform rounded-full transition-transform ${
+            className={`fx-spring inline-block h-4 w-4 transform rounded-full transition-transform ${
               checked
                 ? "translate-x-6 bg-on-primary"
                 : "translate-x-1 bg-on-surface"

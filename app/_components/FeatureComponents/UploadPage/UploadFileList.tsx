@@ -1,214 +1,90 @@
-import { UploadProgress } from "@/app/_types";
-import { UploadStatus } from "@/app/_types/enums";
-import { formatBytes, formatDuration } from "@/app/_lib/file-utils";
-import IconButton from "@/app/_components/GlobalComponents/Buttons/IconButton";
-import Progress from "@/app/_components/GlobalComponents/Layout/Progress";
-import PreparingUploadMessage from "@/app/_components/FeatureComponents/UploadPage/PreparingUploadMessage";
-import LottieAnimation from "@/app/_components/GlobalComponents/Layout/LottieAnimation";
-import { ANIMATIONS } from "@/app/_lib/animations";
+"use client";
 
-interface UploadingFile {
-  id: string;
-  file: File;
-  relativePath?: string;
-  progress: UploadProgress | null;
-  uploader: any;
-  status: UploadStatus;
-  fileId?: string;
-  folderId?: string | null;
-}
+import { UploadStatus } from "@/app/_types/enums";
+import { UploadStructure, UploadingFile } from "@/app/_types/upload";
+import { isSettled, tallyUploads } from "@/app/_lib/upload-tally";
+import UploadSummary from "@/app/_components/FeatureComponents/UploadPage/UploadSummary";
+import UploadActiveRow from "@/app/_components/FeatureComponents/UploadPage/UploadActiveRow";
+import UploadQueue from "@/app/_components/FeatureComponents/UploadPage/UploadQueue";
+import UploadSettledRow from "@/app/_components/FeatureComponents/UploadPage/UploadSettledRow";
+import UploadStructureNotice from "@/app/_components/FeatureComponents/UploadPage/UploadStructureNotice";
 
 interface UploadFileListProps {
   files: UploadingFile[];
+  structure?: UploadStructure | null;
   onCancel: (id: string) => void;
   onRemove: (id: string) => void;
+  onRetry: (id: string) => void;
+  onRetryFailed: () => void;
+  onCancelAll: () => void;
+  onDismissStructure?: () => void;
   onClose?: () => void;
 }
 
-export default function UploadFileList({
+const UploadFileList = ({
   files,
+  structure,
   onCancel,
   onRemove,
+  onRetry,
+  onRetryFailed,
+  onCancelAll,
+  onDismissStructure,
   onClose,
-}: UploadFileListProps) {
-  if (files.length === 0) return null;
+}: UploadFileListProps) => {
+  if (files.length === 0 && !structure) return null;
 
-  const totalFiles = files.length;
-  const completedFiles = files.filter(
-    (f) => f.status === UploadStatus.COMPLETED
-  ).length;
-  const failedFiles = files.filter(
-    (f) => f.status === UploadStatus.FAILED
-  ).length;
-  const uploadingFiles = files.filter(
-    (f) => f.status === UploadStatus.UPLOADING
-  );
-  const pendingFiles = files.filter(
-    (f) => f.status === UploadStatus.PENDING
-  ).length;
+  const tally = tallyUploads(files);
+  const active = files.filter((f) => f.status === UploadStatus.UPLOADING);
+  const queued = files.filter((f) => f.status === UploadStatus.PENDING);
+  const settled = files.filter((f) => isSettled(f.status));
 
-  const uploadingProgress = uploadingFiles.reduce((sum, f) => {
-    return sum + (f.progress?.progress || 0);
-  }, 0);
-  const completedProgress = completedFiles * 100;
-  const overallProgress = (completedProgress + uploadingProgress) / totalFiles;
-  const hasActiveUploads = uploadingFiles.length > 0;
+  const handleRemove = (id: string) => {
+    onRemove(id);
+    if (files.length === 1 && !structure && onClose) onClose();
+  };
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-on-surface">
-            {hasActiveUploads
-              ? `Uploading ${
-                  completedFiles + uploadingFiles.length
-                } of ${totalFiles}`
-              : failedFiles > 0
-              ? "Upload Complete with Errors"
-              : "Upload Complete"}
-          </h3>
-          {hasActiveUploads && (
-            <span className="text-sm text-on-surface-variant">
-              {completedFiles + uploadingFiles.length} / {totalFiles} files
-            </span>
-          )}
-        </div>
+    <div className="space-y-5">
+      {files.length > 0 && (
+        <UploadSummary
+          tally={tally}
+          onRetryFailed={onRetryFailed}
+          onCancelAll={onCancelAll}
+        />
+      )}
 
+      {structure && (
+        <UploadStructureNotice structure={structure} onDismiss={onDismissStructure} />
+      )}
+
+      {active.length > 0 && (
         <div className="space-y-2">
-          <Progress value={overallProgress} />
-          <div className="flex justify-between text-xs text-on-surface-variant">
-            <span>{Math.round(overallProgress)}% complete</span>
-            {failedFiles > 0 && (
-              <span className="text-error">{failedFiles} failed</span>
-            )}
-          </div>
+          {active.map((upload) => (
+            <UploadActiveRow key={upload.id} upload={upload} onCancel={onCancel} />
+          ))}
         </div>
+      )}
 
-        {uploadingFiles.length > 0 && (
-          <div className="space-y-2">
-            {uploadingFiles.map((currentFile) => (
-              <div
-                key={currentFile.id}
-                className="bg-surface-container-high rounded-lg p-4 space-y-2"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-on-surface truncate">
-                      {currentFile.relativePath || currentFile.file.name}
-                    </p>
-                    <p className="text-xs text-on-surface-variant mt-0.5">
-                      {formatBytes(currentFile.file.size)}
-                      {currentFile.progress &&
-                        currentFile.progress.speed > 0 && (
-                          <>
-                            {" • "}
-                            {formatBytes(currentFile.progress.speed)}/s
-                            {" • "}
-                            {formatDuration(
-                              currentFile.progress.remainingTime
-                            )}{" "}
-                            remaining
-                          </>
-                        )}
-                    </p>
-                  </div>
-                  <IconButton
-                    icon="close"
-                    size="sm"
-                    onClick={() => onCancel(currentFile.id)}
-                  />
-                </div>
+      <UploadQueue queued={queued} onCancel={onCancel} />
 
-                {!currentFile.progress ||
-                (currentFile.progress.chunksCompleted === 0 &&
-                  currentFile.progress.speed === 0) ? (
-                  <PreparingUploadMessage />
-                ) : (
-                  <div className="space-y-1">
-                    <Progress value={currentFile.progress.progress} size="sm" />
-                    <div className="flex justify-between text-xs text-on-surface-variant">
-                      <span>
-                        {currentFile.progress.chunksCompleted} /{" "}
-                        {currentFile.progress.totalChunks} chunks
-                      </span>
-                      <span>{Math.round(currentFile.progress.progress)}%</span>
-                    </div>
-                  </div>
-                )}
-              </div>
+      {settled.length > 0 && (
+        <div className="space-y-2">
+          <h4 className="text-sm font-medium text-on-surface-variant">Finished</h4>
+          <div className="max-h-64 overflow-y-auto space-y-1.5 pr-2">
+            {settled.map((upload) => (
+              <UploadSettledRow
+                key={upload.id}
+                upload={upload}
+                onRemove={handleRemove}
+                onRetry={onRetry}
+              />
             ))}
-          </div>
-        )}
-      </div>
-
-      {completedFiles + failedFiles > 0 && (
-        <div className="space-y-2">
-          <h4 className="text-sm font-medium text-on-surface-variant">
-            {completedFiles > 0 ? "Completed Files" : "Failed Files"}
-          </h4>
-          <div className="max-h-64 overflow-y-auto space-y-1.5 pr-2 scrollbar-thin">
-            {files
-              .filter(
-                (f) =>
-                  f.status === UploadStatus.COMPLETED ||
-                  f.status === UploadStatus.FAILED ||
-                  f.status === UploadStatus.CANCELLED
-              )
-              .map((file) => (
-                <div
-                  key={file.id}
-                  className="flex items-center gap-3 p-3 rounded-lg bg-surface-container hover:bg-surface-container-high transition-colors"
-                >
-                  {file.status === UploadStatus.COMPLETED ? (
-                    <div className="w-6 h-6 flex-shrink-0">
-                      <LottieAnimation
-                        animationUrl={ANIMATIONS.SUCCESS_CHECKMARK}
-                        loop={false}
-                        autoplay={true}
-                        style={{ width: "100%", height: "100%" }}
-                      />
-                    </div>
-                  ) : (
-                    <span
-                      className={`material-symbols-outlined text-xl ${
-                        file.status === UploadStatus.FAILED
-                          ? "text-error"
-                          : "text-on-surface-variant"
-                      }`}
-                    >
-                      {file.status === UploadStatus.FAILED ? "error" : "cancel"}
-                    </span>
-                  )}
-
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-on-surface truncate">
-                      {file.relativePath || file.file.name}
-                    </p>
-                    <p className="text-xs text-on-surface-variant">
-                      {formatBytes(file.file.size)}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-1">
-                    <IconButton
-                      icon="close"
-                      size="sm"
-                      onClick={() => {
-                        onRemove(file.id);
-                        const remainingFiles = files.filter(
-                          (f) => f.id !== file.id
-                        );
-                        if (remainingFiles.length === 0 && onClose) {
-                          onClose();
-                        }
-                      }}
-                    />
-                  </div>
-                </div>
-              ))}
           </div>
         </div>
       )}
     </div>
   );
-}
+};
+
+export default UploadFileList;

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { deleteUser, updateUser } from "@/app/_server/actions/user";
+import { deleteUser, updateUser } from "@/app/_server/actions/user/admin";
 import { useUsers } from "@/app/_providers/UsersProvider";
 import { usePreferences } from "@/app/_providers/PreferencesProvider";
 import Button from "@/app/_components/GlobalComponents/Buttons/Button";

@@ -1,4 +1,4 @@
-import { UploadStatus } from "@/app/_types/enums";
+import { ChunkState, UploadPhase, UploadStatus } from "@/app/_types/enums";
 
 export * from "@/app/_types/torrent";
 
@@ -25,6 +25,10 @@ export interface UploadProgress {
   remainingTime: number;
   chunksCompleted: number;
   totalChunks: number;
+  phase: UploadPhase;
+  chunksInFlight: number;
+  chunksRetrying: number;
+  chunkMap?: ChunkState[];
 }
 
 export interface ChunkMetadata {
@@ -75,10 +79,36 @@ export interface User {
   colorMode?: "light" | "dark";
 }
 
+export type PublicUser = Pick<
+  User,
+  "username" | "isAdmin" | "isSuperAdmin" | "createdAt" | "avatar"
+>;
+
+export interface CurrentUser {
+  username: string;
+  isAdmin: boolean;
+  isSuperAdmin: boolean;
+  avatar?: string;
+  persistentTheme?: boolean;
+  pokemonTheme?: string | null;
+  colorMode?: "light" | "dark";
+}
+
 export interface Session {
   sessionId: string;
   username: string;
   createdAt: string;
   expiresAt: string;
   authMethod: "normal" | "sso";
+}
+
+export interface ArchiveEntry {
+  name: string;
+  size: number;
+  isDirectory: boolean;
+}
+
+export interface ArchiveListing {
+  entries: ArchiveEntry[];
+  total: number;
 }

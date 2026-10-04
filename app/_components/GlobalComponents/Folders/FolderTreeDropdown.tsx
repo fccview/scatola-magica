@@ -17,13 +17,12 @@ export default function FolderTreeDropdown({
   onFolderSelect,
   maxHeight,
 }: FolderTreeDropdownProps) {
-  const folderTreeHook =
-    providedHook ||
-    useFolderTree({
-      currentFolderId: selectedFolderId ?? null,
-      onFolderSelect: onFolderSelect || (() => {}),
-      variant: "dropdown",
-    });
+  const ownHook = useFolderTree({
+    currentFolderId: selectedFolderId ?? null,
+    onFolderSelect: onFolderSelect || (() => {}),
+    variant: "dropdown",
+  });
+  const folderTreeHook = providedHook ?? ownHook;
 
   const { filteredTree } = folderTreeHook;
 

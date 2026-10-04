@@ -1,54 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { readSessions } from "@/app/_server/actions/user";
-import { isInternalRequest } from "@/app/_lib/request-auth";
-
-type Session = Record<string, string>;
+import { COOKIE_NAME } from "@/app/_lib/auth-constants";
+import { getSessionUsername } from "@/app/_lib/auth-utils";
+import { logger } from "@/app/_lib/logger";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(request: NextRequest) {
+export const GET = async (request: NextRequest) => {
   try {
-    const isInternal = await isInternalRequest(request);
-    if (!isInternal) {
-      return new NextResponse(
-        JSON.stringify({
-          error: "This endpoint is only accessible via browser sessions",
-        }),
-        { status: 403 }
-      );
-    }
-
-    const cookieStore = await cookies();
-    const cookieName =
-      process.env.NODE_ENV === "production" && process.env.HTTPS === "true"
-        ? "__Host-session"
-        : "session";
-    const sessionId = cookieStore.get(cookieName)?.value;
-
+    const sessionId = request.cookies.get(COOKIE_NAME)?.value;
     if (!sessionId) {
-      return new NextResponse(JSON.stringify({ error: "No session cookie" }), {
-        status: 401,
-      });
+      return NextResponse.json({ error: "No session cookie" }, { status: 401 });
     }
 
-    const sessions: Session = await readSessions();
-
-    if (sessions && sessions[sessionId]) {
-      return new NextResponse(
-        JSON.stringify({ success: true, username: sessions[sessionId] }),
-        { status: 200 }
-      );
-    } else {
-      return new NextResponse(JSON.stringify({ error: "Invalid session" }), {
-        status: 401,
-      });
+    const username = await getSessionUsername(sessionId);
+    if (!username) {
+      return NextResponse.json({ error: "Invalid session" }, { status: 401 });
     }
+
+    return NextResponse.json({ success: true, username });
   } catch (error) {
-    console.error("Session check API error:", error);
-    return new NextResponse(
-      JSON.stringify({ error: "Internal server error" }),
-      { status: 500 }
-    );
+    logger.error("check-session", "Session check failed", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
-}
+};

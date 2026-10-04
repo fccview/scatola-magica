@@ -1,6 +1,6 @@
 "use client";
 
-import { FileMetadata, User } from "@/app/_types";
+import { FileMetadata, PublicUser } from "@/app/_types";
 import { FileViewMode, SortBy } from "@/app/_types/enums";
 import { type FolderMetadata } from "@/app/_server/actions/folders";
 import FileCard from "@/app/_components/GlobalComponents/Cards/FileCard";
@@ -17,7 +17,9 @@ import ErrorModal from "@/app/_components/FeatureComponents/Modals/ErrorModal";
 import CreateTorrentModal from "@/app/_components/FeatureComponents/Modals/TorrentCreatedModal";
 import Progress from "@/app/_components/GlobalComponents/Layout/Progress";
 import Logo from "@/app/_components/GlobalComponents/Layout/Logo";
+import { useRef } from "react";
 import { useFileList } from "@/app/_hooks/useFileList";
+import { useMarquee } from "@/app/_hooks/useMarquee";
 import { useFileTorrents } from "@/app/_hooks/useFileTorrents";
 import { usePreferences } from "@/app/_providers/PreferencesProvider";
 
@@ -30,7 +32,7 @@ interface FileListClientProps {
   sortBy?: SortBy;
   hasMore?: boolean;
   total?: number;
-  allUsers?: User[];
+  allUsers?: PublicUser[];
 }
 
 export default function FileListClient({
@@ -101,6 +103,7 @@ export default function FileListClient({
     toggleFileSelection,
     toggleFolderSelection,
     selectAll,
+    selectMany,
     clearSelection,
     exitSelectionMode,
     handleBulkDelete,
@@ -115,6 +118,16 @@ export default function FileListClient({
     search,
     sortBy,
     initialHasMore,
+  });
+
+  const listRef = useRef<HTMLDivElement>(null);
+  const marqueeRef = useRef<HTMLDivElement>(null);
+  const { onPointerDown: startMarquee } = useMarquee({
+    containerRef: listRef,
+    boxRef: marqueeRef,
+    selectedFiles: selectedFileIds,
+    selectedFolders: selectedFolderIds,
+    onSelect: selectMany,
   });
 
   const { hasTorrent, refresh: refreshTorrents } = useFileTorrents();
@@ -167,7 +180,9 @@ export default function FileListClient({
       )}
 
       <div
-        className={`flex-1 overflow-y-auto ${viewMode === FileViewMode.GRID
+        ref={listRef}
+        onPointerDown={startMarquee}
+        className={`fx-stagger relative flex-1 overflow-y-auto ${viewMode === FileViewMode.GRID
           ? "grid grid-cols-3 medium:grid-cols-2 expanded:grid-cols-3 large:grid-cols-4 xlarge:grid-cols-5 gap-3 content-start lg:p-2"
           : "flex flex-col gap-1"
           }`}
@@ -228,6 +243,13 @@ export default function FileListClient({
             <Progress variant="circular" size="md" value={50} />
           </div>
         )}
+
+        <div
+          ref={marqueeRef}
+          aria-hidden="true"
+          style={{ display: "none" }}
+          className="marquee-box pointer-events-none absolute left-0 top-0 z-20 rounded-lg border-2 border-dashed border-primary bg-primary/5 will-change-transform"
+        />
 
         <div
           ref={sentinelRef}

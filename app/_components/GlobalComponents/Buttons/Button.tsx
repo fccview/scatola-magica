@@ -14,7 +14,7 @@ export default function Button({
   ...props
 }: ButtonProps) {
   const baseStyles =
-    "rounded-lg font-normal transition-colors inline-flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none";
+    "fx-press rounded-lg font-normal transition-colors inline-flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none";
 
   const variantStyles = {
     filled: "bg-primary text-on-primary hover:bg-primary/90",

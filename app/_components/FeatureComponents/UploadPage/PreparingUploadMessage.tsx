@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import LottieAnimation from "@/app/_components/GlobalComponents/Layout/LottieAnimation";
 import { ANIMATIONS } from "@/app/_lib/animations";
+import { useMotion } from "@/app/_hooks/useMotion";
 
 const PREPARING_MESSAGES = [
   "Chopping your chunks...",
@@ -18,6 +19,7 @@ const PREPARING_MESSAGES = [
 ];
 
 export default function PreparingUploadMessage() {
+  const motion = useMotion();
   const [currentMessage, setCurrentMessage] = useState(PREPARING_MESSAGES[0]);
 
   useEffect(() => {
@@ -31,16 +33,18 @@ export default function PreparingUploadMessage() {
   }, []);
 
   return (
-    <div className="flex items-center gap-3 py-2">
-      <div className="w-12 h-5">
-        <LottieAnimation
-          animationUrl={ANIMATIONS.LOADING_DOTS}
-          loop={true}
-          autoplay={true}
-          style={{ width: "100%", height: "100%" }}
-        />
-      </div>
-      <span className="text-sm text-on-surface-variant">
+    <div className="flex items-center gap-3">
+      {motion && (
+        <div className="w-12 h-5">
+          <LottieAnimation
+            animationUrl={ANIMATIONS.LOADING_DOTS}
+            loop={true}
+            autoplay={true}
+            style={{ width: "100%", height: "100%" }}
+          />
+        </div>
+      )}
+      <span key={currentMessage} className="fx-fade text-xs text-on-surface-variant">
         {currentMessage}
       </span>
     </div>

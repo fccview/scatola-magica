@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import Link from "next/link";
 import ProfileTab from "@/app/_components/FeatureComponents/SettingsPage/ProfileTab";
 import PreferencesTab from "@/app/_components/FeatureComponents/SettingsPage/PreferencesTab";
 import UploadSettingsTab from "@/app/_components/FeatureComponents/SettingsPage/UploadSettingsTab";
@@ -12,7 +11,7 @@ import AuditLogsTab from "@/app/_components/FeatureComponents/SettingsPage/Audit
 import TopAppBar from "@/app/_components/GlobalComponents/Layout/TopAppBar";
 import ThemeSelector from "@/app/_components/GlobalComponents/Layout/ThemeSelector";
 import UserMenu from "@/app/_components/FeatureComponents/User/UserMenu";
-import Logo from "@/app/_components/GlobalComponents/Layout/Logo";
+import BrandLink from "@/app/_components/GlobalComponents/Layout/BrandLink";
 import FilesPageBorderWrapper from "@/app/_components/GlobalComponents/Files/FilesPageBorderWrapper";
 import FilesPageWrapper from "@/app/_components/GlobalComponents/Files/FilesPageWrapper";
 import Select from "@/app/_components/GlobalComponents/Form/Select";
@@ -85,27 +84,21 @@ function SettingsPageContent() {
   return (
     <FilesPageBorderWrapper>
       <FilesPageWrapper folderPath="">
-        <div className="flex-shrink-0">
-          <TopAppBar
-            leading={
-              <Link
-                href="/"
-                className="flex items-center justify-center leading-[0] gap-2 pt-8 pb-2 -ml-4"
-              >
-                <Logo className="w-16 h-16 lg:w-20 lg:h-20" hideBox={true} />
-              </Link>
-            }
-            trailing={
-              <div className="flex items-center gap-2">
-                <ThemeSelector />
-                <UserMenu />
-              </div>
-            }
-          />
-        </div>
         <div className="flex flex-1 overflow-hidden min-h-0">
           <MobileSidebarWrapper
             title="Settings"
+            header={
+              <TopAppBar
+                docked
+                leading={<BrandLink />}
+                trailing={
+                  <div className="flex items-center gap-2">
+                    <ThemeSelector />
+                    <UserMenu />
+                  </div>
+                }
+              />
+            }
             sidebar={
               <SettingsSidebar
                 tabs={tabs}
@@ -129,13 +122,15 @@ function SettingsPageContent() {
                   </Select>
                 </div>
 
-                {activeTab === "profile" && <ProfileTab />}
-                {activeTab === "preferences" && <PreferencesTab />}
-                {activeTab === "upload" && <UploadSettingsTab />}
-                {activeTab === "encryption" && <EncryptionTab />}
-                {activeTab === "users" && <UsersTab />}
-                {activeTab === "audit-logs" && <AuditLogsTab />}
-                {activeTab === "torrents" && torrentsEnabled && <TorrentsTab />}
+                <div key={activeTab} className="fx-rise">
+                  {activeTab === "profile" && <ProfileTab />}
+                  {activeTab === "preferences" && <PreferencesTab />}
+                  {activeTab === "upload" && <UploadSettingsTab />}
+                  {activeTab === "encryption" && <EncryptionTab />}
+                  {activeTab === "users" && <UsersTab />}
+                  {activeTab === "audit-logs" && <AuditLogsTab />}
+                  {activeTab === "torrents" && torrentsEnabled && <TorrentsTab />}
+                </div>
               </div>
             </main>
           </MobileSidebarWrapper>

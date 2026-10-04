@@ -1,114 +1,73 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
+import {
+  callbackUrl,
+  fetchDiscovery,
+  getOidcConfig,
+  loginRedirect,
+  OidcCookie,
+  OidcError,
+  setOidcCookie,
+} from "@/app/_lib/oidc";
+import { envOrFile } from "@/app/_lib/env";
+import { logger } from "@/app/_lib/logger";
+
 export const dynamic = "force-dynamic";
 
-function base64UrlEncode(buffer: Buffer) {
-  return buffer
-    .toString("base64")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/g, "");
-}
+const SCOPE = "oidc-login";
+const BASE_SCOPE = "openid profile email";
+const DISABLED_SCOPE_VALUES = ["no", "false"];
 
-function sha256(input: string) {
-  return crypto.createHash("sha256").update(input).digest();
-}
+const _random = (bytes: number): string =>
+  crypto.randomBytes(bytes).toString("base64url");
 
-export async function GET(request: NextRequest) {
-  const appUrl = process.env.APP_URL || request.nextUrl.origin;
+const _challenge = (verifier: string): string =>
+  crypto.createHash("sha256").update(verifier).digest("base64url");
 
-  let issuer = process.env.OIDC_ISSUER || "";
-  if (issuer && !issuer.endsWith("/")) {
-    issuer = `${issuer}/`;
-  }
-  const clientId = process.env.OIDC_CLIENT_ID || "";
+const _scope = (): string => {
+  const groupsScope = envOrFile("OIDC_GROUPS_SCOPE") ?? "groups";
+  const wantsGroups =
+    !!(process.env.OIDC_ADMIN_GROUPS || process.env.OIDC_USER_GROUPS) &&
+    !!groupsScope &&
+    !DISABLED_SCOPE_VALUES.includes(groupsScope.toLowerCase());
 
-  if (!issuer || !clientId) {
-    if (process.env.DEBUGGER) {
-      console.log("SSO LOGIN - issuer or clientId is not set");
-    }
+  return wantsGroups ? `${BASE_SCOPE} ${groupsScope}` : BASE_SCOPE;
+};
 
-    return NextResponse.redirect(`${appUrl}/auth/login`);
+export const GET = async (request: NextRequest) => {
+  const config = getOidcConfig();
+  if (!config) {
+    logger.warn(SCOPE, "OIDC_ISSUER or OIDC_CLIENT_ID is not set");
+    return loginRedirect(request, OidcError.NOT_CONFIGURED);
   }
 
-  const discoveryUrl = issuer.endsWith("/")
-    ? `${issuer}.well-known/openid-configuration`
-    : `${issuer}/.well-known/openid-configuration`;
-
-  const discoveryRes = await fetch(discoveryUrl, { cache: "no-store" });
-  if (!discoveryRes.ok) {
-    if (process.env.DEBUGGER) {
-      console.log("SSO LOGIN - discoveryUrl is not ok", discoveryRes);
-    }
-
-    return NextResponse.redirect(`${appUrl}/auth/login`);
+  const discovery = await fetchDiscovery(config.issuer);
+  if (!discovery?.authorization_endpoint) {
+    return loginRedirect(request, OidcError.DISCOVERY);
   }
-  const discovery = (await discoveryRes.json()) as {
-    authorization_endpoint: string;
-  };
-  const authorizationEndpoint = discovery.authorization_endpoint;
 
-  const verifier = base64UrlEncode(crypto.randomBytes(32));
-  const challenge = base64UrlEncode(sha256(verifier));
-  const state = base64UrlEncode(crypto.randomBytes(16));
-  const nonce = base64UrlEncode(crypto.randomBytes(16));
+  const verifier = _random(32);
+  const state = _random(16);
+  const nonce = _random(16);
 
-  const redirectUri = `${appUrl}/api/oidc/callback`;
-
-  const url = new URL(authorizationEndpoint);
+  const url = new URL(discovery.authorization_endpoint);
   url.searchParams.set("response_type", "code");
-  url.searchParams.set("client_id", clientId);
-  url.searchParams.set("redirect_uri", redirectUri);
-
-  const groupsScope = process.env.OIDC_GROUPS_SCOPE ?? "groups";
-  const baseScope = "openid profile email";
-
-  const shouldIncludeGroupsScope =
-    process.env.OIDC_ADMIN_GROUPS &&
-    groupsScope &&
-    groupsScope.toLowerCase() !== "no" &&
-    groupsScope.toLowerCase() !== "false";
-
-  if (shouldIncludeGroupsScope) {
-    url.searchParams.set("scope", `${baseScope} ${groupsScope}`);
-  } else {
-    url.searchParams.set("scope", baseScope);
-  }
-
-  url.searchParams.set("code_challenge", challenge);
+  url.searchParams.set("client_id", config.clientId);
+  url.searchParams.set("redirect_uri", callbackUrl(request));
+  url.searchParams.set("scope", _scope());
+  url.searchParams.set("code_challenge", _challenge(verifier));
   url.searchParams.set("code_challenge_method", "S256");
   url.searchParams.set("state", state);
   url.searchParams.set("nonce", nonce);
 
-  if (process.env.DEBUGGER) {
-    console.log("SSO LOGIN - url", url);
-  }
+  logger.debug(SCOPE, `Redirecting to ${url.origin}${url.pathname}`, {
+    redirectUri: callbackUrl(request),
+  });
 
   const response = NextResponse.redirect(url);
-  response.cookies.set("oidc_verifier", verifier, {
-    httpOnly: true,
-    secure:
-      process.env.NODE_ENV === "production" && process.env.HTTPS === "true",
-    sameSite: "lax",
-    path: "/",
-    maxAge: 600,
-  });
-  response.cookies.set("oidc_state", state, {
-    httpOnly: true,
-    secure:
-      process.env.NODE_ENV === "production" && process.env.HTTPS === "true",
-    sameSite: "lax",
-    path: "/",
-    maxAge: 600,
-  });
-  response.cookies.set("oidc_nonce", nonce, {
-    httpOnly: true,
-    secure:
-      process.env.NODE_ENV === "production" && process.env.HTTPS === "true",
-    sameSite: "lax",
-    path: "/",
-    maxAge: 600,
-  });
-  return response;
-}
+  setOidcCookie(response, OidcCookie.VERIFIER, verifier);
+  setOidcCookie(response, OidcCookie.STATE, state);
+  setOidcCookie(response, OidcCookie.NONCE, nonce);
 
+  return response;
+};

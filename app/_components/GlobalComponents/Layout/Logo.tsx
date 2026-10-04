@@ -4,33 +4,41 @@ export default function Logo({
   className = "",
   hideBox = false,
   hoverEffect = false,
+  loading = false,
 }: {
   className?: string;
   hideBox?: boolean;
   hoverEffect?: boolean;
+  loading?: boolean;
 }) {
   return (
     <svg
       viewBox="0 0 594 594"
       className={`logo-container ${className} ${hoverEffect ? "hover-effect" : ""
-        }`}
+        } ${hideBox ? "logo-boxless" : ""} ${loading ? "loading-animation" : ""}`}
     >
       <style>
         {`.logo-container .s0 {
-          fill: ${hideBox ? "transparent" : "var(--logo-box-1)"};
+          fill: var(--logo-box-1);
           transition: opacity 0.3s ease;
         }
         .logo-container .s1 {
-          fill: ${hideBox ? "transparent" : "var(--logo-box-2)"};
+          fill: var(--logo-box-2);
           transition: opacity 0.3s ease;
         }
         .logo-container .s2 {
-          fill: ${hideBox ? "transparent" : "var(--logo-box-3)"};
+          fill: var(--logo-box-3);
           transition: opacity 0.3s ease;
         }
         .logo-container .s3 {
-          fill: ${hideBox ? "transparent" : "var(--logo-box-4)"};
+          fill: var(--logo-box-4);
           transition: opacity 0.3s ease;
+        }
+        .logo-container.logo-boxless .s0,
+        .logo-container.logo-boxless .s1,
+        .logo-container.logo-boxless .s2,
+        .logo-container.logo-boxless .s3 {
+          fill: transparent;
         }
         .logo-container .s4 {
           fill: var(--logo-star);

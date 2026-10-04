@@ -1,15 +1,18 @@
 "use client";
 
 import { createContext, useContext, ReactNode } from "react";
-import { User, TorrentPreferences } from "@/app/_types";
-import { UserPreferences } from "@/app/_lib/preferences";
+import { CurrentUser, TorrentPreferences } from "@/app/_types";
+import { UserPreferences } from "@/app/_types/preferences";
+import { SIDEBAR_WIDTH } from "@/app/_lib/constants";
 
 interface PreferencesContextType {
   particlesEnabled: boolean;
   wandCursorEnabled: boolean;
+  sidebarWidth: number;
   pokemonThemesEnabled?: boolean;
-  user: Partial<User> | null;
+  user: CurrentUser | null;
   encryptionKey: string | null;
+  pathToken: string | null;
   customKeysPath?: string;
   e2eEncryptionOnTransfer?: boolean;
   showThumbnails?: boolean;
@@ -20,9 +23,11 @@ interface PreferencesContextType {
 const PreferencesContext = createContext<PreferencesContextType>({
   particlesEnabled: true,
   wandCursorEnabled: true,
+  sidebarWidth: SIDEBAR_WIDTH.DEFAULT,
   pokemonThemesEnabled: false,
   user: null,
   encryptionKey: null,
+  pathToken: null,
   customKeysPath: undefined,
   e2eEncryptionOnTransfer: true,
   showThumbnails: false,

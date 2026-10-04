@@ -2,9 +2,9 @@ import { Suspense } from "react";
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import TorrentsPageClient from "@/app/_components/FeatureComponents/TorrentsPage/TorrentsPageClient";
-import Progress from "@/app/_components/GlobalComponents/Layout/Progress";
-import { getCurrentUser } from "@/app/_server/actions/user";
-import { getUserPreferences } from "@/app/_lib/preferences";
+import LogoLoader from "@/app/_components/GlobalComponents/Layout/LogoLoader";
+import { getCurrentUser } from "@/app/_lib/current-user";
+import { getUserPreferences } from "@/app/_lib/preferences-store";
 
 export const metadata: Metadata = {
   title: "Torrents - Scatola Magica",
@@ -25,9 +25,7 @@ export default async function TorrentsPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex items-center justify-center h-screen bg-surface">
-          <Progress variant="circular" size="lg" value={50} />
-        </div>
+        <LogoLoader className="h-screen bg-surface" />
       }
     >
       <TorrentsPageClient />

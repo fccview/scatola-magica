@@ -5,7 +5,7 @@ import Modal from "@/app/_components/GlobalComponents/Layout/Modal";
 import UploadFileList from "@/app/_components/FeatureComponents/UploadPage/UploadFileList";
 import E2EPasswordModal from "@/app/_components/FeatureComponents/Modals/E2EPasswordModal";
 import { useUploadPage } from "@/app/_hooks/useUploadPage";
-import { UploadStatus } from "@/app/_types/enums";
+import { isSettled } from "@/app/_lib/upload-tally";
 import { FileWithPath } from "@/app/_lib/folder-reader";
 import { usePreferences } from "@/app/_providers/PreferencesProvider";
 import { getKeyStatus } from "@/app/_server/actions/pgp";
@@ -40,7 +40,12 @@ export default function UploadProgressModal({
     setE2eEncryption,
     handleFileSelect,
     handleFilesWithPathsSelect,
+    structure,
+    dismissStructure,
     cancelUpload,
+    cancelAll,
+    retryUpload,
+    retryFailed,
     removeFile,
   } = useUploadPage();
   const processedFilesRef = useRef<string>("");
@@ -80,7 +85,8 @@ export default function UploadProgressModal({
         handleFilesWithPathsSelect(
           initialFilesWithPaths,
           rootFolderName,
-          initialFolderPath
+          initialFolderPath,
+          encryption
         );
       } else if (initialFiles && initialFiles.length > 0) {
         handleFileSelect(initialFiles, initialFolderPath, encryption);
@@ -180,10 +186,8 @@ export default function UploadProgressModal({
     startUploadWithFiles,
   ]);
 
-  const hasActiveUploads = files.some(
-    (f) =>
-      f.status === UploadStatus.UPLOADING || f.status === UploadStatus.PENDING
-  );
+  const hasActiveUploads =
+    files.some((f) => !isSettled(f.status)) || (!!structure && !structure.error);
 
   const handleClose = () => {
     if (hasActiveUploads) {
@@ -193,14 +197,7 @@ export default function UploadProgressModal({
       if (!confirmed) {
         return;
       }
-      files.forEach((file) => {
-        if (
-          file.status === UploadStatus.UPLOADING ||
-          file.status === UploadStatus.PENDING
-        ) {
-          cancelUpload(file.id);
-        }
-      });
+      cancelAll();
     }
     onClose();
   };
@@ -217,8 +214,13 @@ export default function UploadProgressModal({
           <E2EInfoCard shouldUseE2E={shouldUseE2E} />
           <UploadFileList
             files={files}
+            structure={structure}
             onCancel={cancelUpload}
             onRemove={removeFile}
+            onRetry={retryUpload}
+            onRetryFailed={retryFailed}
+            onCancelAll={cancelAll}
+            onDismissStructure={dismissStructure}
             onClose={onClose}
           />
         </div>

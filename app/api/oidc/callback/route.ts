@@ -1,240 +1,127 @@
 import { NextRequest, NextResponse } from "next/server";
-import crypto from "crypto";
-import { jwtVerify, createRemoteJWKSet } from "jose";
+import { createSession, newSessionId } from "@/app/_lib/auth-utils";
 import {
-  createSession,
-  readUsers,
-  writeUsers,
-} from "@/app/_server/actions/user";
-import { COOKIE_NAME } from "@/app/_lib/auth-constants";
+  appUrl,
+  callbackUrl,
+  clearOidcCookies,
+  fetchDiscovery,
+  getOidcConfig,
+  loginRedirect,
+  OidcCookie,
+  OidcError,
+} from "@/app/_lib/oidc";
+import {
+  exchangeCode,
+  identityFrom,
+  provisionUser,
+  verifyIdToken,
+  withUserinfo,
+} from "@/app/_lib/oidc-flow";
+import { setSessionCookie } from "@/app/_lib/session-cookie";
+import { logger } from "@/app/_lib/logger";
 
 export const dynamic = "force-dynamic";
 
-function base64UrlEncode(buffer: Buffer) {
-  return buffer
-    .toString("base64")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/g, "");
-}
+const SCOPE = "oidc-callback";
 
-async function ensureUser(username: string, isAdmin: boolean) {
-  let users = await readUsers();
-
-  let encryptionKey: string;
-  if (process.env.ENCRYPTION_KEY) {
-    encryptionKey = process.env.ENCRYPTION_KEY;
-  } else {
-    const crypto = await import("crypto");
-    encryptionKey = crypto.randomBytes(32).toString("hex");
-  }
-
-  if (users.length === 0) {
-    users.push({
-      username,
-      passwordHash: "",
-      isAdmin: true,
-      isSuperAdmin: true,
-      createdAt: new Date().toISOString(),
-      encryptionKey,
-    });
-    if (process.env.DEBUGGER) {
-      console.log(
-        "SSO CALLBACK - Created first user as super admin:",
-        username
-      );
-    }
-  } else {
-    const existing = users.find((u) => u.username === username);
-    if (!existing) {
-      users.push({
-        username,
-        passwordHash: "",
-        isAdmin,
-        createdAt: new Date().toISOString(),
-        encryptionKey,
-      });
-      if (process.env.DEBUGGER) {
-        console.log("SSO CALLBACK - Created new user:", {
-          username,
-          isAdmin,
-        });
-      }
-    } else {
-      if (!existing.encryptionKey) {
-        existing.encryptionKey = encryptionKey;
-      }
-      const wasAdmin = existing.isAdmin;
-      if (isAdmin && !existing.isAdmin) {
-        existing.isAdmin = true;
-        if (process.env.DEBUGGER) {
-          console.log("SSO CALLBACK - Updated existing user to admin:", {
-            username,
-            wasAdmin,
-            nowAdmin: true,
-          });
-        }
-      } else if (process.env.DEBUGGER) {
-        console.log("SSO CALLBACK - User already exists:", {
-          username,
-          currentIsAdmin: existing.isAdmin,
-          requestedAdmin: isAdmin,
-        });
-      }
-    }
-  }
-  await writeUsers(users);
-}
-
-export async function GET(request: NextRequest) {
-  const appUrl = process.env.APP_URL || request.nextUrl.origin;
-
-  let issuer = process.env.OIDC_ISSUER || "";
-  if (issuer && !issuer.endsWith("/")) {
-    issuer = `${issuer}/`;
-  }
-  const clientId = process.env.OIDC_CLIENT_ID || "";
-  if (!issuer || !clientId) {
-    return NextResponse.redirect(`${appUrl}/auth/login`);
-  }
-
-  const code = request.nextUrl.searchParams.get("code");
-  const state = request.nextUrl.searchParams.get("state");
-  const savedState = request.cookies.get("oidc_state")?.value;
-  const verifier = request.cookies.get("oidc_verifier")?.value;
-  const nonce = request.cookies.get("oidc_nonce")?.value;
-  if (!code || !state || !savedState || state !== savedState || !verifier) {
-    return NextResponse.redirect(`${appUrl}/auth/login`);
-  }
-
-  const discoveryUrl = issuer.endsWith("/")
-    ? `${issuer}.well-known/openid-configuration`
-    : `${issuer}/.well-known/openid-configuration`;
-  const discoveryRes = await fetch(discoveryUrl, { cache: "no-store" });
-  if (!discoveryRes.ok) {
-    return NextResponse.redirect(`${appUrl}/auth/login`);
-  }
-  const discovery = (await discoveryRes.json()) as {
-    token_endpoint: string;
-    jwks_uri: string;
-    issuer: string;
-  };
-  const tokenEndpoint = discovery.token_endpoint;
-  const jwksUri = discovery.jwks_uri;
-  const oidcIssuer = discovery.issuer;
-
-  const JWKS = createRemoteJWKSet(new URL(jwksUri));
-
-  const redirectUri = `${appUrl}/api/oidc/callback`;
-  const clientSecret = process.env.OIDC_CLIENT_SECRET;
-  const body = new URLSearchParams();
-
-  body.set("grant_type", "authorization_code");
-  body.set("code", code);
-  body.set("redirect_uri", redirectUri);
-  body.set("client_id", clientId);
-  body.set("code_verifier", verifier);
-
-  if (clientSecret) {
-    body.set("client_secret", clientSecret);
-  }
-
-  const tokenRes = await fetch(tokenEndpoint, {
-    method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
-    body,
-  });
-
-  if (!tokenRes.ok) {
-    return NextResponse.redirect(`${appUrl}/auth/login`);
-  }
-  const token = (await tokenRes.json()) as { id_token?: string };
-  const idToken = token.id_token;
-  if (!idToken) {
-    return NextResponse.redirect(`${appUrl}/auth/login`);
-  }
-
-  let claims: { [key: string]: unknown };
-  try {
-    const { payload } = await jwtVerify(idToken, JWKS, {
-      issuer: oidcIssuer,
-      audience: clientId,
-      clockTolerance: 5,
-    });
-    claims = payload;
-  } catch (error) {
-    console.error("ID Token validation failed:", error);
-    return NextResponse.redirect(`${appUrl}/auth/login`);
-  }
-
-  if (nonce && claims.nonce && claims.nonce !== nonce) {
-    return NextResponse.redirect(`${appUrl}/auth/login`);
-  }
-
-  const preferred = claims.preferred_username as string | undefined;
-  const email = claims.email as string | undefined;
-  const sub = claims.sub as string | undefined;
-  let username =
-    preferred || (email ? email.split("@")[0] : undefined) || sub || "";
-
-  if (process.env.DEBUGGER) {
-    console.log("SSO CALLBACK - claims", claims);
-  }
-
-  if (!username) {
-    return NextResponse.redirect(`${appUrl}/auth/login`);
-  }
-
-  let groups: string[] = [];
-  if (Array.isArray(claims.groups)) {
-    groups = claims.groups;
-  } else if (typeof claims.groups === "string") {
-    groups = claims.groups.split(/[\s,]+/).filter(Boolean);
-  }
-
-  const adminGroups = (process.env.OIDC_ADMIN_GROUPS || "")
-    .split(",")
-    .map((g) => g.trim())
-    .filter(Boolean);
-
-  const isAdmin =
-    adminGroups.length > 0 && groups.some((g) => adminGroups.includes(g));
-
-  if (process.env.DEBUGGER) {
-    console.log("SSO CALLBACK - groups processing:", {
-      rawGroups: claims.groups,
-      processedGroups: groups,
-      adminGroups,
-      isAdmin,
-      groupsType: typeof claims.groups,
-      groupsIsArray: Array.isArray(claims.groups),
-    });
-  }
-
-  const users = await readUsers();
-  const isFirstUser = users.length === 0;
-  await ensureUser(username, isFirstUser ? true : isAdmin);
-
-  const { ensureEncryptionPassword } = await import(
-    "@/app/_server/actions/user"
-  );
-  await ensureEncryptionPassword(username);
-
-  const sessionId = base64UrlEncode(crypto.randomBytes(32));
-  const response = NextResponse.redirect(`${appUrl}/`);
-  response.cookies.set(COOKIE_NAME, sessionId, {
-    httpOnly: true,
-    secure:
-      process.env.NODE_ENV === "production" && process.env.HTTPS === "true",
-    sameSite: "lax",
-    path: "/",
-    maxAge: 30 * 24 * 60 * 60,
-  });
-
-  await createSession(sessionId, username);
-
-  response.cookies.delete("oidc_verifier");
-  response.cookies.delete("oidc_state");
-  response.cookies.delete("oidc_nonce");
+const _fail = (request: NextRequest, error: OidcError, reason: string) => {
+  logger.warn(SCOPE, `SSO login rejected: ${reason}`);
+  const response = loginRedirect(request, error);
+  clearOidcCookies(response);
   return response;
-}
+};
+
+const _handle = async (request: NextRequest): Promise<NextResponse> => {
+  const config = getOidcConfig();
+  if (!config) {
+    return _fail(request, OidcError.NOT_CONFIGURED, "OIDC is not configured");
+  }
+
+  const params = request.nextUrl.searchParams;
+  const providerError = params.get("error");
+  if (providerError) {
+    return _fail(
+      request,
+      OidcError.UNAUTHORIZED,
+      `provider returned ${providerError}: ${params.get("error_description") ?? ""}`
+    );
+  }
+
+  const code = params.get("code");
+  const state = params.get("state");
+  const savedState = request.cookies.get(OidcCookie.STATE)?.value;
+  const verifier = request.cookies.get(OidcCookie.VERIFIER)?.value;
+  const nonce = request.cookies.get(OidcCookie.NONCE)?.value;
+
+  if (!code || !state || !savedState || state !== savedState || !verifier) {
+    return _fail(
+      request,
+      OidcError.STATE,
+      `state/verifier cookies missing or mismatched (code=${!!code}, state=${!!state}, savedState=${!!savedState}, verifier=${!!verifier}). Make sure APP_URL matches the URL you browse to.`
+    );
+  }
+
+  const discovery = await fetchDiscovery(config.issuer);
+  if (!discovery?.token_endpoint || !discovery.jwks_uri) {
+    return _fail(request, OidcError.DISCOVERY, "discovery document incomplete");
+  }
+
+  const tokens = await exchangeCode(
+    config,
+    discovery,
+    code,
+    verifier,
+    callbackUrl(request)
+  );
+  if (!tokens?.id_token) {
+    return _fail(request, OidcError.TOKEN, "no id_token returned by the provider");
+  }
+
+  const idClaims = await verifyIdToken(tokens.id_token, config, discovery);
+  if (!idClaims) {
+    return _fail(request, OidcError.ID_TOKEN, "id_token failed verification");
+  }
+
+  if (idClaims.nonce === undefined) {
+    logger.warn(SCOPE, "Provider did not echo the nonce claim");
+  } else if (idClaims.nonce !== nonce) {
+    return _fail(request, OidcError.NONCE, "nonce mismatch");
+  }
+
+  const claims = await withUserinfo(idClaims, discovery, tokens.access_token);
+  logger.debug(SCOPE, "Resolved claims", claims);
+
+  const identity = identityFrom(claims);
+  if (!identity) {
+    return _fail(request, OidcError.USERNAME, "no usable username claim");
+  }
+
+  if (!identity.isAllowed) {
+    return _fail(
+      request,
+      OidcError.UNAUTHORIZED,
+      `${identity.username} is not in OIDC_USER_GROUPS / OIDC_USER_ROLES`
+    );
+  }
+
+  await provisionUser(identity);
+
+  const sessionId = newSessionId();
+  await createSession(sessionId, identity.username);
+
+  const response = NextResponse.redirect(`${appUrl(request)}/`);
+  setSessionCookie(response, sessionId);
+  clearOidcCookies(response);
+
+  logger.info(SCOPE, `SSO login for ${identity.username}`);
+  return response;
+};
+
+export const GET = async (request: NextRequest) => {
+  try {
+    return await _handle(request);
+  } catch (error) {
+    logger.error(SCOPE, "Unexpected SSO callback failure", error);
+    return loginRedirect(request, OidcError.SERVER);
+  }
+};

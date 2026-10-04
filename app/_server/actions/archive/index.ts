@@ -1,46 +1,48 @@
 "use server";
 
-import archiver from "archiver";
-import AdmZip from "adm-zip";
-import fs from "fs/promises";
-import { createWriteStream } from "fs";
-import path from "path";
+import { lstat } from "fs/promises";
+import { getCurrentUser } from "@/app/_lib/current-user";
+import { decryptPath } from "@/app/_lib/path-encryption";
+import { scopedPath } from "@/app/_lib/storage";
+import { listArchive } from "@/app/_lib/archive";
+import { logger } from "@/app/_lib/logger";
+import {
+  ARCHIVE_PREVIEW_MAX_BYTES,
+  ARCHIVE_PREVIEW_MAX_ENTRIES,
+} from "@/app/_lib/constants";
+import { ArchiveListing, ServerActionResponse } from "@/app/_types";
 
-export const createArchiveToFile = async (
-  sourcePath: string,
-  outputPath: string
-): Promise<void> => {
-  await fs.mkdir(path.dirname(outputPath), { recursive: true });
+const SCOPE = "archive";
 
-  return new Promise((resolve, reject) => {
-    const output = createWriteStream(outputPath);
-    const archive = archiver("zip", { zlib: { level: 9 } });
+export const peekArchive = async (
+  fileId: string
+): Promise<ServerActionResponse<ArchiveListing>> => {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { success: false, error: "Unauthorized" };
+  }
 
-    output.on("close", resolve);
-    output.on("error", reject);
-    archive.on("error", reject);
+  try {
+    const target = scopedPath(user, await decryptPath(fileId));
+    const stats = await lstat(target.absolute);
 
-    archive.pipe(output);
+    if (!stats.isFile()) {
+      return { success: false, error: "Not a file" };
+    }
 
-    void (async () => {
-      const stats = await fs.stat(sourcePath);
-      if (stats.isDirectory()) {
-        archive.directory(sourcePath, false);
-      } else {
-        archive.file(sourcePath, { name: path.basename(sourcePath) });
-      }
+    if (stats.size > ARCHIVE_PREVIEW_MAX_BYTES) {
+      return {
+        success: false,
+        error: "This archive is too big to peek into. Download it instead.",
+      };
+    }
 
-      await archive.finalize();
-    })().catch(reject);
-  });
-}
-
-export const extractArchive = async (
-  archivePath: string,
-  outputDir: string
-): Promise<void> => {
-  await fs.mkdir(outputDir, { recursive: true });
-
-  const zip = new AdmZip(archivePath);
-  zip.extractAllTo(outputDir, true);
-}
+    return {
+      success: true,
+      data: listArchive(target.absolute, ARCHIVE_PREVIEW_MAX_ENTRIES),
+    };
+  } catch (error) {
+    logger.error(SCOPE, "Failed to read archive", error);
+    return { success: false, error: "Failed to read archive" };
+  }
+};

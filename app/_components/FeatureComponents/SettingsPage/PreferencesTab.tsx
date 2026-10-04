@@ -7,6 +7,16 @@ import { usePreferences } from "@/app/_providers/PreferencesProvider";
 import Switch from "@/app/_components/GlobalComponents/Form/Switch";
 
 export default function PreferencesTab() {
+  const { user } = usePreferences();
+
+  if (!user) {
+    return null;
+  }
+
+  return <PreferencesTabContent />;
+}
+
+const PreferencesTabContent = () => {
   const router = useRouter();
   const {
     particlesEnabled: initialParticles,
@@ -14,12 +24,7 @@ export default function PreferencesTab() {
     pokemonThemesEnabled: initialPokemonThemes,
     showThumbnails: initialShowThumbnails,
     torrentPreferences,
-    user,
   } = usePreferences();
-
-  if (!user) {
-    return null;
-  }
 
   const [particlesEnabled, setParticlesEnabled] = useState(initialParticles);
   const [wandCursorEnabled, setWandCursorEnabled] = useState(initialWand);
@@ -36,7 +41,7 @@ export default function PreferencesTab() {
   const handleParticlesToggle = async () => {
     const newValue = !particlesEnabled;
     setParticlesEnabled(newValue);
-    await updateUserPreferences(user?.username ?? "", {
+    await updateUserPreferences({
       particlesEnabled: newValue,
     });
     router.refresh();
@@ -45,7 +50,7 @@ export default function PreferencesTab() {
   const handleWandCursorToggle = async () => {
     const newValue = !wandCursorEnabled;
     setWandCursorEnabled(newValue);
-    await updateUserPreferences(user?.username ?? "", {
+    await updateUserPreferences({
       wandCursorEnabled: newValue,
     });
     router.refresh();
@@ -54,7 +59,7 @@ export default function PreferencesTab() {
   const handlePokemonThemesToggle = async () => {
     const newValue = !pokemonThemesEnabled;
     setPokemonThemesEnabled(newValue);
-    await updateUserPreferences(user?.username ?? "", {
+    await updateUserPreferences({
       pokemonThemesEnabled: newValue,
     });
 
@@ -72,7 +77,7 @@ export default function PreferencesTab() {
   const handleShowThumbnailsToggle = async () => {
     const newValue = !showThumbnails;
     setShowThumbnails(newValue);
-    await updateUserPreferences(user?.username ?? "", {
+    await updateUserPreferences({
       showThumbnails: newValue,
     });
     router.refresh();
@@ -81,7 +86,7 @@ export default function PreferencesTab() {
   const handleTorrentsEnabledToggle = async () => {
     const newValue = !torrentsEnabled;
     setTorrentsEnabled(newValue);
-    await updateUserPreferences(user?.username ?? "", {
+    await updateUserPreferences({
       torrentPreferences: {
         enabled: newValue,
       },
@@ -166,4 +171,4 @@ export default function PreferencesTab() {
       </div>
     </div>
   );
-}
+};

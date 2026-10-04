@@ -6,19 +6,23 @@ interface TopAppBarProps {
   title?: string;
   leading?: ReactNode;
   trailing?: ReactNode;
+  docked?: boolean;
 }
 
 export default function TopAppBar({
   title,
   leading,
   trailing,
+  docked = false,
 }: TopAppBarProps) {
   return (
     <header className="z-50 bg-surface relative">
-      <div className="absolute left-0 top-0 bottom-0 w-96 bg-sidebar hidden lg:block" />
+      {!docked && (
+        <div className="absolute left-0 top-0 bottom-0 w-96 bg-sidebar hidden lg:block" />
+      )}
 
       <div className="h-16 px-4 flex items-center justify-between gap-4 relative z-10">
-        <div className="flex items-center gap-4">
+        <div className={`flex items-center gap-4 ${docked ? "medium:hidden" : ""}`}>
           {leading}
 
           {title && (
@@ -28,7 +32,7 @@ export default function TopAppBar({
           )}
         </div>
 
-        {trailing && <div className="flex items-center gap-2">{trailing}</div>}
+        {trailing && <div className="ml-auto flex items-center gap-2">{trailing}</div>}
       </div>
     </header>
   );

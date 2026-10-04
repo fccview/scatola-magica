@@ -76,7 +76,7 @@ export default function UploadSettingsTab() {
 
     setIsSavingUser(true);
     try {
-      await updateUserPreferences(user.username, {
+      await updateUserPreferences({
         dropzones: {
           enabled: dropzonesEnabled,
           zone1: dropzones.zone1,

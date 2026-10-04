@@ -1,33 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
-import { initializeUpload } from "@/app/_server/actions/upload";
 import { validateRequest } from "@/app/_lib/request-auth";
-import { decryptPath } from "@/app/_lib/path-encryption";
+import { decryptPathFor } from "@/app/_lib/path-encryption";
+import { initUpload } from "@/app/_lib/uploads";
+import { toResponse, unauthorized } from "@/app/_lib/upload-responses";
+import { PathEscapeError } from "@/app/_lib/storage";
+import { logger } from "@/app/_lib/logger";
 
-export async function POST(request: NextRequest) {
+export const dynamic = "force-dynamic";
+
+export const POST = async (request: NextRequest) => {
+  const user = await validateRequest(request);
+  if (!user) return unauthorized();
+
   try {
-    const user = await validateRequest(request);
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const body = await request.json();
-
-    if (body.folderPath) {
-      body.folderPath = await decryptPath(body.folderPath);
+    if (typeof body.folderPath === "string" && body.folderPath) {
+      body.folderPath = await decryptPathFor(user.username, body.folderPath);
     }
 
-    const result = await initializeUpload(body);
-
-    if (!result.success) {
-      return NextResponse.json({ error: result.error }, { status: 400 });
-    }
-
-    return NextResponse.json(result);
+    return toResponse(await initUpload(user, body));
   } catch (error) {
-    console.error("Init upload error:", error);
-    return NextResponse.json(
-      { error: "Failed to initialize upload" },
-      { status: 500 }
-    );
+    if (error instanceof PathEscapeError) {
+      return NextResponse.json({ error: error.message }, { status: 403 });
+    }
+    logger.error("upload-init", "Failed to initialize upload", error);
+    return NextResponse.json({ error: "Failed to initialize upload" }, { status: 500 });
   }
-}
+};

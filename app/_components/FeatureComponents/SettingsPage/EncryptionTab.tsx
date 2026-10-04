@@ -15,6 +15,7 @@ import {
   regenerateEncryptionKey,
 } from "@/app/_server/actions/user";
 import { updateUserPreferences } from "@/app/_lib/preferences";
+import { RemovablePreference } from "@/app/_types/preferences";
 import { usePreferences } from "@/app/_providers/PreferencesProvider";
 import Input from "@/app/_components/GlobalComponents/Form/Input";
 import Button from "@/app/_components/GlobalComponents/Buttons/Button";
@@ -79,8 +80,7 @@ export default function EncryptionTab() {
 
   async function loadKeyStatus() {
     setLoading(true);
-    const pathToCheck = useCustomPath ? customPath : undefined;
-    const status = await getKeyStatus(pathToCheck);
+    const status = await getKeyStatus();
     setHasKeys(status.hasKeys);
     if (status.keyInfo) {
       setKeyInfo(status.keyInfo);
@@ -112,7 +112,6 @@ export default function EncryptionTab() {
     const result = await generateKeyPair(
       generatePassword,
       generateEmail || undefined,
-      useCustomPath ? customPath || undefined : undefined,
       keySize
     );
 
@@ -130,7 +129,7 @@ export default function EncryptionTab() {
   }
 
   async function handleExportPublicKey() {
-    const result = await exportPublicKey(customKeysPath);
+    const result = await exportPublicKey();
     if (result.success && result.publicKey) {
       const blob = new Blob([result.publicKey], { type: "text/plain" });
       const url = URL.createObjectURL(blob);
@@ -151,7 +150,7 @@ export default function EncryptionTab() {
     );
     if (!confirmed) return;
 
-    const result = await exportPrivateKey(customKeysPath);
+    const result = await exportPrivateKey();
     if (result.success && result.privateKey) {
       const blob = new Blob([result.privateKey], { type: "text/plain" });
       const url = URL.createObjectURL(blob);
@@ -181,8 +180,7 @@ export default function EncryptionTab() {
     const result = await importKeys(
       importPublicKey,
       importPrivateKey,
-      importPassword,
-      useCustomPath ? customPath || undefined : undefined
+      importPassword
     );
 
     if (result.success) {
@@ -208,7 +206,7 @@ export default function EncryptionTab() {
     setDeleting(true);
     setMessage(null);
 
-    const result = await deleteKeys(customKeysPath);
+    const result = await deleteKeys();
 
     if (result.success) {
       setMessage({ type: "success", text: "Keys deleted successfully" });
@@ -224,10 +222,12 @@ export default function EncryptionTab() {
     if (!user?.username) return;
 
     const result = useCustomPath
-      ? await updateUserPreferences(user.username, {
+      ? await updateUserPreferences({
           customKeysPath: customPath,
         })
-      : await updateUserPreferences(user.username, {}, ["customKeysPath"]);
+      : await updateUserPreferences({}, [
+          RemovablePreference.CUSTOM_KEYS_PATH,
+        ]);
 
     if (result.success) {
       setMessage({ type: "success", text: "Settings updated" });
@@ -246,7 +246,7 @@ export default function EncryptionTab() {
 
     const newValue = !e2eEncryptionOnTransfer;
     setE2eEncryptionOnTransfer(newValue);
-    await updateUserPreferences(user.username, {
+    await updateUserPreferences({
       e2eEncryptionOnTransfer: newValue,
     });
     router.refresh();
@@ -595,83 +595,84 @@ export default function EncryptionTab() {
         )}
       </section>
 
-      <section className="space-y-4">
-        <h2 className="text-2xl font-bold text-on-surface">
-          Key Storage Location
-        </h2>
+      {user?.isAdmin && (
+        <section className="space-y-4">
+          <h2 className="text-2xl font-bold text-on-surface">
+            Key Storage Location
+          </h2>
 
-        <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <input
-              type="radio"
-              id="default-path"
-              checked={!useCustomPath}
-              onChange={() => setUseCustomPath(false)}
-              className="w-4 h-4"
-            />
-            <label
-              htmlFor="default-path"
-              className="text-on-surface cursor-pointer"
-            >
-              Default (data/config/keys)
-            </label>
-          </div>
-
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div className="flex items-center gap-3">
               <input
                 type="radio"
-                id="custom-path"
-                checked={useCustomPath}
-                onChange={() => setUseCustomPath(true)}
+                id="default-path"
+                checked={!useCustomPath}
+                onChange={() => setUseCustomPath(false)}
                 className="w-4 h-4"
               />
               <label
-                htmlFor="custom-path"
+                htmlFor="default-path"
                 className="text-on-surface cursor-pointer"
               >
-                Custom location
+                Default (data/config/keys)
               </label>
             </div>
 
-            {useCustomPath && (
-              <div className="ml-7 space-y-2">
-                <Input
-                  type="text"
-                  value={customPath}
-                  onChange={(e) => setCustomPath(e.target.value)}
-                  placeholder="/path/to/keys"
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <input
+                  type="radio"
+                  id="custom-path"
+                  checked={useCustomPath}
+                  onChange={() => setUseCustomPath(true)}
+                  className="w-4 h-4"
                 />
+                <label
+                  htmlFor="custom-path"
+                  className="text-on-surface cursor-pointer"
+                >
+                  Custom location
+                </label>
               </div>
+
+              {useCustomPath && (
+                <div className="ml-7 space-y-2">
+                  <Input
+                    type="text"
+                    value={customPath}
+                    onChange={(e) => setCustomPath(e.target.value)}
+                    placeholder="/path/to/keys"
+                  />
+                </div>
+              )}
+            </div>
+
+            {((!useCustomPath && customKeysPath) ||
+              (useCustomPath && customPath !== customKeysPath)) && (
+              <Button variant="filled" onClick={handleUpdateCustomPath}>
+                Save Path
+              </Button>
             )}
-          </div>
 
-          {/* Show save button when changing from custom to default, or when custom path changes */}
-          {((!useCustomPath && customKeysPath) ||
-            (useCustomPath && customPath !== customKeysPath)) && (
-            <Button variant="filled" onClick={handleUpdateCustomPath}>
-              Save Path
-            </Button>
-          )}
-
-          <div className="p-4 bg-warning-container text-on-warning-container rounded-lg flex gap-3">
-            <Icon icon="warning" />
-            <div className="text-sm">
-              <p className="font-semibold mb-1">Important:</p>
-              <ul className="list-disc list-inside space-y-1">
-                <li>
-                  Custom paths must be writable and persistent across sessions
-                </li>
-                <li>Changing the path will not move existing keys</li>
-                <li>
-                  You will need to regenerate or import keys for the new
-                  location
-                </li>
-              </ul>
+            <div className="p-4 bg-warning-container text-on-warning-container rounded-lg flex gap-3">
+              <Icon icon="warning" />
+              <div className="text-sm">
+                <p className="font-semibold mb-1">Important:</p>
+                <ul className="list-disc list-inside space-y-1">
+                  <li>
+                    Custom paths must be writable and persistent across sessions
+                  </li>
+                  <li>Changing the path will not move existing keys</li>
+                  <li>
+                    You will need to regenerate or import keys for the new
+                    location
+                  </li>
+                </ul>
+              </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
     </div>
   );
 }

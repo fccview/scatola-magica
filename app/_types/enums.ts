@@ -28,3 +28,62 @@ export enum CacheStrategy {
   NETWORK_ONLY = "NETWORK_ONLY",
   CACHE_ONLY = "CACHE_ONLY",
 }
+
+export enum UploadPhase {
+  QUEUED = "QUEUED",
+  PREPARING = "PREPARING",
+  SECURING = "SECURING",
+  RESUMING = "RESUMING",
+  HANDSHAKE = "HANDSHAKE",
+  SENDING = "SENDING",
+  ASSEMBLING = "ASSEMBLING",
+  DONE = "DONE",
+}
+
+export enum ChunkState {
+  WAITING = "WAITING",
+  SENDING = "SENDING",
+  RETRYING = "RETRYING",
+  DONE = "DONE",
+}
+
+export enum SelectKind {
+  FILE = "file",
+  FOLDER = "folder",
+}
+
+export enum TooltipSide {
+  TOP = "TOP",
+  BOTTOM = "BOTTOM",
+}
+
+export enum ItemActionId {
+  OPEN = "OPEN",
+  RENAME = "RENAME",
+  MOVE = "MOVE",
+  DOWNLOAD = "DOWNLOAD",
+  DECRYPT = "DECRYPT",
+  ENCRYPT = "ENCRYPT",
+  DELETE = "DELETE",
+}
+
+export enum ItemActionGroup {
+  BASIC = "BASIC",
+  CRYPTO = "CRYPTO",
+  DANGER = "DANGER",
+}
+
+export enum PreviewKind {
+  TEXT = "TEXT",
+  IMAGE = "IMAGE",
+  VIDEO = "VIDEO",
+  AUDIO = "AUDIO",
+  PDF = "PDF",
+  CSV = "CSV",
+  ARCHIVE = "ARCHIVE",
+  DOCUMENT = "DOCUMENT",
+  SHEET = "SHEET",
+  SLIDES = "SLIDES",
+  FONT = "FONT",
+  NONE = "NONE",
+}

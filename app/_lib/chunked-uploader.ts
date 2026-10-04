@@ -1,11 +1,89 @@
-import { UPLOAD_CONFIG, ADAPTIVE_CHUNK_SIZES } from "@/app/_lib/constants";
+import {
+  UPLOAD_CONFIG,
+  ADAPTIVE_CHUNK_SIZES,
+  UPLOAD_QUEUE,
+} from "@/app/_lib/constants";
 import { UploadProgress } from "@/app/_types";
-import { UploadStatus } from "@/app/_types/enums";
+import { ChunkState, UploadPhase, UploadStatus } from "@/app/_types/enums";
+import { logger } from "@/app/_lib/logger";
+
+const SCOPE = "chunked-uploader";
 
 export interface E2EEncryptionOptions {
   enabled: boolean;
   password: string;
 }
+
+interface NetworkHints {
+  connection?: {
+    effectiveType?: string;
+    downlink?: number;
+  };
+}
+
+interface SpeedSample {
+  time: number;
+  bytes: number;
+}
+
+interface ForgedKey {
+  password: string;
+  salt: Uint8Array;
+  key: Promise<CryptoKey>;
+}
+
+let forgedKey: ForgedKey | null = null;
+
+const _deriveKey = async (
+  password: string,
+  salt: Uint8Array
+): Promise<CryptoKey> => {
+  const subtle = window.crypto.subtle;
+  const keyMaterial = await subtle.importKey(
+    "raw",
+    new TextEncoder().encode(password),
+    "PBKDF2",
+    false,
+    ["deriveKey"]
+  );
+
+  const saltBuffer = new ArrayBuffer(salt.length);
+  new Uint8Array(saltBuffer).set(salt);
+
+  return subtle.deriveKey(
+    {
+      name: "PBKDF2",
+      salt: saltBuffer,
+      iterations: 600000,
+      hash: "SHA-256",
+    },
+    keyMaterial,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt"]
+  );
+};
+
+const forgeKey = async (
+  password: string
+): Promise<{ salt: Uint8Array; key: CryptoKey }> => {
+  if (forgedKey?.password !== password) {
+    const salt = window.crypto.getRandomValues(new Uint8Array(16));
+    forgedKey = { password, salt, key: _deriveKey(password, salt) };
+  }
+
+  const entry = forgedKey;
+  try {
+    return { salt: entry.salt, key: await entry.key };
+  } catch (error) {
+    logger.error(SCOPE, "Failed to derive encryption key", error);
+    if (forgedKey === entry) forgedKey = null;
+    throw error;
+  }
+};
+
+export const isAbortError = (error: unknown): boolean =>
+  error instanceof DOMException && error.name === "AbortError";
 
 export class ChunkedUploader {
   private file: File;
@@ -14,14 +92,18 @@ export class ChunkedUploader {
   private totalChunks: number = 0;
   private uploadedChunks: Set<number> = new Set();
   private onProgressCallback?: (progress: UploadProgress) => void;
-  private startTime: number = 0;
   private uploadedBytes: number = 0;
   private abortController: AbortController | null = null;
   private folderPath?: string;
   private e2eEncryption?: E2EEncryptionOptions;
-  private serverProgress: number = 0;
   private encryptionKey?: CryptoKey;
   private encryptionSalt?: Uint8Array;
+  private phase: UploadPhase = UploadPhase.PREPARING;
+  private inFlight: Map<number, number> = new Map();
+  private retrying: Set<number> = new Set();
+  private lastEmit: number = 0;
+  private speed: number = 0;
+  private sample: SpeedSample = { time: 0, bytes: 0 };
   private appSettings?: {
     maxChunkSize: number;
     parallelUploads: number;
@@ -48,12 +130,11 @@ export class ChunkedUploader {
     this.appSettings = appSettings;
     if (alreadyUploadedChunks) {
       this.uploadedChunks = new Set(alreadyUploadedChunks);
-      this.uploadedBytes = 0;
     }
   }
 
   private generateUploadId(file: File): string {
-    const sanitized = file.name.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const sanitized = file.name.replace(/[^a-zA-Z0-9_-]/g, "_");
     const hash = `${file.size}-${file.lastModified}`;
     return `${sanitized}-${hash}`;
   }
@@ -87,99 +168,96 @@ export class ChunkedUploader {
       if (!response.ok) return { exists: false };
       return await response.json();
     } catch (error) {
-      console.error("Failed to check upload status:", error);
+      logger.error(SCOPE, "Failed to check upload status", error);
       return { exists: false };
     }
   }
 
   async upload(): Promise<string> {
-    this.startTime = Date.now();
     this.abortController = new AbortController();
+    this.setPhase(UploadPhase.PREPARING);
 
-    try {
-      const maxFileSize =
-        this.appSettings?.maxFileSize ?? UPLOAD_CONFIG.MAX_FILE_SIZE;
+    const maxFileSize =
+      this.appSettings?.maxFileSize ?? UPLOAD_CONFIG.MAX_FILE_SIZE;
 
-      if (maxFileSize > 0 && this.file.size > maxFileSize) {
-        const fileSizeGB = (this.file.size / 1024 / 1024 / 1024).toFixed(2);
-        const maxSizeGB = (maxFileSize / 1024 / 1024 / 1024).toFixed(2);
+    if (maxFileSize > 0 && this.file.size > maxFileSize) {
+      const fileSizeGB = (this.file.size / 1024 / 1024 / 1024).toFixed(2);
+      const maxSizeGB = (maxFileSize / 1024 / 1024 / 1024).toFixed(2);
+      throw new Error(
+        `File size (${fileSizeGB} GB) exceeds maximum allowed size (${maxSizeGB} GB)`
+      );
+    }
+
+    if (this.e2eEncryption?.enabled) {
+      if (!window.isSecureContext) {
         throw new Error(
-          `File size (${fileSizeGB} GB) exceeds maximum allowed size (${maxSizeGB} GB)`
+          "E2E encryption requires HTTPS or localhost. " +
+          "Current context is not secure (HTTP with IP/domain). " +
+          "Files would upload UNENCRYPTED."
         );
       }
-
-      if (this.e2eEncryption?.enabled) {
-        if (!window.isSecureContext) {
-          throw new Error(
-            "E2E encryption requires HTTPS or localhost. " +
-            "Current context is not secure (HTTP with IP/domain). " +
-            "Files would upload UNENCRYPTED."
-          );
-        }
-        if (!window.crypto?.subtle) {
-          throw new Error(
-            "Web Crypto API (crypto.subtle) is not available. " +
-            "E2E encryption cannot be used in this browser/context."
-          );
-        }
+      if (!window.crypto?.subtle) {
+        throw new Error(
+          "Web Crypto API (crypto.subtle) is not available. " +
+          "E2E encryption cannot be used in this browser/context."
+        );
       }
-
-      await this.detectOptimalChunkSize();
-
-      this.totalChunks = Math.ceil(this.file.size / this.chunkSize);
-
-      if (this.e2eEncryption?.enabled && this.e2eEncryption.password) {
-        await this.deriveEncryptionKey(this.e2eEncryption.password);
-      }
-
-      const existingUpload = await ChunkedUploader.checkForExistingUpload(this.uploadId);
-      if (existingUpload.exists && existingUpload.uploadedChunks) {
-        if (existingUpload.chunkSize) {
-          this.chunkSize = existingUpload.chunkSize;
-        }
-        existingUpload.uploadedChunks.forEach(chunkIndex => {
-          this.uploadedChunks.add(chunkIndex);
-        });
-        this.uploadedBytes = existingUpload.uploadedChunks.reduce((total, chunkIndex) => {
-          const start = chunkIndex * this.chunkSize;
-          const end = Math.min(start + this.chunkSize, this.file.size);
-          return total + (end - start);
-        }, 0);
-      }
-
-      if (this.onProgressCallback) {
-        this.onProgressCallback({
-          fileId: this.uploadId,
-          fileName: this.file.name,
-          totalSize: this.file.size,
-          uploadedSize: this.uploadedBytes,
-          progress: (this.uploadedBytes / this.file.size) * 100,
-          status: UploadStatus.UPLOADING,
-          speed: 0,
-          remainingTime: 0,
-          chunksCompleted: this.uploadedChunks.size,
-          totalChunks: this.totalChunks,
-        });
-      }
-
-      if (!existingUpload.exists) {
-        await this.initializeUploadSession();
-      }
-
-      await this.uploadChunksInParallel();
-
-      const result = await this.finalizeUpload();
-
-      return result.fileId;
-    } catch (error) {
-      throw error;
     }
+
+    await this.detectOptimalChunkSize();
+
+    this.totalChunks = Math.max(1, Math.ceil(this.file.size / this.chunkSize));
+
+    if (this.e2eEncryption?.enabled && this.e2eEncryption.password) {
+      this.setPhase(UploadPhase.SECURING);
+      await this.deriveEncryptionKey(this.e2eEncryption.password);
+    }
+
+    this.setPhase(UploadPhase.RESUMING);
+    const existingUpload = await ChunkedUploader.checkForExistingUpload(this.uploadId);
+    if (existingUpload.exists && existingUpload.uploadedChunks) {
+      if (existingUpload.chunkSize) {
+        this.chunkSize = existingUpload.chunkSize;
+        this.totalChunks = Math.max(1, Math.ceil(this.file.size / this.chunkSize));
+      }
+      existingUpload.uploadedChunks.forEach((chunkIndex) => {
+        this.uploadedChunks.add(chunkIndex);
+      });
+      this.uploadedBytes = existingUpload.uploadedChunks.reduce(
+        (total, chunkIndex) => total + this.chunkBytes(chunkIndex),
+        0
+      );
+    }
+
+    if (!existingUpload.exists) {
+      this.setPhase(UploadPhase.HANDSHAKE);
+      await this.initializeUploadSession();
+    }
+
+    this.sample = { time: Date.now(), bytes: this.uploadedBytes };
+    this.setPhase(UploadPhase.SENDING);
+    await this.uploadChunksInParallel();
+
+    this.setPhase(UploadPhase.ASSEMBLING);
+    const result = await this.finalizeUpload();
+
+    this.setPhase(UploadPhase.DONE);
+    return result.fileId;
   }
 
   cancel(): void {
     if (this.abortController) {
       this.abortController.abort();
     }
+  }
+
+  private isCancelled(): boolean {
+    return !!this.abortController?.signal.aborted;
+  }
+
+  private chunkBytes(index: number): number {
+    const start = index * this.chunkSize;
+    return Math.max(0, Math.min(start + this.chunkSize, this.file.size) - start);
   }
 
   private async detectOptimalChunkSize(): Promise<void> {
@@ -196,7 +274,7 @@ export class ChunkedUploader {
     }
 
     if ("connection" in navigator) {
-      const connection = (navigator as any).connection;
+      const connection = (navigator as Navigator & NetworkHints).connection;
       const effectiveType = connection?.effectiveType;
       const downlink = connection?.downlink;
 
@@ -235,34 +313,9 @@ export class ChunkedUploader {
   }
 
   private async deriveEncryptionKey(password: string): Promise<void> {
-    const subtle = window.crypto.subtle;
-    const encoder = new TextEncoder();
-    const passwordBuffer = encoder.encode(password);
-
-    const keyMaterial = await subtle.importKey(
-      "raw",
-      passwordBuffer,
-      "PBKDF2",
-      false,
-      ["deriveKey"]
-    );
-
-    this.encryptionSalt = window.crypto.getRandomValues(new Uint8Array(16));
-    const saltBuffer = new ArrayBuffer(this.encryptionSalt.length);
-    new Uint8Array(saltBuffer).set(this.encryptionSalt);
-
-    this.encryptionKey = await subtle.deriveKey(
-      {
-        name: "PBKDF2",
-        salt: saltBuffer,
-        iterations: 600000,
-        hash: "SHA-256",
-      },
-      keyMaterial,
-      { name: "AES-GCM", length: 256 },
-      false,
-      ["encrypt"]
-    );
+    const forged = await forgeKey(password);
+    this.encryptionSalt = forged.salt;
+    this.encryptionKey = forged.key;
   }
 
   private async initializeUploadSession(): Promise<void> {
@@ -290,13 +343,13 @@ export class ChunkedUploader {
     if (!response.ok) {
       const errorText = await response.text().catch(() => "");
       const errorMsg = errorText || response.statusText;
-      console.error(`Init failed (${response.status}):`, errorMsg);
+      logger.error(SCOPE, `Init failed (${response.status})`, errorMsg);
       throw new Error(`Failed to initialize upload session: ${errorMsg}`);
     }
 
     const result = await response.json();
     if (!result.success) {
-      console.error("Init returned error:", result.error);
+      logger.error(SCOPE, "Init returned error", result.error);
       throw new Error(`Failed to initialize upload: ${result.error}`);
     }
   }
@@ -332,21 +385,36 @@ export class ChunkedUploader {
       let retries = 0;
       while (retries < UPLOAD_CONFIG.CHUNK_RETRY_ATTEMPTS) {
         try {
+          this.inFlight.set(index, 0);
           await this.uploadChunk(index, chunk);
+          this.inFlight.delete(index);
           this.uploadedChunks.add(index);
           this.uploadedBytes += chunk.size;
-          this.updateProgress();
+          this.emit(true);
           break;
         } catch (error) {
+          this.inFlight.delete(index);
+          if (this.isCancelled() || isAbortError(error)) throw error;
+
           retries++;
+          logger.warn(
+            SCOPE,
+            `Chunk ${index} of ${this.file.name} failed (attempt ${retries})`,
+            error
+          );
           if (retries >= UPLOAD_CONFIG.CHUNK_RETRY_ATTEMPTS) {
             throw new Error(
-              `Failed to upload chunk ${index} after ${retries} attempts`
+              `Failed to upload chunk ${index} after ${retries} attempts`,
+              { cause: error }
             );
           }
+
+          this.retrying.add(index);
+          this.emit(true);
           await this.delay(
             Math.pow(2, retries) * UPLOAD_CONFIG.CHUNK_RETRY_DELAY_MS
           );
+          this.retrying.delete(index);
         }
       }
     }
@@ -382,9 +450,10 @@ export class ChunkedUploader {
 
         chunkToUpload = new Blob([result.buffer]);
       } catch (encryptError) {
-        console.error("Encryption error:", encryptError);
+        logger.error(SCOPE, `Encryption error on chunk ${index}`, encryptError);
         throw new Error(
-          `Failed to encrypt chunk ${index}: ${encryptError instanceof Error ? encryptError.message : "Unknown error"}`
+          `Failed to encrypt chunk ${index}: ${encryptError instanceof Error ? encryptError.message : "Unknown error"}`,
+          { cause: encryptError }
         );
       }
     }
@@ -396,23 +465,55 @@ export class ChunkedUploader {
     formData.append("fileName", this.file.name);
     formData.append("chunk", chunkToUpload);
 
-    const response = await fetch("/api/upload/chunk", {
-      method: "POST",
-      body: formData,
-      signal: this.abortController?.signal,
+    await this.sendChunk(index, formData, chunk.size);
+  }
+
+  private sendChunk(index: number, body: FormData, size: number): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      const signal = this.abortController?.signal;
+      const onAbort = () => xhr.abort();
+      const cleanup = () => signal?.removeEventListener("abort", onAbort);
+
+      if (signal?.aborted) {
+        reject(new DOMException("Upload cancelled", "AbortError"));
+        return;
+      }
+      signal?.addEventListener("abort", onAbort, { once: true });
+
+      xhr.open("POST", "/api/upload/chunk");
+
+      xhr.upload.onprogress = (event) => {
+        if (!event.lengthComputable || event.total === 0) return;
+        this.inFlight.set(index, (event.loaded / event.total) * size);
+        this.emit();
+      };
+
+      xhr.onload = () => {
+        cleanup();
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve();
+          return;
+        }
+        reject(
+          new Error(
+            `Chunk ${index} upload failed with status ${xhr.status}: ${xhr.responseText}`
+          )
+        );
+      };
+
+      xhr.onerror = () => {
+        cleanup();
+        reject(new Error(`Network error while sending chunk ${index}`));
+      };
+
+      xhr.onabort = () => {
+        cleanup();
+        reject(new DOMException("Upload cancelled", "AbortError"));
+      };
+
+      xhr.send(body);
     });
-
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => "");
-      throw new Error(
-        `Chunk ${index} upload failed with status ${response.status}: ${errorText}`
-      );
-    }
-
-    const result = await response.json();
-    if (result.data?.progress !== undefined) {
-      this.serverProgress = result.data.progress;
-    }
   }
 
   private async finalizeUpload(): Promise<{ fileId: string }> {
@@ -428,14 +529,14 @@ export class ChunkedUploader {
     if (!response.ok) {
       const errorText = await response.text().catch(() => "");
       const errorMsg = errorText || response.statusText;
-      console.error(`Finalize failed (${response.status}):`, errorMsg);
+      logger.error(SCOPE, `Finalize failed (${response.status})`, errorMsg);
       throw new Error(`Failed to finalize upload: ${errorMsg}`);
     }
 
     const result = await response.json();
 
     if (!result.success) {
-      console.error("Finalize returned error:", result.error);
+      logger.error(SCOPE, "Finalize returned error", result.error);
       throw new Error(`Failed to finalize: ${result.error}`);
     }
 
@@ -446,33 +547,80 @@ export class ChunkedUploader {
     throw new Error("No file ID returned from finalize");
   }
 
-  private updateProgress(): void {
+  private setPhase(phase: UploadPhase): void {
+    this.phase = phase;
+    this.emit(true);
+  }
+
+  private sentBytes(): number {
+    let pending = 0;
+    this.inFlight.forEach((bytes) => {
+      pending += bytes;
+    });
+    return Math.min(this.file.size, this.uploadedBytes + pending);
+  }
+
+  private sampleSpeed(now: number, sent: number): void {
+    if (this.phase !== UploadPhase.SENDING) return;
+
+    const elapsed = (now - this.sample.time) / 1000;
+    if (elapsed * 1000 < UPLOAD_QUEUE.SPEED_SAMPLE_MS) return;
+
+    const instant = Math.max(0, sent - this.sample.bytes) / elapsed;
+    this.speed =
+      this.speed === 0
+        ? instant
+        : this.speed * (1 - UPLOAD_QUEUE.SPEED_SMOOTHING) +
+          instant * UPLOAD_QUEUE.SPEED_SMOOTHING;
+    this.sample = { time: now, bytes: sent };
+  }
+
+  private chunkMap(): ChunkState[] | undefined {
+    if (this.totalChunks === 0 || this.totalChunks > UPLOAD_QUEUE.MAX_CHUNK_MAP) {
+      return undefined;
+    }
+
+    return Array.from({ length: this.totalChunks }, (_, index) => {
+      if (this.uploadedChunks.has(index)) return ChunkState.DONE;
+      if (this.retrying.has(index)) return ChunkState.RETRYING;
+      if (this.inFlight.has(index)) return ChunkState.SENDING;
+      return ChunkState.WAITING;
+    });
+  }
+
+  private emit(force: boolean = false): void {
     if (!this.onProgressCallback) return;
 
-    const elapsedTime = (Date.now() - this.startTime) / 1000;
-    const progress = this.serverProgress > 0
-      ? this.serverProgress
-      : (this.uploadedBytes / this.file.size) * 100;
+    const now = Date.now();
+    if (!force && now - this.lastEmit < UPLOAD_QUEUE.PROGRESS_THROTTLE_MS) return;
+    this.lastEmit = now;
 
-    const uploadedSize = this.serverProgress > 0
-      ? (this.serverProgress / 100) * this.file.size
-      : this.uploadedBytes;
+    const sent = this.sentBytes();
+    this.sampleSpeed(now, sent);
 
-    const speed = uploadedSize / elapsedTime;
-    const remainingBytes = this.file.size - uploadedSize;
-    const remainingTime = speed > 0 ? remainingBytes / speed : 0;
+    const isDone =
+      this.phase === UploadPhase.ASSEMBLING || this.phase === UploadPhase.DONE;
+    const progress = isDone || this.file.size === 0
+      ? 100
+      : (sent / this.file.size) * 100;
+    const remainingTime =
+      this.speed > 0 ? (this.file.size - sent) / this.speed : 0;
 
     this.onProgressCallback({
       fileId: this.uploadId,
       fileName: this.file.name,
       totalSize: this.file.size,
-      uploadedSize,
+      uploadedSize: isDone ? this.file.size : sent,
       progress,
       status: UploadStatus.UPLOADING,
-      speed,
-      remainingTime,
+      speed: isDone ? 0 : this.speed,
+      remainingTime: isDone ? 0 : remainingTime,
       chunksCompleted: this.uploadedChunks.size,
       totalChunks: this.totalChunks,
+      phase: this.phase,
+      chunksInFlight: this.inFlight.size,
+      chunksRetrying: this.retrying.size,
+      chunkMap: this.chunkMap(),
     });
   }
 

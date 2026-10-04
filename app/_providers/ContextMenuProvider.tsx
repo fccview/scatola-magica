@@ -11,6 +11,7 @@ import ContextMenu, {
   ContextMenuItem,
 } from "@/app/_components/GlobalComponents/Layout/ContextMenu";
 import { usePreferences } from "./PreferencesProvider";
+import { VIEWABLE_EXTENSIONS } from "@/app/_lib/constants";
 
 export interface ContextMenuTarget {
   type: "file" | "folder" | "empty";
@@ -57,55 +58,6 @@ export const useContextMenu = () => {
   return context;
 };
 
-const VIEWABLE_EXTENSIONS = [
-  "txt",
-  "md",
-  "markdown",
-  "html",
-  "css",
-  "js",
-  "jsx",
-  "ts",
-  "tsx",
-  "json",
-  "xml",
-  "yaml",
-  "yml",
-  "sh",
-  "bash",
-  "py",
-  "java",
-  "c",
-  "cpp",
-  "h",
-  "hpp",
-  "go",
-  "rs",
-  "php",
-  "rb",
-  "sql",
-  "log",
-  "csv",
-  "config",
-  "conf",
-  "ini",
-  "env",
-  "jpg",
-  "jpeg",
-  "png",
-  "gif",
-  "svg",
-  "webp",
-  "bmp",
-  "ico",
-  "mp4",
-  "webm",
-  "ogg",
-  "mov",
-  "avi",
-  "mkv",
-  "pdf",
-];
 
 export default function ContextMenuProvider({
   children,

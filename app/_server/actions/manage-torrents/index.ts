@@ -1,6 +1,6 @@
 "use server";
 
-import { getCurrentUser } from "@/app/_server/actions/user";
+import { getCurrentUser } from "@/app/_lib/current-user";
 import { validateEncryptionForTorrents } from "@/app/_server/actions/make-torrents";
 import { getTorrentManager } from "@/app/_lib/torrents/torrent-manager";
 import {
@@ -20,8 +20,8 @@ import {
   decryptTorrentSessions,
   isTorrentSessionsEncrypted,
 } from "@/app/_lib/torrents/torrent-sessions";
-import { getUserPreferences } from "@/app/_lib/preferences";
-import { auditLog } from "@/app/_server/actions/logs";
+import { getUserPreferences } from "@/app/_lib/preferences-store";
+import { auditLog } from "@/app/_lib/audit-log";
 import { ServerActionResponse } from "@/app/_types";
 import {
   TorrentSession,
@@ -30,10 +30,19 @@ import {
   TorrentState,
 } from "@/app/_types/torrent";
 import parseTorrent from "parse-torrent";
+import {
+  isInside,
+  resolveIn,
+  scopedPath,
+  StorageOwner,
+  userRoot,
+} from "@/app/_lib/storage";
+import { logger } from "@/app/_lib/logger";
 import path from "path";
 import fs from "fs/promises";
 
-const UPLOADS_DIR = process.env.UPLOADS_DIR || "./data/uploads";
+const SCOPE = "manage-torrents";
+const MAX_PATH_LENGTH = 4096;
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
 const RATE_LIMIT_WINDOW = 60 * 1000;
 const RATE_LIMIT_MAX = 5;
@@ -64,61 +73,32 @@ const _checkTorrentsEnabled = async (username: string): Promise<boolean> => {
 };
 
 const _getDownloadPath = async (
-  username: string,
-  customPath?: string,
-  isAdmin?: boolean
+  owner: StorageOwner,
+  customPath?: string
 ): Promise<string> => {
-  const preferences = await getUserPreferences(username);
+  const root = userRoot(owner);
+  const preferences = await getUserPreferences(owner.username);
   const preferredPath = preferences.torrentPreferences?.preferredDownloadPath;
 
   if (customPath) {
-    if (customPath.length > 4096) {
-      throw new Error("Path too long");
-    }
+    if (customPath.length > MAX_PATH_LENGTH) throw new Error("Path too long");
 
-    const normalizedBase = path.normalize(path.resolve(UPLOADS_DIR));
-    const fullPath = path.resolve(UPLOADS_DIR, customPath);
-    const normalizedPath = path.normalize(fullPath);
+    const target = resolveIn(root, customPath);
+    const stats = await fs.lstat(target).catch(() => null);
+    if (stats?.isSymbolicLink()) throw new Error("Symlinks are not allowed");
 
-    const relativePath = path.relative(normalizedBase, normalizedPath);
-    if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
-      throw new Error("Invalid download path");
-    }
-
-    try {
-      const lstats = await fs.lstat(normalizedPath);
-      if (lstats.isSymbolicLink()) {
-        throw new Error("Symlinks are not allowed");
-      }
-    } catch (error: any) {
-      if (error.code !== "ENOENT") {
-        throw error;
-      }
-    }
-
-    return normalizedPath;
+    return target;
   }
 
   if (preferredPath) {
-    const normalizedBase = path.normalize(path.resolve(UPLOADS_DIR));
-    const fullPath = path.resolve(UPLOADS_DIR, preferredPath);
-    const relativePath = path.relative(normalizedBase, fullPath);
-
-    if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
-      if (isAdmin) {
-        return UPLOADS_DIR;
-      }
-      return path.join(UPLOADS_DIR, username);
+    try {
+      return resolveIn(root, preferredPath);
+    } catch (error) {
+      logger.warn(SCOPE, "Ignoring preferred download path outside user root", error);
     }
-
-    return fullPath;
   }
 
-  if (isAdmin) {
-    return UPLOADS_DIR;
-  }
-
-  return path.join(UPLOADS_DIR, username);
+  return root;
 };
 
 export const addTorrent = async (
@@ -224,9 +204,8 @@ export const addTorrent = async (
     }
 
     const downloadPath = await _getDownloadPath(
-      user.username,
-      customDownloadPath || folderPath,
-      user.isAdmin
+      user,
+      customDownloadPath || folderPath
     );
 
     await fs.mkdir(downloadPath, { recursive: true });
@@ -729,9 +708,17 @@ export const removeTorrent = async (
 
       if (deleteFiles) {
         try {
-          const downloadPath = stored.metadata.downloadPath;
-          const torrentPath = path.join(downloadPath, stored.metadata.name);
-          await fs.rm(torrentPath, { recursive: true, force: true });
+          const torrentPath = path.resolve(
+            stored.metadata.downloadPath,
+            stored.metadata.name
+          );
+          const root = userRoot(user);
+
+          if (isInside(root, torrentPath) && torrentPath !== root) {
+            await fs.rm(torrentPath, { recursive: true, force: true });
+          } else {
+            logger.warn(SCOPE, `Refusing to delete outside user root: ${torrentPath}`);
+          }
         } catch (error) {
           console.error("Error deleting torrent files:", error);
         }
@@ -833,11 +820,14 @@ export const startSeedingCreatedTorrent = async (
     if (existingStored) {
       try {
         await seedingManager.removeTorrent(infoHash);
-      } catch (error) { }
+      } catch (error) {
+        logger.warn(SCOPE, `Could not stop existing torrent ${infoHash}`, error);
+      }
       await deleteTorrentSession(user.username, infoHash);
     }
 
-    const sourcePath = path.join(UPLOADS_DIR, created.sourcePath);
+    const sourcePath = scopedPath(user, created.sourcePath).absolute;
+
     const stats = await fs.stat(sourcePath).catch(() => null);
     if (!stats) {
       return {
@@ -846,12 +836,7 @@ export const startSeedingCreatedTorrent = async (
       };
     }
 
-    let downloadPath: string;
-    if (stats.isDirectory()) {
-      downloadPath = sourcePath;
-    } else {
-      downloadPath = path.dirname(sourcePath);
-    }
+    const downloadPath = path.dirname(sourcePath);
 
     const metadata: TorrentMetadata = {
       infoHash: created.infoHash,
@@ -1022,13 +1007,13 @@ export const getFileTorrents = async (): Promise<
     const createdTorrents = await loadCreatedTorrents(user.username);
     const torrentMap: Record<string, boolean> = {};
 
-    createdTorrents.forEach((torrent) => {
+    for (const torrent of createdTorrents) {
       torrentMap[torrent.sourcePath] = true;
-    });
+    }
 
     return { success: true, data: torrentMap };
   } catch (error) {
-    console.error("Get file torrents error:", error);
+    logger.error(SCOPE, "Failed to get torrent status", error);
     return { success: false, error: "Failed to get torrent status" };
   }
 };

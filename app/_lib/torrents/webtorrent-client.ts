@@ -74,7 +74,7 @@ console.error = filteredError;
 console.warn = filteredWarn;
 console.log = filteredLog;
 
-// @ts-ignore - WebTorrent is not typed
+// @ts-expect-error - WebTorrent is not typed
 import WebTorrent from "webtorrent";
 
 class WebTorrentManager {

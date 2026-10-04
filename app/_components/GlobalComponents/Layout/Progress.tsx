@@ -3,6 +3,8 @@ interface ProgressProps {
   variant?: "linear" | "circular";
   size?: "sm" | "md" | "lg";
   className?: string;
+  indeterminate?: boolean;
+  shimmer?: boolean;
 }
 
 export default function Progress({
@@ -10,6 +12,8 @@ export default function Progress({
   variant = "linear",
   size = "md",
   className = "",
+  indeterminate = false,
+  shimmer = false,
 }: ProgressProps) {
   const clampedValue = Math.min(100, Math.max(0, value));
 
@@ -64,12 +68,28 @@ export default function Progress({
     lg: "h-3",
   };
 
+  if (indeterminate) {
+    return (
+      <div
+        role="progressbar"
+        aria-busy="true"
+        className={`bar-busy w-full rounded-full ${heightMap[size]} ${className}`}
+      />
+    );
+  }
+
   return (
     <div
+      role="progressbar"
+      aria-valuenow={Math.round(clampedValue)}
+      aria-valuemin={0}
+      aria-valuemax={100}
       className={`w-full bg-surface-variant rounded-full overflow-hidden ${heightMap[size]} ${className}`}
     >
       <div
-        className="h-full bg-primary transition-all duration-300 ease-out"
+        className={`h-full bg-primary rounded-full transition-all duration-300 ease-out ${
+          shimmer ? "fx-shimmer" : ""
+        }`}
         style={{ width: `${clampedValue}%` }}
       />
     </div>

@@ -1,13 +1,14 @@
 import { getTorrentClient } from "./webtorrent-client";
-import { getUserPreferences } from "@/app/_lib/preferences";
+import { getUserPreferences } from "@/app/_lib/preferences-store";
 import {
   TorrentSession,
   TorrentState,
   TorrentStatus,
+  TorrentMetadata,
 } from "@/app/_types/torrent";
 import { EventEmitter } from "events";
 import fs from "fs/promises";
-import { auditLog } from "@/app/_server/actions/logs";
+import { auditLog } from "@/app/_lib/audit-log";
 
 interface TorrentInstance {
   infoHash: string;
@@ -60,9 +61,9 @@ class TorrentManager extends EventEmitter {
     );
     const downloadPath = metadata.downloadPath;
 
-    return new Promise(async (resolve, reject) => {
-      let torrentInput: string | Buffer;
-      let timeout: NodeJS.Timeout;
+    const torrentInput = await this.resolveTorrentInput(metadata, infoHash);
+
+    return new Promise((resolve, reject) => {
       let resolved = false;
 
       const cleanup = () => {
@@ -70,7 +71,7 @@ class TorrentManager extends EventEmitter {
         resolved = true;
       };
 
-      timeout = setTimeout(() => {
+      const timeout = setTimeout(() => {
         if (!resolved) {
           cleanup();
           reject(new Error("Timeout: Torrent failed to initialize within 30 seconds"));
@@ -78,17 +79,6 @@ class TorrentManager extends EventEmitter {
       }, 30000);
 
       try {
-      if (metadata.torrentFilePath) {
-        try {
-          torrentInput = await fs.readFile(metadata.torrentFilePath);
-        } catch {
-          torrentInput =
-            metadata.magnetURI || `magnet:?xt=urn:btih:${infoHash}`;
-        }
-      } else {
-        torrentInput = metadata.magnetURI || `magnet:?xt=urn:btih:${infoHash}`;
-      }
-
       const torrent = client.add(
         torrentInput,
         { path: downloadPath },
@@ -152,6 +142,20 @@ class TorrentManager extends EventEmitter {
         reject(error);
       }
     });
+  }
+
+  private async resolveTorrentInput(
+    metadata: TorrentMetadata,
+    infoHash: string
+  ): Promise<string | Buffer> {
+    const magnet = metadata.magnetURI || `magnet:?xt=urn:btih:${infoHash}`;
+    if (!metadata.torrentFilePath) return magnet;
+
+    try {
+      return await fs.readFile(metadata.torrentFilePath);
+    } catch {
+      return magnet;
+    }
   }
 
   private async updateTorrentState(

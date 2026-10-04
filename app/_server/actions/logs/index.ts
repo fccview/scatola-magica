@@ -2,122 +2,17 @@
 
 import fs from "fs/promises";
 import path from "path";
-import { getCurrentUser } from "@/app/_server/actions/user";
-import { lock, unlock } from "proper-lockfile";
+import { getCurrentUser } from "@/app/_lib/current-user";
+import { AUDIT_LOG_DIR } from "@/app/_lib/data-paths";
+import { logger } from "@/app/_lib/logger";
+import {
+  AuditLogAction,
+  AuditLogEntry,
+  ensureLogsDir,
+  userLogFile,
+} from "@/app/_lib/audit-log";
 
-export type AuditLogAction =
-  | "file:upload"
-  | "file:download"
-  | "file:delete"
-  | "file:rename"
-  | "file:move"
-  | "file:copy"
-  | "file:encrypt"
-  | "file:decrypt"
-  | "folder:create"
-  | "folder:delete"
-  | "folder:rename"
-  | "folder:move"
-  | "folder:encrypt"
-  | "folder:decrypt"
-  | "auth:login"
-  | "auth:logout"
-  | "auth:password_change"
-  | "auth:api_key_generate"
-  | "auth:api_key_delete"
-  | "encryption:key_generate"
-  | "encryption:key_import"
-  | "encryption:key_export"
-  | "encryption:key_delete"
-  | "user:create"
-  | "user:delete"
-  | "user:update"
-  | "user:role_change"
-  | "settings:update"
-  | "torrent:create"
-  | "torrent:add"
-  | "torrent:pause"
-  | "torrent:resume"
-  | "torrent:stop"
-  | "torrent:remove"
-  | "torrent:start-seeding"
-  | "torrent:complete"
-  | "torrent:seed-complete"
-  | "torrent:error";
-
-export interface AuditLogEntry {
-  id: string;
-  timestamp: string;
-  username: string;
-  action: AuditLogAction;
-  resource?: string;
-  details?: Record<string, unknown>;
-  ipAddress?: string;
-  userAgent?: string;
-  success: boolean;
-  errorMessage?: string;
-}
-
-const _getLogsDir = (): string => {
-  return process.env.AUDIT_LOG_DIR || path.join(process.cwd(), "data", "audit-logs");
-};
-
-const _getUserLogFile = (username: string): string => {
-  return path.join(_getLogsDir(), `${username}.jsonl`);
-};
-
-const _ensureLogsDir = async (): Promise<void> => {
-  const logsDir = _getLogsDir();
-  await fs.mkdir(logsDir, { recursive: true });
-};
-
-export const auditLog = async (
-  action: AuditLogAction,
-  options?: {
-    resource?: string;
-    details?: Record<string, unknown>;
-    success?: boolean;
-    errorMessage?: string;
-    ipAddress?: string;
-    userAgent?: string;
-  }
-): Promise<void> => {
-  try {
-    const user = await getCurrentUser();
-    if (!user) return;
-
-    await _ensureLogsDir();
-
-    const logEntry: AuditLogEntry = {
-      id: crypto.randomUUID(),
-      timestamp: new Date().toISOString(),
-      username: user.username,
-      action,
-      resource: options?.resource,
-      details: options?.details,
-      ipAddress: options?.ipAddress,
-      userAgent: options?.userAgent,
-      success: options?.success !== undefined ? options.success : true,
-      errorMessage: options?.errorMessage,
-    };
-
-    const logFile = _getUserLogFile(user.username);
-    const logLine = JSON.stringify(logEntry) + "\n";
-
-    try {
-      await lock(logFile, { retries: 5, realpath: false });
-      try {
-        await fs.appendFile(logFile, logLine, "utf-8");
-      } finally {
-        await unlock(logFile, { realpath: false });
-      }
-    } catch (lockError) {
-      await fs.appendFile(logFile, logLine, "utf-8");
-    }
-  } catch (error) {
-    console.error("Failed to write audit log:", error);
-  }
-};
+export type { AuditLogAction, AuditLogEntry } from "@/app/_lib/audit-log";
 
 export interface GetAuditLogsOptions {
   action?: AuditLogAction;
@@ -138,9 +33,9 @@ export const getAuditLogs = async (
       return { logs: [], total: 0 };
     }
 
-    await _ensureLogsDir();
+    await ensureLogsDir();
 
-    const logFile = _getUserLogFile(user.username);
+    const logFile = userLogFile(user.username);
 
     try {
       await fs.access(logFile);
@@ -208,9 +103,9 @@ export const getAllAuditLogs = async (
       return { logs: [], total: 0 };
     }
 
-    await _ensureLogsDir();
+    await ensureLogsDir();
 
-    const logsDir = _getLogsDir();
+    const logsDir = AUDIT_LOG_DIR;
     const files = await fs.readdir(logsDir);
 
     let allLogs: AuditLogEntry[] = [];
@@ -280,12 +175,14 @@ export const clearAuditLogs = async (): Promise<{ success: boolean }> => {
       return { success: false };
     }
 
-    const logFile = _getUserLogFile(user.username);
+    const logFile = userLogFile(user.username);
 
     try {
       await fs.access(logFile);
       await fs.unlink(logFile);
-    } catch {}
+    } catch (error) {
+      logger.warn("audit-logs", `No log file to clear for ${user.username}`, error);
+    }
 
     return { success: true };
   } catch (error) {
@@ -301,7 +198,7 @@ export const clearAllAuditLogs = async (): Promise<{ success: boolean }> => {
       return { success: false };
     }
 
-    const logsDir = _getLogsDir();
+    const logsDir = AUDIT_LOG_DIR;
     const files = await fs.readdir(logsDir);
 
     for (const file of files) {
@@ -324,7 +221,7 @@ export const getLoggedUsers = async (): Promise<string[]> => {
       return [];
     }
 
-    const logsDir = _getLogsDir();
+    const logsDir = AUDIT_LOG_DIR;
     const files = await fs.readdir(logsDir);
 
     const users = files

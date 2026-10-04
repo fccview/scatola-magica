@@ -1,8 +1,8 @@
 "use server";
 
-import { getCurrentUser } from "@/app/_server/actions/user";
+import { getCurrentUser } from "@/app/_lib/current-user";
 import { validateEncryptionForTorrents } from "@/app/_server/actions/make-torrents";
-import { getUserPreferences } from "@/app/_lib/preferences";
+import { getUserPreferences } from "@/app/_lib/preferences-store";
 import { ServerActionResponse } from "@/app/_types";
 import parseTorrent from "parse-torrent";
 import { getTorrentClient } from "@/app/_lib/torrents/webtorrent-client";
@@ -107,9 +107,7 @@ export const fetchTorrentMetadata = async (
           prefs.maxDownloadSpeed,
           prefs.maxUploadSpeed
         );
-        let timeout: NodeJS.Timeout;
         let resolved = false;
-        let torrent: any;
 
         const cleanup = () => {
           if (timeout) clearTimeout(timeout);
@@ -122,7 +120,7 @@ export const fetchTorrentMetadata = async (
           }
         };
 
-        timeout = setTimeout(() => {
+        const timeout = setTimeout(() => {
           if (!resolved) {
             resolved = true;
             cleanup();
@@ -134,7 +132,7 @@ export const fetchTorrentMetadata = async (
           }
         }, 30000);
 
-        torrent = client.add(magnetURI, {}, (torrentInstance: any) => {
+        const torrent = client.add(magnetURI, {}, (torrentInstance: any) => {
           if (resolved) {
             try {
               client.remove(torrentInstance);

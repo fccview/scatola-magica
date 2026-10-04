@@ -1,8 +1,8 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/app/_server/actions/user";
+import { getCurrentUser } from "@/app/_lib/current-user";
 import SettingsPage from "@/app/_components/FeatureComponents/SettingsPage/SettingsPage";
-import Progress from "@/app/_components/GlobalComponents/Layout/Progress";
+import LogoLoader from "@/app/_components/GlobalComponents/Layout/LogoLoader";
 
 export default async function Settings() {
   const currentUser = await getCurrentUser();
@@ -14,9 +14,7 @@ export default async function Settings() {
   return (
     <Suspense
       fallback={
-        <div className="flex items-center justify-center h-screen bg-surface">
-          <Progress variant="circular" size="lg" value={50} />
-        </div>
+        <LogoLoader className="h-screen bg-surface" />
       }
     >
       <SettingsPage />

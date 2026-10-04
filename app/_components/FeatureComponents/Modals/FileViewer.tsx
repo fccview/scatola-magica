@@ -9,19 +9,13 @@ import IconButton from "@/app/_components/GlobalComponents/Buttons/IconButton";
 import TextEditor, {
   type TextEditorHandle,
 } from "../FileManipulation/TextEditor";
-import PdfViewer from "../FileManipulation/PdfViewer";
-import CsvViewer from "../FileManipulation/CsvViewer";
+import FilePreview from "../FileManipulation/FilePreview";
 import EncryptedFileViewer from "../FileManipulation/EncryptedFileViewer";
 import DecryptFileModal from "./DecryptFileModal";
 import { decryptFile } from "@/app/_server/actions/file-encryption";
-import {
-  TEXT_EXTENSIONS,
-  IMAGE_EXTENSIONS,
-  VIDEO_EXTENSIONS,
-  PDF_EXTENSIONS,
-  CSV_EXTENSIONS,
-  MARKDOWN_EXTENSIONS,
-} from "@/app/_lib/constants";
+import { MARKDOWN_EXTENSIONS } from "@/app/_lib/constants";
+import { fileExtension, previewKind } from "@/app/_lib/preview-kind";
+import { PreviewKind } from "@/app/_types/enums";
 
 export default function FileViewer() {
   const router = useRouter();
@@ -44,17 +38,13 @@ export default function FileViewer() {
   const handleDecrypt = async (password: string, outputName: string, deleteEncrypted: boolean, customPrivateKey?: string) => {
     if (!currentFile) return;
 
-    try {
-      const result = await decryptFile(currentFile.id, password, outputName, deleteEncrypted, customPrivateKey);
-      if (result.success) {
-        closeViewer();
-        router.refresh();
-      } else {
-        throw new Error(result.message);
-      }
-    } catch (error) {
-      throw error;
+    const result = await decryptFile(currentFile.id, password, outputName, deleteEncrypted, customPrivateKey);
+    if (!result.success) {
+      throw new Error(result.message);
     }
+
+    closeViewer();
+    router.refresh();
   };
 
   const handleClose = () => {
@@ -85,13 +75,9 @@ export default function FileViewer() {
 
   if (!currentFile) return null;
 
-  const extension = currentFile.name.split(".").pop()?.toLowerCase() || "";
-  const isText = TEXT_EXTENSIONS.includes(extension);
-  const isImage = IMAGE_EXTENSIONS.includes(extension);
-  const isVideo = VIDEO_EXTENSIONS.includes(extension);
-  const isPdf = PDF_EXTENSIONS.includes(extension);
-  const isCsv = CSV_EXTENSIONS.includes(extension);
-  const isMarkdown = MARKDOWN_EXTENSIONS.includes(extension);
+  const kind = previewKind(currentFile.name);
+  const isText = kind === PreviewKind.TEXT;
+  const isMarkdown = MARKDOWN_EXTENSIONS.includes(fileExtension(currentFile.name));
   const isEncrypted = currentFile.name.endsWith(".gpg");
 
   const viewUrl = `${currentFile.url}?view=true`;
@@ -148,38 +134,13 @@ export default function FileViewer() {
             />
           )}
 
-          {!isEncrypted && isImage && (
-            <div className="flex items-center justify-center">
-              <img
-                src={viewUrl}
-                alt={currentFile.name}
-                className="max-w-full max-h-[70vh] object-contain rounded"
-              />
-            </div>
-          )}
-
-          {!isEncrypted && isVideo && (
-            <div className="flex items-center justify-center">
-              <video
-                src={viewUrl}
-                controls
-                className="max-w-full max-h-[70vh] rounded"
-              >
-                Your browser does not support the video tag.
-              </video>
-            </div>
-          )}
-
-          {!isEncrypted && isPdf && <PdfViewer fileUrl={viewUrl} fileName={currentFile.name} />}
-
-          {!isEncrypted && isCsv && <CsvViewer fileUrl={viewUrl} />}
-
-          {!isEncrypted && !isText && !isImage && !isVideo && !isPdf && !isCsv && (
-            <div className="flex items-center justify-center py-12">
-              <div className="text-on-surface-variant">
-                This file type cannot be previewed. Please download it to view.
-              </div>
-            </div>
+          {!isEncrypted && !isText && (
+            <FilePreview
+              kind={kind}
+              fileId={currentFile.id}
+              fileName={currentFile.name}
+              viewUrl={viewUrl}
+            />
           )}
         </div>
       </Modal>
