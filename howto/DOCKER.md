@@ -124,19 +124,18 @@ environment:
 
 ## Valkey Cache (Optional)
 
-Scatola Magica caches folder and file listings in memory by default, which is all a single container needs. If you run more than one instance, or want the cache to survive restarts, add a [Valkey](https://valkey.io) sidecar and point `VALKEY_URL` at it:
+Scatola Magica caches folder and file listings in memory by default, which is all a single container needs. If you run more than one instance, or want the cache to survive restarts, add a [Valkey](https://valkey.io) sidecar and point `VALKEY_URL` at it. A complete example lives in [`docker-compose-examples/valkey.yml`](../docker-compose-examples/valkey.yml), the relevant bits are:
 
 ```yaml
 services:
   scatola-magica:
     environment:
-      - VALKEY_URL=valkey://valkey:6379
+      - VALKEY_URL=valkey://scatola-magica-valkey:6379
     depends_on:
-      - valkey
+      - scatola-magica-valkey
 
-  valkey:
+  scatola-magica-valkey:
     image: valkey/valkey:8-alpine
-    container_name: scatola-magica-valkey
     restart: unless-stopped
     command: ["valkey-server", "--save", "", "--appendonly", "no"]
 ```

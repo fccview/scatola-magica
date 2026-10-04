@@ -6,11 +6,13 @@
 
 A simple, self-hosted file storage/transfer app.
 
-[Scatola Magica](https://www.youtube.com/watch?v=pvn0KHxzesE) is a privacy first, lightweight alternative to overcomplicated, bloated file storage solutions, to transfer, manage, encrypt/decrypt your personal files and folders. It's built with Next.js 14, is easy to deploy, and keeps all your data on your own server.
+[Scatola Magica](https://www.youtube.com/watch?v=pvn0KHxzesE) is a privacy first, lightweight alternative to overcomplicated, bloated file storage solutions, to transfer, manage, encrypt/decrypt your personal files and folders. It's built with Next.js 16, is easy to deploy, and keeps all your data on your own server.
 
 It features optional PGP encryption for stored items and optional AES-256-GCM encryption for file transfer. Read more about how encryption works in the [howto/ENCRYPTION.md](howto/ENCRYPTION.md) guide.
 
 Watch a quick demo of some of the app functionality [here](https://www.youtube.com/watch?v=pvn0KHxzesE) (enable subtitles!!)
+
+Please check the [howto](howto/) guides before raising issues, your questions may already have been answered.
 
 ---
 
@@ -38,21 +40,60 @@ Watch a quick demo of some of the app functionality [here](https://www.youtube.c
   <img src="public/app-screenshots/file-grid-dark.png" alt="Upload Progress" width="400" style="border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin: 0 8px;">
 </div>
 
-## Quick nav
+## Run
 
-- [Features](#features)
-- [Tech Stack](#tech-stack)
-- [Getting Started](#getting-started)
-  - [Docker Compose (Recommended)](#docker-compose-recommended)
-  - [Initial Setup](#initial-setup)
-  - [Local Development (Without Docker)](#local-development-without-docker)
-- [Data Storage](#data-storage)
-- [Versioning Scheme](#versioning)
-- [Updating](#updating)
-  - [Docker Compose](#docker-compose-1)
-  - [Manual](#manual)
-- [Shortcuts](#shortcuts)
-- [Single Sign-On (SSO) with OIDC](#single-sign-on-sso-with-oidc)
+By default the app will run on port `1133` with user `1000:1000`, please check [howto/ENV.md](howto/ENV.md) for a comprehensive list of env variables and [howto/DOCKER.md](howto/DOCKER.md) for what every compose setting does.
+
+```bash
+mkdir -p uploads/temp config cache
+sudo chown -R 1000:1000 uploads config cache
+```
+
+The `cache` directory is optional. If you don't want cache persistence, drop the cache volume line from your compose file.
+
+<details>
+<summary>Docker Compose</summary>
+
+Ready-to-use compose files live in [`docker-compose-examples/`](docker-compose-examples/). Pick one and save it as `docker-compose.yml` next to the folders you just created:
+
+| File | What it runs | When to use |
+| :--- | :----------- | :---------- |
+| [`simple.yml`](docker-compose-examples/simple.yml) | Scatola Magica | One container for personal use. The cache lives in memory. |
+| [`valkey.yml`](docker-compose-examples/valkey.yml) | Scatola Magica + Valkey | Several replicas, a big library, or a cache that should survive restarts. |
+
+```bash
+docker compose up -d
+```
+
+</details>
+
+<details>
+<summary>Inline docker</summary>
+
+```bash
+docker run -d --name scatola-magica --user 1000:1000 -p 1133:3000 -v ./uploads:/app/data/uploads -v ./config:/app/data/config -v ./cache:/app/.next/cache -e NODE_ENV=production --restart unless-stopped ghcr.io/fccview/scatola-magica:latest
+```
+
+</details>
+
+<details>
+<summary>Run natively</summary>
+
+You'll need a `.env` file for your env variables, [Node.js](https://nodejs.org) 22.15 or later and [yarn](https://yarnpkg.com).
+
+```bash
+git clone https://github.com/fccview/scatola-magica.git
+cd scatola-magica
+yarn install
+yarn build
+yarn start
+```
+
+For local development run `yarn dev` instead of the last two commands, the app will be running at `http://localhost:3000`.
+
+</details>
+
+On your first visit, you'll be redirected to `/auth/setup` to create your admin account if SSO is disabled, otherwise you'll be prompted to sign in via your choosen SSO provider. First user will be admin by default.
 
 <p align="center">
   <br />
@@ -60,8 +101,6 @@ Watch a quick demo of some of the app functionality [here](https://www.youtube.c
     <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy me a coffee" width="150">
   </a>
 </p>
-
-<a id="features"></a>
 
 ## Features
 
@@ -74,97 +113,7 @@ Watch a quick demo of some of the app functionality [here](https://www.youtube.c
 - **Responsive Design:** Works seamlessly on desktop, tablet, and mobile devices.
 - **File-Based:** No database needed! Everything is stored in simple files and folders in a single data directory.
 
-<a id="tech-stack"></a>
-
-## Tech Stack
-
-- **Framework:** Next.js 15
-- **Language:** TypeScript
-- **Styling:** Tailwind CSS
-
-<a id="getting-started"></a>
-
-## Getting Started
-
-The recommended way to run `Scatola Magica` is with Docker.
-
-<a id="docker-compose-recommended"></a>
-
-### Docker Compose (Recommended)
-
-1.  Create a `docker-compose.yml` file:
-
-    **📖 For advanced settings and more information about how the docker compose file works and what these variables do, please read [howto/DOCKER.md](howto/DOCKER.md)**
-
-    ```yaml
-    services:
-      scatola-magica:
-        image: ghcr.io/fccview/scatola-magica:latest
-        container_name: scatola-magica
-        user: "1000:1000"
-        ports:
-          - "1133:3000"
-        volumes:
-          - ./uploads:/app/data/uploads:rw
-          - ./config:/app/data/config:rw
-          - ./cache:/app/.next/cache:rw
-        restart: unless-stopped
-        environment:
-          - NODE_ENV=production
-    ```
-
-2.  Create the directories and set permissions:
-
-    ```bash
-    mkdir -p uploads/temp cache
-    sudo chown -R 1000:1000 uploads/
-    sudo chown -R 1000:1000 config/
-    sudo chown -R 1000:1000 cache/
-    ```
-
-    **Note:** The cache directory is optional. If you don't want cache persistence, you can comment out the cache volume line in your `docker-compose.yml`.
-
-3.  Start the container:
-
-    ```bash
-    docker compose up -d
-    ```
-
-The application will be available at `http://localhost:1133`.
-
-<a id="initial-setup"></a>
-
-### Initial Setup
-
-On your first visit, you'll be redirected to `/auth/setup` to create your admin account if SSO is disabled, otherwise you'll be prompted to sign in via your choosen SSO provider.
-
-Once that's done, you're ready to go! First user will be admin by default.
-
-<a id="local-development-without-docker"></a>
-
-### Local Development (Without Docker)
-
-If you want to run the app locally for development:
-
-1.  **Clone & Install:**
-
-    ```bash
-    git clone <repository-url>
-    cd scatola-magica
-    yarn install
-    ```
-
-2.  **Run Dev Server:**
-
-    ```bash
-    yarn dev
-    ```
-
-    The app will be running at `http://localhost:3000`.
-
-<a id="data-storage"></a>
-
-## Data Storage
+## Data storage
 
 `Scatola Magica` uses a simple file-based storage system with the following directory structure:
 
@@ -177,9 +126,36 @@ If you want to run the app locally for development:
 
 **Make sure you back up both the `uploads` and `config` directories!**
 
-<a id="versioning"></a>
+## Updating
 
-## Versioning Scheme
+<details>
+<summary>Docker Compose</summary>
+
+Pull the latest image and restart your container.
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+</details>
+
+<details>
+<summary>Run natively</summary>
+
+Pull the latest changes and rebuild.
+
+```bash
+git pull
+yarn install
+yarn build
+yarn start
+```
+
+</details>
+
+<details>
+<summary>Versioning scheme</summary>
 
 This project uses a `[STABLE].[FEATURE].[FIX]` versioning scheme, not strict [SemVer](https://semver.org/). As a product (not a package), this format makes more sense for my specific release cycle.
 
@@ -191,7 +167,7 @@ My format is `1.10.1`, which breaks down as:
 
 - **`x.x.1` (Fix):** This is incremented _only_ for hotfixes, bug-fix-only and very minor feature releases (e.g., `1.10.0` -> `1.10.1`). This is the equivalent of a SemVer `PATCH` bump.
 
-### A Note on "Breaking" Changes
+#### A note on "breaking" changes
 
 A **Feature** release (like `1.10.0`) may include major backend or data structure changes. When this happens, **I will always provide an automatic migration script** that runs on first launch to update your data seamlessly.
 
@@ -199,49 +175,21 @@ Because the migration is automatic, I do not consider this a "breaking" change t
 
 I will always detail these migrations in the release notes. I _highly recommend_ you **back up your data** before any feature update, just in case.
 
-<a id="updating"></a>
+</details>
 
-## Updating
+## Documentation
 
-<a id="docker-compose-1"></a>
+Everything else lives in the [howto](howto/) folder:
 
-### Docker Compose
-
-Pull the latest image and restart your container.
-
-```bash
-docker compose pull
-docker compose up -d
-```
-
-<a id="manual"></a>
-
-### Manual
-
-If you're running from source, pull the latest changes and rebuild.
-
-```bash
-git pull
-yarn install
-yarn build
-yarn start
-```
-
-<a id="shortcuts"></a>
-
-## SHORTCUTS
-
-`Scatola Magica` supports a wide range of keyboard shortcuts to help you navigate and manage files more efficiently without leaving the keyboard.
-
-📖 **For the complete SHORTCUTS documentation, see [howto/SHORTCUTS.md](howto/SHORTCUTS.md)**
-
-<a id="single-sign-on-sso-with-oidc"></a>
-
-## Single Sign-On (SSO) with OIDC
-
-`Scatola Magica` supports any OIDC provider (Authentik, Auth0, Keycloak, Okta, Google, EntraID, etc.)
-
-📖 **For the complete SSO documentation, see [howto/SSO.md](howto/SSO.md)**
+| Guide | What's in it |
+| :---- | :----------- |
+| [DOCKER.md](howto/DOCKER.md) | Compose settings, volumes and the optional Valkey sidecar |
+| [ENV.md](howto/ENV.md) | Every environment variable |
+| [ENCRYPTION.md](howto/ENCRYPTION.md) | PGP storage encryption and AES-256-GCM transfer encryption |
+| [SSO.md](howto/SSO.md) | Single sign-on with any OIDC provider (Authentik, Auth0, Keycloak, Okta, Google, EntraID, etc.) |
+| [SHORTCUTS.md](howto/SHORTCUTS.md) | Keyboard shortcuts |
+| [TORRENTS.md](howto/TORRENTS.md) | Downloading, creating and seeding torrents |
+| [FILE-EXTENSIONS.md](howto/FILE-EXTENSIONS.md) | File types the viewer and editor understand |
 
 ## License
 
