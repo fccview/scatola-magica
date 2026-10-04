@@ -4,7 +4,6 @@
 NODE_ENV=production
 HTTPS=true
 APP_URL=https://your-scatola-magica-domain.com
-DATABASE_URL=file:/data/scatola.db
 UPLOAD_DIR=/data/uploads
 MAX_CHUNK_SIZE=104857600
 PARALLEL_UPLOADS=12
@@ -19,7 +18,6 @@ DISABLE_PASSWORD_LOGIN=true
 ### Mandatory (for production instances)
 
 - `NODE_ENV=production` Sets the Node.js environment to production mode for optimal performance and security.
-- `DATABASE_URL=file:/data/scatola.db` SQLite database file location for storing file metadata and user data.
 
 ### Upload Configuration
 
@@ -32,10 +30,12 @@ DISABLE_PASSWORD_LOGIN=true
 
 - `HTTPS=true` Optional. Enables HTTPS mode for secure connections.
 - `APP_URL=https://your-scatola-magica-domain.com` Force a base URL of your Scatola Magica instance. Required for SSO but optional otherwise - if you have trouble logging in with reverse proxy try setting this up as it will force the application to login using this exact url.
-- `INTERNAL_API_URL=http://localhost:3000` Optional. URL used for internal API calls within the container. Defaults to `http://localhost:3000` if not set. Only needed if you're experiencing session validation issues behind a reverse proxy.
 - `AUDIT_LOG_DIR=/app/data/audit-logs` Optional. Directory where audit logs are stored. Defaults to `data/audit-logs` relative to the app root. Map a volume to this path if running as a non-root container user.
 - `THUMBNAIL_CACHE_DIR=/app/data/thumbnails` Optional. Directory where generated image thumbnails are cached. Defaults to `data/thumbnails` relative to the app root. Map a volume to this path to persist the cache across container restarts.
-- `ENCRYPTION_KEY=your-secret-key` Optional. Encrypts folder paths in browser URLs for additional security. Can be any length string. When set, folder paths like `/documents/reports` will appear as encrypted strings in the URL bar. Leave unset for plain folder paths.
+- `ENCRYPTION_KEY=your-secret-key` Optional. Seeds the per-user key used to obfuscate folder paths in URLs and to protect cached passphrases in the browser. When set, every new user gets this same key; leave unset to generate a random key per user (recommended).
+- `KEYS_DIR=/app/data/config/keys` Optional. Where PGP keys are stored. Defaults to `data/config/keys`.
+- `TORRENTS_DATA_DIR=/app/data/config/torrents` Optional. Where torrent metadata is stored. Defaults to `data/config/torrents`.
+- `DEV_ORIGINS=192.168.1.10,my-dev-host` Optional, development only. Extra origins allowed to reach the dev server.
 - `BRUTEFORCE_PROTECTION=true` Optional. Locks out an IP for 15 minutes after 10 consecutive failed login attempts. Recommended for publicly exposed instances.
 
 ## SSO Configuration (Optional)
@@ -43,13 +43,17 @@ DISABLE_PASSWORD_LOGIN=true
 ### Mandatory
 
 - `APP_URL=https://your-scatola-magica-domain.com` Tells the OIDC of your choice what url you are trying to authenticate against.
-- `OIDC_ISSUER=<YOUR_SSO_ISSUER>` URL of your OIDC provider (e.g., Authentik, Auth0, Keycloak).
+- `OIDC_ISSUER=<YOUR_SSO_ISSUER>` URL of your OIDC provider (e.g., Authentik, Auth0, Keycloak, Rauthy). The full `.well-known/openid-configuration` URL also works.
 - `OIDC_CLIENT_ID=<YOUR_SSO_CLIENT_ID>` Client ID from your OIDC provider configuration.
 
 ### Optional
 
-- `OIDC_CLIENT_SECRET=your_client_secret` Optional. Client secret for confidential OIDC client authentication.
+- `OIDC_CLIENT_SECRET=your_client_secret` Optional. Client secret for confidential OIDC client authentication. Both `client_secret_post` and `client_secret_basic` are supported.
+- `OIDC_ISSUER_FILE`, `OIDC_CLIENT_ID_FILE`, `OIDC_CLIENT_SECRET_FILE` Optional. Read the matching value from a file (Docker secrets). Takes precedence over the plain variable.
 - `OIDC_ADMIN_GROUPS=admins` Optional. Comma-separated list of OIDC groups that should have admin privileges.
+- `OIDC_ADMIN_ROLES=admin` Optional. Comma-separated list of OIDC roles (`roles` claim) that should have admin privileges.
+- `OIDC_USER_GROUPS=family,friends` Optional. When set, only members of these groups (or admins) can sign in.
+- `OIDC_USER_ROLES=user` Optional. When set, only users with these roles (or admins) can sign in.
 - `OIDC_GROUPS_SCOPE=groups` Optional. Scope to request for groups. Defaults to "groups". Set to empty string or "no" to disable for providers like Entra ID that don't support the groups scope.
 - `OIDC_LOGOUT_URL=https://authprovider.local/realms/master/logout` Optional. Custom logout URL for global logout.
 - `DISABLE_PASSWORD_LOGIN=true` Optional. When set to "true" and OIDC is properly configured, disables username/password login and only shows OIDC login. If OIDC is not configured, password login will still be available as a fallback.

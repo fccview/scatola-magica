@@ -1,6 +1,6 @@
 "use client";
 
-import { FileMetadata, User } from "@/app/_types";
+import { FileMetadata, PublicUser } from "@/app/_types";
 import { FileViewMode, SortBy } from "@/app/_types/enums";
 import { type FolderMetadata } from "@/app/_server/actions/folders";
 import FileCard from "@/app/_components/GlobalComponents/Cards/FileCard";
@@ -30,7 +30,7 @@ interface FileListClientProps {
   sortBy?: SortBy;
   hasMore?: boolean;
   total?: number;
-  allUsers?: User[];
+  allUsers?: PublicUser[];
 }
 
 export default function FileListClient({

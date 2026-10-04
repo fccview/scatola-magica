@@ -4,15 +4,15 @@ import { useCallback } from "react";
 import { usePreferences } from "@/app/_providers/PreferencesProvider";
 
 export const usePathEncryption = () => {
-  const { encryptionKey } = usePreferences();
+  const { pathToken } = usePreferences();
 
   const encryptPath = useCallback(
     (path: string): string => {
-      if (!encryptionKey || !path) return path;
+      if (!pathToken || !path) return path;
 
       try {
-        const combined = `${encryptionKey}:${path}`;
-        return btoa(combined)
+        const bytes = new TextEncoder().encode(`${pathToken}:${path}`);
+        return btoa(String.fromCharCode(...bytes))
           .replace(/\+/g, "-")
           .replace(/\//g, "_")
           .replace(/=/g, "");
@@ -21,20 +21,23 @@ export const usePathEncryption = () => {
         return path;
       }
     },
-    [encryptionKey]
+    [pathToken]
   );
 
   const decryptPath = useCallback(
     (encryptedPath: string): string => {
-      if (!encryptionKey || !encryptedPath) return encryptedPath;
+      if (!pathToken || !encryptedPath) return encryptedPath;
 
       try {
         const base64 = encryptedPath.replace(/-/g, "+").replace(/_/g, "/");
         const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
-        const decoded = atob(padded);
+        const binary = atob(padded);
+        const decoded = new TextDecoder().decode(
+          Uint8Array.from(binary, (char) => char.charCodeAt(0))
+        );
 
-        if (decoded.startsWith(`${encryptionKey}:`)) {
-          return decoded.slice(encryptionKey.length + 1);
+        if (decoded.startsWith(`${pathToken}:`)) {
+          return decoded.slice(pathToken.length + 1);
         }
 
         return encryptedPath;
@@ -42,8 +45,8 @@ export const usePathEncryption = () => {
         return encryptedPath;
       }
     },
-    [encryptionKey]
+    [pathToken]
   );
 
-  return { encryptPath, decryptPath, isEncryptionEnabled: !!encryptionKey };
+  return { encryptPath, decryptPath, isEncryptionEnabled: !!pathToken };
 };

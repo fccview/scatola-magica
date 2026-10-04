@@ -1,280 +1,170 @@
-"use server";
+import "server-only";
 
 import fs from "fs/promises";
 import path from "path";
-import { lock, unlock } from "proper-lockfile";
+import crypto from "crypto";
+import { TEMP_DIR, isInside } from "@/app/_lib/storage";
+import { readJson, updateJson, writeJson } from "@/app/_lib/json-store";
+import { logger } from "@/app/_lib/logger";
 
-const UPLOAD_DIR = process.env.UPLOAD_DIR || "./data/uploads";
-const TEMP_DIR = `${UPLOAD_DIR}/temp`;
-const ASSEMBLY_IN_PROGRESS = "__ASSEMBLING__";
+const SCOPE = "upload-sessions";
+const UPLOAD_ID_PATTERN = /^[a-zA-Z0-9_-]{1,200}$/;
+const OWNER_SEPARATOR = "__";
+const SESSION_FILE = "session.json";
+
+export const ASSEMBLY_IN_PROGRESS = "__ASSEMBLING__";
 
 export interface PersistedUploadSession {
   uploadId: string;
+  owner: string;
   fileName: string;
   fileSize: number;
   totalChunks: number;
-  receivedChunks: number[];
-  writtenChunks: number[];
   createdAt: number;
   chunkSize?: number;
-  folderPath?: string;
+  folderPath: string;
   e2eEncrypted?: boolean;
   e2ePassword?: string;
   e2eSalt?: number[];
   fileId?: string;
 }
 
-const _getSessionFile = (uploadId: string): string => {
-  if (!/^[a-zA-Z0-9-_]+$/.test(uploadId)) {
-    throw new Error("Invalid uploadId format");
+const _ownerKey = (owner: string): string =>
+  crypto.createHash("sha256").update(owner).digest("hex").slice(0, 16);
+
+export const isValidUploadId = (uploadId: unknown): uploadId is string =>
+  typeof uploadId === "string" && UPLOAD_ID_PATTERN.test(uploadId);
+
+export const sessionDir = (owner: string, uploadId: string): string => {
+  if (!isValidUploadId(uploadId)) throw new Error("Invalid uploadId format");
+
+  const dir = path.join(TEMP_DIR, `${_ownerKey(owner)}${OWNER_SEPARATOR}${uploadId}`);
+  if (!isInside(TEMP_DIR, dir) || dir === TEMP_DIR) {
+    throw new Error("Invalid upload session path");
   }
-  const sessionFile = path.join(TEMP_DIR, uploadId, "session.json");
-  const resolvedSessionFile = path.resolve(sessionFile);
-  const resolvedBaseDir = path.resolve(TEMP_DIR);
-  if (!resolvedSessionFile.startsWith(resolvedBaseDir + path.sep)) {
-    throw new Error("Path traversal detected");
-  }
-  return sessionFile;
+
+  return dir;
 };
 
-const _getTempDir = (uploadId: string): string => {
-  if (!/^[a-zA-Z0-9-_]+$/.test(uploadId)) {
-    throw new Error("Invalid uploadId format");
-  }
-  const tempDir = path.join(TEMP_DIR, uploadId);
-  const resolvedTempDir = path.resolve(tempDir);
-  const resolvedBaseDir = path.resolve(TEMP_DIR);
-  if (!resolvedTempDir.startsWith(resolvedBaseDir + path.sep)) {
-    throw new Error("Path traversal detected");
-  }
-  return tempDir;
-};
+export const chunkPath = (dir: string, index: number): string =>
+  path.join(dir, `chunk-${index}`);
 
-const _ensureSessionFile = async (
-  uploadId: string,
-  session: PersistedUploadSession
-): Promise<void> => {
-  const sessionFile = _getSessionFile(uploadId);
-  try {
-    await fs.access(sessionFile);
-  } catch {
-    await fs.writeFile(
-      sessionFile,
-      JSON.stringify(session, null, 2),
-      "utf-8"
-    );
-  }
-};
-
-const _writeSessionWithLock = async (
-  uploadId: string,
-  session: PersistedUploadSession
-): Promise<void> => {
-  const sessionFile = _getSessionFile(uploadId);
-  const jsonData = JSON.stringify(session, null, 2);
-
-  try {
-    await fs.access(sessionFile);
-  } catch {
-    await fs.writeFile(sessionFile, jsonData, "utf-8");
-    return;
-  }
-
-  const maxRetries = 5;
-  let retries = 0;
-
-  while (retries < maxRetries) {
-    try {
-      await lock(sessionFile, { retries: 0 });
-      try {
-        await fs.writeFile(sessionFile, jsonData, "utf-8");
-        await unlock(sessionFile);
-        return;
-      } catch (writeError) {
-        await unlock(sessionFile).catch(() => {});
-        throw writeError;
-      }
-    } catch (lockError: any) {
-      if (lockError.code === "ELOCKED" && retries < maxRetries - 1) {
-        retries++;
-        await new Promise((resolve) =>
-          setTimeout(resolve, 100 * Math.pow(2, retries - 1))
-        );
-        continue;
-      }
-      if (lockError.code === "ELOCKED") {
-        throw new Error(
-          `Failed to save upload session: file is locked after ${maxRetries} retries`
-        );
-      }
-      throw lockError;
-    }
-  }
-};
+const _sessionFile = (owner: string, uploadId: string): string =>
+  path.join(sessionDir(owner, uploadId), SESSION_FILE);
 
 export const createUploadSession = async (
   session: PersistedUploadSession
 ): Promise<void> => {
-  const tempDir = _getTempDir(session.uploadId);
-  await fs.mkdir(tempDir, { recursive: true });
-  await _ensureSessionFile(session.uploadId, session);
+  await fs.mkdir(sessionDir(session.owner, session.uploadId), {
+    recursive: true,
+    mode: 0o700,
+  });
+  await writeJson(_sessionFile(session.owner, session.uploadId), session);
 };
 
 export const loadUploadSession = async (
+  owner: string,
   uploadId: string
 ): Promise<PersistedUploadSession | null> => {
+  if (!isValidUploadId(uploadId)) return null;
+
   try {
-    const sessionFile = _getSessionFile(uploadId);
-    const content = await fs.readFile(sessionFile, "utf-8");
-
-    if (!content || content.trim().length === 0) {
-      console.warn(`[Session] Empty session file: ${uploadId}`);
-      return null;
-    }
-
-    const session = JSON.parse(content) as PersistedUploadSession;
-
-    if (!session.uploadId || !session.fileName || !session.totalChunks) {
-      console.warn(`[Session] Invalid session structure: ${uploadId}`);
-      return null;
-    }
-
-    return session;
-  } catch (error: any) {
-    if (error.code === "ENOENT") {
-      return null;
-    }
-
-    console.error(`[Session] Failed to load session ${uploadId}:`, error);
-
-    try {
-      await deleteUploadSession(uploadId);
-    } catch {}
-
+    const session = await readJson<PersistedUploadSession | null>(
+      _sessionFile(owner, uploadId),
+      null
+    );
+    return session?.owner === owner ? session : null;
+  } catch (error) {
+    logger.error(SCOPE, `Failed to load session ${uploadId}`, error);
     return null;
   }
 };
 
-export const markChunkWritten = async (
-  uploadId: string,
-  chunkIndex: number
-): Promise<void> => {
-  const session = await loadUploadSession(uploadId);
-  if (!session) {
-    throw new Error(`Upload session not found: ${uploadId}`);
-  }
-
-  if (session.writtenChunks.includes(chunkIndex)) {
-    return;
-  }
-
-  session.writtenChunks.push(chunkIndex);
-  session.writtenChunks.sort((a, b) => a - b);
-
-  await _writeSessionWithLock(uploadId, session);
-};
-
-export const markChunkReceived = async (
-  uploadId: string,
-  chunkIndex: number
-): Promise<void> => {
-  const session = await loadUploadSession(uploadId);
-  if (!session) {
-    throw new Error(`Upload session not found: ${uploadId}`);
-  }
-
-  if (session.receivedChunks.includes(chunkIndex)) {
-    return;
-  }
-
-  session.receivedChunks.push(chunkIndex);
-  session.receivedChunks.sort((a, b) => a - b);
-
-  await _writeSessionWithLock(uploadId, session);
-};
-
-export const isUploadComplete = async (uploadId: string): Promise<boolean> => {
-  const session = await loadUploadSession(uploadId);
-  if (!session) {
-    return false;
-  }
-
-  return session.writtenChunks.length === session.totalChunks;
-};
-
-export const setSessionFileId = async (
-  uploadId: string,
-  fileId: string
-): Promise<void> => {
-  const session = await loadUploadSession(uploadId);
-  if (!session) {
-    throw new Error(`Upload session not found: ${uploadId}`);
-  }
-
-  session.fileId = fileId;
-  await _writeSessionWithLock(uploadId, session);
-};
-
-export const tryStartAssembly = async (uploadId: string): Promise<boolean> => {
-  const sessionFile = _getSessionFile(uploadId);
-
-  const maxRetries = 5;
-  let retries = 0;
-
-  while (retries < maxRetries) {
-    try {
-      await lock(sessionFile, { retries: 0 });
-      try {
-        const content = await fs.readFile(sessionFile, "utf-8");
-        const session = JSON.parse(content) as PersistedUploadSession;
-
-        if (session.fileId) {
-          await unlock(sessionFile);
-          return false;
-        }
-
-        session.fileId = ASSEMBLY_IN_PROGRESS;
-        await fs.writeFile(sessionFile, JSON.stringify(session, null, 2));
-        await unlock(sessionFile);
-        return true;
-      } catch (writeError) {
-        await unlock(sessionFile).catch(() => {});
-        throw writeError;
-      }
-    } catch (lockError: any) {
-      if (lockError.code === "ELOCKED" && retries < maxRetries - 1) {
-        retries++;
-        await new Promise((resolve) =>
-          setTimeout(resolve, 100 * Math.pow(2, retries - 1))
-        );
-        continue;
-      }
-      throw lockError;
-    }
-  }
-
-  return false;
-};
-
-export const deleteUploadSession = async (uploadId: string): Promise<void> => {
-  const tempDir = _getTempDir(uploadId);
-
+export const writtenChunks = async (dir: string): Promise<number[]> => {
   try {
-    await fs.rm(tempDir, { recursive: true, force: true });
-  } catch (error) {
-    console.error(`[Session] Failed to delete session ${uploadId}:`, error);
+    const files = await fs.readdir(dir);
+    return files
+      .filter((file) => file.startsWith("chunk-"))
+      .map((file) => Number(file.slice("chunk-".length)))
+      .filter(Number.isInteger)
+      .sort((a, b) => a - b);
+  } catch {
+    return [];
   }
 };
 
-export const listUploadSessions = async (): Promise<string[]> => {
+export const tryStartAssembly = (
+  owner: string,
+  uploadId: string
+): Promise<boolean> =>
+  updateJson<PersistedUploadSession | null, boolean>(
+    _sessionFile(owner, uploadId),
+    null,
+    (session) => {
+      if (!session || session.fileId) return false;
+      session.fileId = ASSEMBLY_IN_PROGRESS;
+      return true;
+    }
+  );
+
+export const setSessionFileId = (
+  owner: string,
+  uploadId: string,
+  fileId: string | undefined
+): Promise<void> =>
+  updateJson<PersistedUploadSession | null>(
+    _sessionFile(owner, uploadId),
+    null,
+    (session) => {
+      if (session) session.fileId = fileId;
+    }
+  );
+
+export const deleteUploadSession = async (
+  owner: string,
+  uploadId: string
+): Promise<void> => {
+  try {
+    await fs.rm(sessionDir(owner, uploadId), { recursive: true, force: true });
+  } catch (error) {
+    logger.error(SCOPE, `Failed to delete session ${uploadId}`, error);
+  }
+};
+
+export const listSessionDirs = async (): Promise<string[]> => {
   try {
     await fs.mkdir(TEMP_DIR, { recursive: true });
     const entries = await fs.readdir(TEMP_DIR, { withFileTypes: true });
     return entries
       .filter((entry) => entry.isDirectory())
-      .map((entry) => entry.name);
+      .map((entry) => path.join(TEMP_DIR, entry.name));
   } catch (error) {
-    console.error("[Session] Failed to list upload sessions:", error);
+    logger.error(SCOPE, "Failed to list upload sessions", error);
     return [];
   }
 };
+
+export const listOwnerSessions = async (
+  owner: string
+): Promise<PersistedUploadSession[]> => {
+  const prefix = `${_ownerKey(owner)}${OWNER_SEPARATOR}`;
+  const sessions: PersistedUploadSession[] = [];
+
+  for (const dir of await listSessionDirs()) {
+    if (!path.basename(dir).startsWith(prefix)) continue;
+
+    const session = await readJson<PersistedUploadSession | null>(
+      path.join(dir, SESSION_FILE),
+      null
+    ).catch(() => null);
+
+    if (session?.owner === owner) sessions.push(session);
+  }
+
+  return sessions;
+};
+
+export const readSessionAt = (
+  dir: string
+): Promise<PersistedUploadSession | null> =>
+  readJson<PersistedUploadSession | null>(path.join(dir, SESSION_FILE), null);

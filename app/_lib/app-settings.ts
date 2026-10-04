@@ -1,76 +1,53 @@
 "use server";
 
-import fs from "fs/promises";
-import path from "path";
-import { lock, unlock } from "proper-lockfile";
-import { UPLOAD_CONFIG } from "@/app/_lib/constants";
+import type { AppSettings } from "@/app/_types/app-settings";
+import { getCurrentUser } from "@/app/_lib/current-user";
+import {
+  DEFAULT_APP_SETTINGS,
+  readAppSettings,
+  writeAppSettings,
+} from "@/app/_lib/app-settings-store";
+import { auditLog } from "@/app/_lib/audit-log";
+import { logger } from "@/app/_lib/logger";
 
-export interface AppSettings {
-  upload: {
-    maxChunkSize: number;
-    parallelUploads: number;
-    maxFileSize: number;
-  };
-}
+export type { AppSettings } from "@/app/_types/app-settings";
 
-const _getAppSettingsFile = (): string => {
-  return path.join(process.cwd(), "data", "config", "app-settings.json");
+const SCOPE = "app-settings";
+
+const _positiveInt = (value: unknown, fallback: number): number => {
+  const parsed = Math.floor(Number(value));
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
 };
-
-const _readAppSettings = async (): Promise<AppSettings | null> => {
-  try {
-    const content = await fs.readFile(_getAppSettingsFile(), "utf-8");
-    if (!content) return null;
-    return JSON.parse(content) as AppSettings;
-  } catch {
-    return null;
-  }
-};
-
-const _writeAppSettings = async (settings: AppSettings): Promise<void> => {
-  const file = _getAppSettingsFile();
-  try {
-    await fs.access(file);
-  } catch {
-    await fs.mkdir(path.dirname(file), { recursive: true });
-    await fs.writeFile(file, JSON.stringify(getDefaultAppSettings(), null, 2));
-  }
-  await lock(file);
-  try {
-    await fs.writeFile(file, JSON.stringify(settings, null, 2));
-  } finally {
-    await unlock(file);
-  }
-};
-
-const getDefaultAppSettings = (): AppSettings => ({
-  upload: {
-    maxChunkSize: UPLOAD_CONFIG.MAX_CHUNK_SIZE,
-    parallelUploads: UPLOAD_CONFIG.PARALLEL_UPLOADS,
-    maxFileSize: UPLOAD_CONFIG.MAX_FILE_SIZE,
-  },
-});
 
 export const getAppSettings = async (): Promise<AppSettings> => {
-  const settings = await _readAppSettings();
-  return settings || getDefaultAppSettings();
+  if (!(await getCurrentUser())) return DEFAULT_APP_SETTINGS;
+  return readAppSettings();
 };
 
 export const updateAppSettings = async (
   updates: Partial<AppSettings>
 ): Promise<{ success: boolean; error?: string }> => {
+  const user = await getCurrentUser();
+  if (!user?.isAdmin) {
+    return { success: false, error: "Unauthorized" };
+  }
+
   try {
-    const current = await getAppSettings();
-    const updated: AppSettings = {
+    const current = await readAppSettings();
+    const upload = { ...current.upload, ...updates.upload };
+
+    await writeAppSettings({
       upload: {
-        ...current.upload,
-        ...(updates.upload || {}),
+        maxChunkSize: _positiveInt(upload.maxChunkSize, current.upload.maxChunkSize),
+        parallelUploads: _positiveInt(upload.parallelUploads, current.upload.parallelUploads),
+        maxFileSize: _positiveInt(upload.maxFileSize, current.upload.maxFileSize),
       },
-    };
-    await _writeAppSettings(updated);
+    });
+
+    await auditLog("settings:update", { details: { upload }, success: true });
     return { success: true };
   } catch (error) {
-    console.error("Failed to update app settings:", error);
+    logger.error(SCOPE, "Failed to update app settings", error);
     return { success: false, error: "Failed to update app settings" };
   }
 };

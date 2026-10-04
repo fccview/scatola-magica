@@ -10,6 +10,7 @@ import {
   updateThemePreferences,
 } from "@/app/_server/actions/user";
 import { usePreferences } from "@/app/_providers/PreferencesProvider";
+import type { CurrentUser } from "@/app/_types";
 import Input from "@/app/_components/GlobalComponents/Form/Input";
 import Button from "@/app/_components/GlobalComponents/Buttons/Button";
 import Icon from "@/app/_components/GlobalComponents/Icons/Icon";
@@ -23,6 +24,11 @@ export default function ProfileTab() {
   if (!user) {
     return null;
   }
+
+  return <ProfileTabContent user={user} />;
+}
+
+const ProfileTabContent = ({ user }: { user: CurrentUser }) => {
   const router = useRouter();
   const [username, setUsername] = useState(user.username);
   const [isChangingUsername, setIsChangingUsername] = useState(false);
@@ -365,4 +371,4 @@ export default function ProfileTab() {
       </div>
     </div>
   );
-}
+};

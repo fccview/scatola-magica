@@ -44,17 +44,13 @@ export default function FileViewer() {
   const handleDecrypt = async (password: string, outputName: string, deleteEncrypted: boolean, customPrivateKey?: string) => {
     if (!currentFile) return;
 
-    try {
-      const result = await decryptFile(currentFile.id, password, outputName, deleteEncrypted, customPrivateKey);
-      if (result.success) {
-        closeViewer();
-        router.refresh();
-      } else {
-        throw new Error(result.message);
-      }
-    } catch (error) {
-      throw error;
+    const result = await decryptFile(currentFile.id, password, outputName, deleteEncrypted, customPrivateKey);
+    if (!result.success) {
+      throw new Error(result.message);
     }
+
+    closeViewer();
+    router.refresh();
   };
 
   const handleClose = () => {

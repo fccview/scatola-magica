@@ -2,22 +2,23 @@
 
 import fs from "fs/promises";
 import path from "path";
-import { stat } from "fs/promises";
-import { getCurrentUser } from "@/app/_server/actions/user";
-import {
-  encryptFileData,
-  decryptFileData,
-  getKeyStatus,
-} from "@/app/_server/actions/pgp";
-import { revalidatePath } from "next/cache";
-import {
-  createArchiveToFile,
-  extractArchive,
-} from "@/app/_server/actions/archive";
-import { auditLog } from "@/app/_server/actions/logs";
+import type { CurrentUser } from "@/app/_types";
+import { getCurrentUser } from "@/app/_lib/current-user";
+import { decryptFor, encryptFor, readKeyInfo } from "@/app/_lib/pgp";
+import { createArchiveToFile, extractArchive } from "@/app/_lib/archive";
+import { auditLog } from "@/app/_lib/audit-log";
+import { bustFileCache } from "@/app/_lib/cache-tags";
+import { isValidName, scopedPath, userRoot } from "@/app/_lib/storage";
+import { logger } from "@/app/_lib/logger";
 
-const UPLOAD_DIR =
-  process.env.UPLOAD_DIR || path.join(process.cwd(), "data/uploads");
+const SCOPE = "file-encryption";
+const GPG_EXTENSION = ".gpg";
+const FOLDER_GPG_EXTENSION = ".folder.gpg";
+const NOT_AUTHENTICATED = { success: false, message: "Not authenticated" };
+const NO_KEYS = {
+  success: false,
+  message: "No PGP keys found. Please generate keys in Settings first.",
+};
 
 interface EncryptResult {
   success: boolean;
@@ -31,88 +32,158 @@ interface DecryptResult {
   decryptedFilePath?: string;
 }
 
+const _errorText = (error: unknown, fallback: string): string =>
+  error instanceof Error ? error.message : fallback;
+
+const _hasKeys = async (user: CurrentUser, customKey?: string) =>
+  !!customKey || !!(await readKeyInfo(user.username));
+
+const _exists = async (absolute: string): Promise<boolean> => {
+  try {
+    await fs.lstat(absolute);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const _idOf = (user: CurrentUser, absolute: string): string =>
+  path.relative(userRoot(user), absolute).split(path.sep).join("/");
+
+const _tempZip = (dir: string, name: string): string =>
+  path.join(dir, `.temp-${name}-${Date.now()}.zip`);
+
 export const encryptFile = async (
   fileId: string,
   deleteOriginal: boolean = false,
   customPublicKey?: string
 ): Promise<EncryptResult> => {
   const user = await getCurrentUser();
-  if (!user) {
-    return { success: false, message: "Not authenticated" };
-  }
+  if (!user) return NOT_AUTHENTICATED;
+  if (!(await _hasKeys(user, customPublicKey))) return NO_KEYS;
 
-  const userScopeFileID = user.isAdmin ? fileId : `${user.username}/${fileId}`;
+  let resource = String(fileId);
 
   try {
-    if (!customPublicKey) {
-      const keyStatus = await getKeyStatus();
-      if (!keyStatus.hasKeys) {
-        return {
-          success: false,
-          message: "No PGP keys found. Please generate keys in Settings first.",
-        };
-      }
-    }
+    const source = scopedPath(user, fileId);
+    resource = source.relative;
 
-    const filePath = path.join(UPLOAD_DIR, userScopeFileID);
-
-    try {
-      await fs.access(filePath);
-    } catch {
+    if (!(await fs.lstat(source.absolute)).isFile()) {
       return { success: false, message: "File not found" };
     }
 
-    const fileBuffer = await fs.readFile(filePath);
-    const fileName = path.basename(userScopeFileID);
-    const encryptResult = await encryptFileData(
-      new Uint8Array(fileBuffer),
+    const fileName = path.basename(source.absolute);
+    const result = await encryptFor(
+      user.username,
+      new Uint8Array(await fs.readFile(source.absolute)),
       fileName,
-      undefined,
       customPublicKey
     );
 
-    if (!encryptResult.success || !encryptResult.encryptedData) {
-      return { success: false, message: encryptResult.message };
+    if (!result.success || !result.data) {
+      return { success: false, message: result.message };
     }
 
-    const encryptedFilePath = `${filePath}.gpg`;
-    await fs.writeFile(encryptedFilePath, encryptResult.encryptedData);
-
-    if (deleteOriginal) {
-      await fs.unlink(filePath);
-    }
+    const encryptedPath = `${source.absolute}${GPG_EXTENSION}`;
+    await fs.writeFile(encryptedPath, result.data);
+    if (deleteOriginal) await fs.unlink(source.absolute);
 
     await auditLog("file:encrypt", {
-      resource: userScopeFileID,
-      details: {
-        customKey: !!customPublicKey,
-        deletedOriginal: deleteOriginal,
-      },
+      resource,
+      details: { customKey: !!customPublicKey, deletedOriginal: deleteOriginal },
       success: true,
     });
-
-    revalidatePath("/", "layout");
-    revalidatePath("/files", "page");
+    bustFileCache();
 
     return {
       success: true,
       message: "File encrypted successfully",
-      encryptedFilePath: `${userScopeFileID}.gpg`,
+      encryptedFilePath: _idOf(user, encryptedPath),
     };
   } catch (error) {
-    console.error("Error encrypting file:", error);
+    logger.error(SCOPE, `Failed to encrypt ${resource}`, error);
     await auditLog("file:encrypt", {
-      resource: userScopeFileID,
+      resource,
       success: false,
-      errorMessage:
-        error instanceof Error ? error.message : "Failed to encrypt file",
+      errorMessage: _errorText(error, "Failed to encrypt file"),
     });
-    return {
-      success: false,
-      message:
-        error instanceof Error ? error.message : "Failed to encrypt file",
-    };
+    return { success: false, message: "Failed to encrypt file" };
   }
+};
+
+const _extractTo = async (
+  zipBytes: Uint8Array,
+  parentDir: string,
+  outputDir: string,
+  outputName: string
+): Promise<void> => {
+  const tempZip = _tempZip(parentDir, outputName);
+
+  try {
+    await fs.writeFile(tempZip, zipBytes, { flag: "wx" });
+    await extractArchive(tempZip, outputDir);
+  } catch (error) {
+    await fs.rm(outputDir, { recursive: true, force: true });
+    throw error;
+  } finally {
+    await fs.rm(tempZip, { force: true });
+  }
+};
+
+const _decryptInto = async (
+  user: CurrentUser,
+  fileId: string,
+  password: string,
+  outputName: string,
+  deleteEncrypted: boolean,
+  customPrivateKey?: string
+): Promise<DecryptResult> => {
+  const source = scopedPath(user, fileId);
+  const parentDir = path.dirname(source.absolute);
+  const output = scopedPath(user, path.posix.join(path.posix.dirname(fileId), outputName));
+  const isFolder = source.absolute.endsWith(FOLDER_GPG_EXTENSION);
+
+  if (!(await fs.lstat(source.absolute)).isFile()) {
+    return { success: false, message: "File not found" };
+  }
+
+  if (await _exists(output.absolute)) {
+    return { success: false, message: `"${outputName}" already exists` };
+  }
+
+  const result = await decryptFor(
+    user.username,
+    await fs.readFile(source.absolute, "utf-8"),
+    password,
+    customPrivateKey
+  );
+
+  if (!result.success || !result.data) {
+    return { success: false, message: result.message };
+  }
+
+  if (isFolder) {
+    await _extractTo(result.data, parentDir, output.absolute, outputName);
+  } else {
+    await fs.writeFile(output.absolute, result.data, { flag: "wx" });
+  }
+
+  if (deleteEncrypted) await fs.unlink(source.absolute);
+
+  await auditLog(isFolder ? "folder:decrypt" : "file:decrypt", {
+    resource: source.relative,
+    details: { outputName, deletedEncrypted: deleteEncrypted },
+    success: true,
+  });
+  bustFileCache();
+
+  return {
+    success: true,
+    message: isFolder
+      ? "Folder decrypted successfully"
+      : "File decrypted successfully",
+    decryptedFilePath: _idOf(user, output.absolute),
+  };
 };
 
 export const decryptFile = async (
@@ -123,130 +194,34 @@ export const decryptFile = async (
   customPrivateKey?: string
 ): Promise<DecryptResult> => {
   const user = await getCurrentUser();
-  if (!user) {
-    return { success: false, message: "Not authenticated" };
+  if (!user) return NOT_AUTHENTICATED;
+  if (!(await _hasKeys(user, customPrivateKey))) return NO_KEYS;
+
+  if (!String(fileId).endsWith(GPG_EXTENSION)) {
+    return { success: false, message: "File is not encrypted" };
   }
 
-  const userScopeFileID = user.isAdmin ? fileId : `${user.username}/${fileId}`;
+  if (!isValidName(outputName)) {
+    return { success: false, message: "Invalid output name" };
+  }
 
   try {
-    if (!customPrivateKey) {
-      const keyStatus = await getKeyStatus();
-      if (!keyStatus.hasKeys) {
-        return {
-          success: false,
-          message: "No PGP keys found. Please generate keys in Settings first.",
-        };
-      }
-    }
-
-    const filePath = path.join(UPLOAD_DIR, userScopeFileID);
-
-    try {
-      await fs.access(filePath);
-    } catch {
-      return { success: false, message: "File not found" };
-    }
-
-    if (!userScopeFileID.endsWith(".gpg")) {
-      return { success: false, message: "File is not encrypted" };
-    }
-
-    const encryptedContent = await fs.readFile(filePath, "utf-8");
-
-    const decryptResult = await decryptFileData(
-      encryptedContent,
+    return await _decryptInto(
+      user,
+      fileId,
       password,
-      undefined,
+      outputName,
+      deleteEncrypted,
       customPrivateKey
     );
-
-    if (!decryptResult.success || !decryptResult.decryptedData) {
-      return { success: false, message: decryptResult.message };
-    }
-
-    const folderPath = path.dirname(userScopeFileID);
-    const isEncryptedFolder = fileId.endsWith(".folder.gpg");
-
-    if (isEncryptedFolder) {
-      const tempArchivePath = path.join(
-        UPLOAD_DIR,
-        folderPath,
-        `.temp-${outputName}-${Date.now()}.zip`
-      );
-      const outputDir = path.join(UPLOAD_DIR, folderPath, outputName);
-
-      try {
-        await fs.writeFile(
-          tempArchivePath,
-          Buffer.from(decryptResult.decryptedData)
-        );
-        await extractArchive(tempArchivePath, outputDir);
-        await fs.unlink(tempArchivePath);
-
-        if (deleteEncrypted) {
-          await fs.unlink(filePath);
-        }
-
-        await auditLog("folder:decrypt", {
-          resource: userScopeFileID,
-          details: { outputName, deletedEncrypted: deleteEncrypted },
-          success: true,
-        });
-
-        revalidatePath("/", "layout");
-        revalidatePath("/files", "page");
-
-        return {
-          success: true,
-          message: "Folder decrypted successfully",
-          decryptedFilePath: path.join(folderPath, outputName),
-        };
-      } catch (error) {
-        await fs.unlink(tempArchivePath).catch(() => {});
-        await fs.rmdir(outputDir, { recursive: true }).catch(() => {});
-        throw error;
-      }
-    }
-
-    const decryptedFilePath = path.join(UPLOAD_DIR, folderPath, outputName);
-
-    await fs.writeFile(
-      decryptedFilePath,
-      Buffer.from(decryptResult.decryptedData)
-    );
-
-    if (deleteEncrypted) {
-      await fs.unlink(filePath);
-    }
-
-    await auditLog("file:decrypt", {
-      resource: userScopeFileID,
-      details: { outputName, deletedEncrypted: deleteEncrypted },
-      success: true,
-    });
-
-    revalidatePath("/", "layout");
-    revalidatePath("/files", "page");
-
-    return {
-      success: true,
-      message: "File decrypted successfully",
-      decryptedFilePath: path.join(folderPath, outputName),
-    };
   } catch (error) {
-    console.error("Error decrypting file:", error);
+    logger.error(SCOPE, `Failed to decrypt ${fileId}`, error);
     await auditLog("file:decrypt", {
-      resource: userScopeFileID,
+      resource: String(fileId),
       success: false,
-      errorMessage:
-        error instanceof Error ? error.message : "Failed to decrypt file",
+      errorMessage: _errorText(error, "Failed to decrypt file"),
     });
-    return {
-      success: false,
-      message:
-        error instanceof Error ? error.message : "Failed to decrypt file",
-    };
+    return { success: false, message: "Failed to decrypt file" };
   }
 };
 
@@ -255,93 +230,61 @@ export const encryptFolder = async (
   deleteOriginal: boolean = false,
   customPublicKey?: string
 ): Promise<EncryptResult> => {
+  const user = await getCurrentUser();
+  if (!user) return NOT_AUTHENTICATED;
+  if (!(await _hasKeys(user, customPublicKey))) return NO_KEYS;
+
   try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return { success: false, message: "Not authenticated" };
+    const folder = scopedPath(user, folderId);
+    if (!folderId || folder.absolute === userRoot(user)) {
+      return { success: false, message: "Cannot encrypt the root folder" };
     }
 
-    if (!customPublicKey) {
-      const keyStatus = await getKeyStatus();
-      if (!keyStatus.hasKeys) {
-        return {
-          success: false,
-          message: "No PGP keys found. Please generate keys in Settings first.",
-        };
-      }
+    if (!(await fs.lstat(folder.absolute)).isDirectory()) {
+      return { success: false, message: "Path is not a directory" };
     }
 
-    const actualFolderPath = user.isAdmin
-      ? folderId
-      : `${user.username}/${folderId}`;
-    const folderPath = path.join(UPLOAD_DIR, actualFolderPath);
+    const folderName = path.basename(folder.absolute);
+    const parentDir = path.dirname(folder.absolute);
+    const tempZip = _tempZip(parentDir, folderName);
+    const encryptedPath = path.join(parentDir, `${folderName}${FOLDER_GPG_EXTENSION}`);
 
     try {
-      const stats = await stat(folderPath);
-      if (!stats.isDirectory()) {
-        return { success: false, message: "Path is not a directory" };
-      }
-    } catch {
-      return { success: false, message: "Folder not found" };
-    }
+      await createArchiveToFile(folder.absolute, tempZip);
 
-    const folderName = path.basename(folderId);
-    const tempArchivePath = path.join(
-      UPLOAD_DIR,
-      path.dirname(actualFolderPath),
-      `.temp-${folderName}-${Date.now()}.zip`
-    );
-
-    try {
-      await createArchiveToFile(folderPath, tempArchivePath);
-
-      const archiveBuffer = await fs.readFile(tempArchivePath);
-      const encryptResult = await encryptFileData(
-        new Uint8Array(archiveBuffer),
+      const result = await encryptFor(
+        user.username,
+        new Uint8Array(await fs.readFile(tempZip)),
         `${folderName}.zip`,
-        undefined,
         customPublicKey
       );
 
-      if (!encryptResult.success || !encryptResult.encryptedData) {
-        await fs.unlink(tempArchivePath).catch(() => {});
-        return { success: false, message: encryptResult.message };
+      if (!result.success || !result.data) {
+        return { success: false, message: result.message };
       }
 
-      const encryptedFilePath = path.join(
-        UPLOAD_DIR,
-        path.dirname(actualFolderPath),
-        `${folderName}.folder.gpg`
-      );
-      await fs.writeFile(encryptedFilePath, encryptResult.encryptedData);
-      await fs.unlink(tempArchivePath);
-
-      if (deleteOriginal) {
-        await fs.rmdir(folderPath, { recursive: true });
-      }
-
-      revalidatePath("/", "layout");
-      revalidatePath("/files", "page");
-
-      return {
-        success: true,
-        message: "Folder encrypted successfully",
-        encryptedFilePath: path.join(
-          path.dirname(folderId),
-          `${folderName}.folder.gpg`
-        ),
-      };
-    } catch (error) {
-      await fs.unlink(tempArchivePath).catch(() => {});
-      throw error;
+      await fs.writeFile(encryptedPath, result.data);
+    } finally {
+      await fs.rm(tempZip, { force: true });
     }
-  } catch (error) {
-    console.error("Error encrypting folder:", error);
+
+    if (deleteOriginal) await fs.rm(folder.absolute, { recursive: true });
+
+    await auditLog("folder:encrypt", {
+      resource: folder.relative,
+      details: { customKey: !!customPublicKey, deletedOriginal: deleteOriginal },
+      success: true,
+    });
+    bustFileCache();
+
     return {
-      success: false,
-      message:
-        error instanceof Error ? error.message : "Failed to encrypt folder",
+      success: true,
+      message: "Folder encrypted successfully",
+      encryptedFilePath: _idOf(user, encryptedPath),
     };
+  } catch (error) {
+    logger.error(SCOPE, `Failed to encrypt folder ${folderId}`, error);
+    return { success: false, message: "Failed to encrypt folder" };
   }
 };
 
@@ -352,89 +295,15 @@ export const decryptFolder = async (
   deleteEncrypted: boolean = false,
   customPrivateKey?: string
 ): Promise<DecryptResult> => {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return { success: false, message: "Not authenticated" };
-    }
-
-    if (!customPrivateKey) {
-      const keyStatus = await getKeyStatus();
-      if (!keyStatus.hasKeys) {
-        return {
-          success: false,
-          message: "No PGP keys found. Please generate keys in Settings first.",
-        };
-      }
-    }
-
-    const actualFolderPath = user.isAdmin
-      ? folderId
-      : `${user.username}/${folderId}`;
-    const encryptedFilePath = path.join(UPLOAD_DIR, actualFolderPath);
-
-    try {
-      await fs.access(encryptedFilePath);
-    } catch {
-      return { success: false, message: "File not found" };
-    }
-
-    if (!folderId.endsWith(".folder.gpg")) {
-      return { success: false, message: "Folder is not encrypted" };
-    }
-
-    const encryptedContent = await fs.readFile(encryptedFilePath, "utf-8");
-
-    const decryptResult = await decryptFileData(
-      encryptedContent,
-      password,
-      undefined,
-      customPrivateKey
-    );
-
-    if (!decryptResult.success || !decryptResult.decryptedData) {
-      return { success: false, message: decryptResult.message };
-    }
-
-    const folderPath = path.dirname(actualFolderPath);
-    const tempArchivePath = path.join(
-      UPLOAD_DIR,
-      folderPath,
-      `.temp-${outputName}-${Date.now()}.zip`
-    );
-    const outputDir = path.join(UPLOAD_DIR, folderPath, outputName);
-
-    try {
-      await fs.writeFile(
-        tempArchivePath,
-        Buffer.from(decryptResult.decryptedData)
-      );
-      await extractArchive(tempArchivePath, outputDir);
-      await fs.unlink(tempArchivePath);
-
-      if (deleteEncrypted) {
-        await fs.unlink(encryptedFilePath);
-      }
-
-      revalidatePath("/", "layout");
-      revalidatePath("/files", "page");
-
-      return {
-        success: true,
-        message: "Folder decrypted successfully",
-        decryptedFilePath: path.join(path.dirname(folderId), outputName),
-      };
-    } catch (error) {
-      await fs.unlink(tempArchivePath).catch(() => {});
-      await fs.rmdir(outputDir, { recursive: true }).catch(() => {});
-      throw error;
-    }
-  } catch (error) {
-    console.error("Error decrypting folder:", error);
-    return {
-      success: false,
-      message:
-        error instanceof Error ? error.message : "Failed to decrypt folder",
-    };
+  if (!String(folderId).endsWith(FOLDER_GPG_EXTENSION)) {
+    return { success: false, message: "Folder is not encrypted" };
   }
+
+  return decryptFile(
+    folderId,
+    password,
+    outputName,
+    deleteEncrypted,
+    customPrivateKey
+  );
 };

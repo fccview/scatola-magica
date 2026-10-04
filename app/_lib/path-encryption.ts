@@ -1,140 +1,77 @@
+import "server-only";
+
 import crypto from "crypto";
-import { getCurrentUser } from "@/app/_server/actions/user";
-import { readUsers } from "@/app/_server/actions/user";
+import { findUser } from "@/app/_lib/auth-utils";
+import { getUserRecord } from "@/app/_lib/current-user";
 
 const ALGORITHM = "aes-256-gcm";
+const IV_LENGTH = 12;
+const AUTH_TAG_LENGTH = 16;
+const PATH_TOKEN_CONTEXT = "scatola-path-token";
+const PATH_TOKEN_LENGTH = 22;
 
-export const isPathEncryptionEnabled = async (): Promise<boolean> => {
-  const user = await getCurrentUser();
-  if (!user) return false;
+export const pathTokenFor = (encryptionKey: string): string =>
+  crypto
+    .createHmac("sha256", encryptionKey)
+    .update(PATH_TOKEN_CONTEXT)
+    .digest("base64url")
+    .slice(0, PATH_TOKEN_LENGTH);
 
-  const users = await readUsers();
-  const userData = users.find((u) => u.username === user.username);
-  return !!userData?.encryptionKey;
-}
+const _fromBase64Url = (value: string): Buffer => {
+  const base64 = value.replace(/-/g, "+").replace(/_/g, "/");
+  return Buffer.from(base64 + "=".repeat((4 - (base64.length % 4)) % 4), "base64");
+};
 
-export const getEncryptionKey = async (): Promise<string | null> => {
-  const user = await getCurrentUser();
-  if (!user) return null;
+const _decodeTokenPath = (encoded: string, key: string): string | null => {
+  const decoded = _fromBase64Url(encoded).toString("utf8");
 
-  const users = await readUsers();
-  const userData = users.find((u) => u.username === user.username);
-  return userData?.encryptionKey || null;
-}
-
-/**
- * Encrypt a folder path for use in the URI
- * If there's no encryption key this will be disabled.
- * @experimental feature.
- *
- * I'm not sure if this is the best idea or way to do this, but I love it so fuck conventions.
- */
-export const encryptPathWithKey = (path: string, encryptionKey: string): string => {
-  if (!encryptionKey) {
-    return path;
+  for (const prefix of [pathTokenFor(key), key]) {
+    if (decoded.startsWith(`${prefix}:`)) return decoded.slice(prefix.length + 1);
   }
 
+  return null;
+};
+
+const _decodeAesPath = (encoded: string, key: string): string | null => {
   try {
-    const key = crypto.createHash("sha256").update(encryptionKey).digest();
+    const combined = _fromBase64Url(encoded);
+    if (combined.length < IV_LENGTH + AUTH_TAG_LENGTH) return null;
 
-    const iv = crypto.randomBytes(12);
+    const derived = crypto.createHash("sha256").update(key).digest();
+    const decipher = crypto.createDecipheriv(
+      ALGORITHM,
+      derived,
+      combined.subarray(0, IV_LENGTH)
+    );
+    decipher.setAuthTag(combined.subarray(IV_LENGTH, IV_LENGTH + AUTH_TAG_LENGTH));
 
-    const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
-
-    let encrypted = cipher.update(path, "utf8", "base64url");
-    encrypted += cipher.final("base64url");
-
-    const authTag = cipher.getAuthTag();
-
-    const combined = Buffer.concat([
-      iv,
-      authTag,
-      Buffer.from(encrypted, "base64url"),
-    ]);
-
-    return combined.toString("base64url");
-  } catch (error) {
-    console.error("Failed to encrypt path:", error);
-    return path;
+    return Buffer.concat([
+      decipher.update(combined.subarray(IV_LENGTH + AUTH_TAG_LENGTH)),
+      decipher.final(),
+    ]).toString("utf8");
+  } catch {
+    return null;
   }
-}
+};
 
-export const encryptPath = async (path: string): Promise<string> => {
-  const encryptionKey = await getEncryptionKey();
-  if (!encryptionKey) {
-    return path;
-  }
-  return encryptPathWithKey(path, encryptionKey);
-}
+export const decryptPathWithKey = (encoded: string, key: string): string =>
+  key
+    ? _decodeTokenPath(encoded, key) ?? _decodeAesPath(encoded, key) ?? encoded
+    : encoded;
 
-/**
- * Decrypt a folder path for use in the URI
- * If there's no encryption key this will be disabled.
- * @experimental feature.
- *
- * I'm not sure if this is the best idea or way to do this, but I love it so fuck conventions.
- */
-export const decryptPathWithKey = (
-  encryptedPath: string,
-  encryptionKey: string
-): string => {
-  if (!encryptionKey) {
-    return encryptedPath;
-  }
+export const decryptPath = async (encoded: string): Promise<string> => {
+  const user = await getUserRecord();
+  return user?.encryptionKey
+    ? decryptPathWithKey(encoded, user.encryptionKey)
+    : encoded;
+};
 
-  try {
-    const base64 = encryptedPath.replace(/-/g, "+").replace(/_/g, "/");
-
-    const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
-
-    try {
-      const decoded = Buffer.from(padded, "base64").toString("utf8");
-
-      if (decoded.includes(":")) {
-        const [key, ...pathParts] = decoded.split(":");
-        const path = pathParts.join(":");
-
-        if (key === encryptionKey) {
-          return path;
-        }
-      }
-    } catch (btoaError) { }
-
-    try {
-      const key = crypto.createHash("sha256").update(encryptionKey).digest();
-      const combined = Buffer.from(padded, "base64");
-
-      if (combined.length < 28) {
-        throw new Error("Invalid encrypted data length");
-      }
-
-      const iv = combined.slice(0, 12);
-      const authTag = combined.slice(12, 28);
-      const encrypted = combined.slice(28);
-
-      const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
-      decipher.setAuthTag(authTag);
-
-      let decrypted = decipher.update(
-        encrypted.toString("base64url"),
-        "base64url",
-        "utf8"
-      );
-      decrypted += decipher.final("utf8");
-
-      return decrypted;
-    } catch (aesError) { }
-
-    return encryptedPath;
-  } catch (error) {
-    return encryptedPath;
-  }
-}
-
-export const decryptPath = async (encryptedPath: string): Promise<string> => {
-  const encryptionKey = await getEncryptionKey();
-  if (!encryptionKey) {
-    return encryptedPath;
-  }
-  return decryptPathWithKey(encryptedPath, encryptionKey);
-}
+export const decryptPathFor = async (
+  username: string,
+  encoded: string
+): Promise<string> => {
+  const user = await findUser(username);
+  return user?.encryptionKey
+    ? decryptPathWithKey(encoded, user.encryptionKey)
+    : encoded;
+};

@@ -78,7 +78,7 @@ export default function TorrentsTab() {
 
     setIsSaving(true);
     try {
-      await updateUserPreferences(user.username, {
+      await updateUserPreferences({
         torrentPreferences: {
           seedRatio: Number(seedRatio),
           preferredDownloadPath: preferredDownloadPath || undefined,

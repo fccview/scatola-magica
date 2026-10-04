@@ -1,138 +1,98 @@
-import fs from "fs/promises";
+import "server-only";
+
 import path from "path";
-import { lock, unlock } from "proper-lockfile";
-import type { User } from "@/app/_types";
 import crypto from "crypto";
+import type { PublicUser, User } from "@/app/_types";
+import { readJson, updateJson } from "@/app/_lib/json-store";
 
-function getAuthConfigDir(): string {
-  return path.join(process.cwd(), "data", "config");
-}
+export const CONFIG_DIR = path.join(process.cwd(), "data", "config");
+export const AVATARS_DIR = path.join(CONFIG_DIR, "avatars");
 
-function getUsersFile(): string {
-  return path.join(getAuthConfigDir(), "users.json");
-}
+const USERS_FILE = path.join(CONFIG_DIR, "users.json");
+const SESSIONS_FILE = path.join(CONFIG_DIR, "sessions.json");
+const API_KEY_PREFIX = "ck_";
+const USERNAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._@+-]{0,63}$/;
+const RESERVED_USERNAMES = ["temp"];
 
-function getSessionsFile(): string {
-  return path.join(getAuthConfigDir(), "sessions.json");
-}
+type SessionMap = Record<string, string>;
 
-export const ensureAuthDir = async (): Promise<void> => {
-  await fs.mkdir(getAuthConfigDir(), { recursive: true });
-}
+export const isValidUsername = (username: unknown): username is string =>
+  typeof username === "string" &&
+  USERNAME_PATTERN.test(username) &&
+  !username.includes("..") &&
+  !RESERVED_USERNAMES.includes(username.toLowerCase());
 
-export const readJsonFile = async <T>(filePath: string): Promise<T | null> => {
-  try {
-    const content = await fs.readFile(filePath, "utf-8");
-    if (!content) {
-      return null;
-    }
-    return JSON.parse(content) as T;
-  } catch {
-    return null;
-  }
-}
+export const toPublicUser = (user: User): PublicUser => ({
+  username: user.username,
+  isAdmin: user.isAdmin,
+  isSuperAdmin: user.isSuperAdmin,
+  createdAt: user.createdAt,
+  avatar: user.avatar,
+});
 
-export const writeJsonFile = async <T>(
-  filePath: string,
-  data: T
-): Promise<void> => {
-  await fs.writeFile(filePath, JSON.stringify(data, null, 2));
-}
+export const readUsers = (): Promise<User[]> => readJson<User[]>(USERS_FILE, []);
 
-export const readUsers = async (): Promise<User[]> => {
-  await ensureAuthDir();
-  const users = await readJsonFile<User[]>(getUsersFile());
-  return users || [];
-}
+export const updateUsers = <R>(
+  mutate: (users: User[]) => R | Promise<R>
+): Promise<R> => updateJson<User[], R>(USERS_FILE, [], mutate);
 
-export const writeUsers = async (users: User[]): Promise<void> => {
-  await ensureAuthDir();
-  const usersFile = getUsersFile();
-  await lock(usersFile);
-  try {
-    await writeJsonFile(usersFile, users);
-  } finally {
-    await unlock(usersFile);
-  }
-}
+export const findUser = async (username: string): Promise<User | null> => {
+  const users = await readUsers();
+  return users.find((u) => u.username === username) ?? null;
+};
 
-export const readSessions = async (): Promise<Record<string, string>> => {
-  await ensureAuthDir();
-  const sessions = await readJsonFile<Record<string, string>>(
-    getSessionsFile()
-  );
-  return sessions || {};
-}
+export const readSessions = (): Promise<SessionMap> =>
+  readJson<SessionMap>(SESSIONS_FILE, {});
 
-export const writeSessions = async (
-  sessions: Record<string, string>
-): Promise<void> => {
-  await ensureAuthDir();
-  const sessionsFile = getSessionsFile();
-  await lock(sessionsFile);
-  try {
-    await writeJsonFile(sessionsFile, sessions);
-  } finally {
-    await unlock(sessionsFile);
-  }
-}
+export const updateSessions = <R>(
+  mutate: (sessions: SessionMap) => R | Promise<R>
+): Promise<R> => updateJson<SessionMap, R>(SESSIONS_FILE, {}, mutate);
 
 export const getSessionUsername = async (
   sessionId: string
 ): Promise<string | null> => {
   const sessions = await readSessions();
-  return sessions[sessionId] || null;
-}
+  return Object.hasOwn(sessions, sessionId) ? sessions[sessionId] : null;
+};
 
-export const createSession = async (
+export const createSession = (
   sessionId: string,
   username: string
-): Promise<void> => {
-  const sessions = await readSessions();
-  sessions[sessionId] = username;
-  await writeSessions(sessions);
-}
+): Promise<void> =>
+  updateSessions((sessions) => {
+    sessions[sessionId] = username;
+  });
 
-export const deleteSession = async (sessionId: string): Promise<void> => {
-  const sessions = await readSessions();
-  delete sessions[sessionId];
-  await writeSessions(sessions);
-}
+export const deleteSession = (sessionId: string): Promise<void> =>
+  updateSessions((sessions) => {
+    delete sessions[sessionId];
+  });
 
-export const generateApiKey = async (
-  username: string,
-  isAdmin: boolean
-): Promise<string> => {
-  const randomBytes = crypto.randomBytes(24);
-  const randomString = randomBytes
-    .toString("base64")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=/g, "");
-
-  return `ck_${randomString}`;
-}
-
-export const verifyApiKey = async (
-  apiKey: string
-): Promise<{ username: string; isAdmin: boolean } | null> => {
-  try {
-    if (!apiKey.startsWith("ck_")) {
-      return null;
+export const dropUserSessions = (username: string): Promise<void> =>
+  updateSessions((sessions) => {
+    for (const [id, owner] of Object.entries(sessions)) {
+      if (owner === username) delete sessions[id];
     }
+  });
 
-    const users = await readUsers();
-    const user = users.find((u) => u.apiKey === apiKey);
+export const newSessionId = (): string =>
+  crypto.randomBytes(32).toString("base64url");
 
-    if (!user) {
-      return null;
-    }
+export const newEncryptionKey = (): string =>
+  process.env.ENCRYPTION_KEY || crypto.randomBytes(32).toString("hex");
 
-    return {
-      username: user.username,
-      isAdmin: user.isAdmin || false,
-    };
-  } catch {
-    return null;
-  }
-}
+export const generateApiKey = (): string =>
+  `${API_KEY_PREFIX}${crypto.randomBytes(24).toString("base64url")}`;
+
+const _sameKey = (a: string, b: string): boolean => {
+  const left = Buffer.from(a);
+  const right = Buffer.from(b);
+  return left.length === right.length && crypto.timingSafeEqual(left, right);
+};
+
+export const verifyApiKey = async (apiKey: string): Promise<User | null> => {
+  if (!apiKey.startsWith(API_KEY_PREFIX)) return null;
+
+  const users = await readUsers();
+  return users.find((u) => !!u.apiKey && _sameKey(u.apiKey, apiKey)) ?? null;
+};

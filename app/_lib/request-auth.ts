@@ -1,75 +1,63 @@
+import "server-only";
+
 import { NextRequest } from "next/server";
-import { cookies } from "next/headers";
-import { getSessionUsername, verifyApiKey } from "./auth-utils";
-import { readUsers } from "./auth-utils";
+import type { User } from "@/app/_types";
+import { COOKIE_NAME } from "@/app/_lib/auth-constants";
+import {
+  findUser,
+  getSessionUsername,
+  verifyApiKey,
+} from "@/app/_lib/auth-utils";
+
+export enum AuthMethod {
+  SESSION = "session",
+  API_KEY = "apikey",
+}
 
 export interface AuthenticatedUser {
   username: string;
   isAdmin: boolean;
   isSuperAdmin?: boolean;
-  authMethod: "session" | "apikey";
+  authMethod: AuthMethod;
 }
+
+const BEARER_PREFIX = "Bearer ";
+
+const _toAuthenticated = (
+  user: User,
+  authMethod: AuthMethod
+): AuthenticatedUser => ({
+  username: user.username,
+  isAdmin: !!user.isAdmin,
+  isSuperAdmin: !!user.isSuperAdmin,
+  authMethod,
+});
+
+const _fromApiKey = async (
+  request: NextRequest
+): Promise<AuthenticatedUser | null> => {
+  const header = request.headers.get("Authorization");
+  if (!header?.startsWith(BEARER_PREFIX)) return null;
+
+  const user = await verifyApiKey(header.slice(BEARER_PREFIX.length).trim());
+  return user ? _toAuthenticated(user, AuthMethod.API_KEY) : null;
+};
+
+const _fromSession = async (
+  request: NextRequest
+): Promise<AuthenticatedUser | null> => {
+  const sessionId = request.cookies.get(COOKIE_NAME)?.value;
+  if (!sessionId) return null;
+
+  const username = await getSessionUsername(sessionId);
+  if (!username) return null;
+
+  const user = await findUser(username);
+  return user ? _toAuthenticated(user, AuthMethod.SESSION) : null;
+};
 
 export const validateRequest = async (
   request: NextRequest
-): Promise<AuthenticatedUser | null> => {
-  const authHeader = request.headers.get("Authorization");
+): Promise<AuthenticatedUser | null> =>
+  (await _fromApiKey(request)) ?? (await _fromSession(request));
 
-  if (authHeader?.startsWith("Bearer ")) {
-    const apiKey = authHeader.slice(7).trim();
-    const apiKeyResult = await verifyApiKey(apiKey);
-
-    if (apiKeyResult) {
-      const users = await readUsers();
-      const user = users.find((u) => u.username === apiKeyResult.username);
-
-      if (user) {
-        return {
-          username: user.username,
-          isAdmin: user.isAdmin,
-          isSuperAdmin: user.isSuperAdmin,
-          authMethod: "apikey",
-        };
-      }
-    }
-  }
-
-  const cookieStore = await cookies();
-  const sessionCookie =
-    cookieStore.get("session") || cookieStore.get("__Host-session");
-
-  if (sessionCookie?.value) {
-    const username = await getSessionUsername(sessionCookie.value);
-
-    if (username) {
-      const users = await readUsers();
-      const user = users.find((u) => u.username === username);
-
-      if (user) {
-        return {
-          username: user.username,
-          isAdmin: user.isAdmin,
-          isSuperAdmin: user.isSuperAdmin,
-          authMethod: "session",
-        };
-      }
-    }
-  }
-
-  return null;
-}
-
-export const isInternalRequest = async (
-  request: NextRequest
-): Promise<boolean> => {
-  const cookieStore = await cookies();
-  const sessionCookie =
-    cookieStore.get("session") || cookieStore.get("__Host-session");
-
-  if (!sessionCookie?.value) {
-    return false;
-  }
-
-  const username = await getSessionUsername(sessionCookie.value);
-  return username !== null;
-}

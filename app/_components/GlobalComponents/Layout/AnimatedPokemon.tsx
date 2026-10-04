@@ -64,7 +64,7 @@ export default function AnimatedPokemon() {
       router.push("/settings");
     }
 
-    await updateUserPreferences(user.username, {
+    await updateUserPreferences({
       e2eEncryptionOnTransfer: !e2eEncryptionOnTransfer,
     });
     router.refresh();

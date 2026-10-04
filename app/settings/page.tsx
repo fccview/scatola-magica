@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/app/_server/actions/user";
+import { getCurrentUser } from "@/app/_lib/current-user";
 import SettingsPage from "@/app/_components/FeatureComponents/SettingsPage/SettingsPage";
 import Progress from "@/app/_components/GlobalComponents/Layout/Progress";
 

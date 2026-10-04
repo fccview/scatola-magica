@@ -3,8 +3,8 @@ import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import TorrentsPageClient from "@/app/_components/FeatureComponents/TorrentsPage/TorrentsPageClient";
 import Progress from "@/app/_components/GlobalComponents/Layout/Progress";
-import { getCurrentUser } from "@/app/_server/actions/user";
-import { getUserPreferences } from "@/app/_lib/preferences";
+import { getCurrentUser } from "@/app/_lib/current-user";
+import { getUserPreferences } from "@/app/_lib/preferences-store";
 
 export const metadata: Metadata = {
   title: "Torrents - Scatola Magica",

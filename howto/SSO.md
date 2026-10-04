@@ -42,15 +42,17 @@ services:
 ```yaml
       - OIDC_CLIENT_SECRET=your_client_secret # Enable confidential client mode (if your provider requires it)
       - OIDC_ADMIN_GROUPS=admins # Map provider groups to admin role
+      - OIDC_ADMIN_ROLES=admin # Map provider roles to admin role
+      - OIDC_USER_GROUPS=family # Only allow these groups (plus admins) to sign in
+      - OIDC_CLIENT_SECRET_FILE=/run/secrets/oidc_secret # Read any OIDC_* value from a file instead
       - OIDC_GROUPS_SCOPE=groups # Scope to request for groups (set to empty string or "no" to disable for providers like Entra ID)
       - OIDC_LOGOUT_URL=https://authprovider.local/realms/master/logout # Custom logout URL for global logout
-      - INTERNAL_API_URL=http://localhost:3000 # Use if getting 403 errors after SSO login (behind reverse proxy)
       - DISABLE_PASSWORD_LOGIN=true # Disable username/password login and only show OIDC login when OIDC is enabled
 ```
 
 **Note**: The SSO button will appear on the login page when both `OIDC_ISSUER` and `OIDC_CLIENT_ID` are set. `APP_URL` is recommended but not required - if not set, it defaults to the request origin.
 
-**Note**: When OIDC_CLIENT_SECRET is set, Scatola Magica switches to confidential client mode using client authentication instead of PKCE. This is more secure but requires provider support.
+**Note**: PKCE is always used. When `OIDC_CLIENT_SECRET` is set, the client also authenticates to the token endpoint (`client_secret_post`, falling back to `client_secret_basic`).
 
 **Note**: When `DISABLE_PASSWORD_LOGIN=true` is set and OIDC is properly configured, only the OIDC login button will be shown on the login page. If OIDC is not configured, password login will still be available as a fallback.
 
@@ -58,6 +60,7 @@ Dev verified Providers:
 
 - Auth0 (`OIDC_ISSUER=https://YOUR_TENANT.REGION.auth0.com`)
 - Authentik (`OIDC_ISSUER=https://YOUR_DOMAIN/application/o/APP_SLUG/`)
+- Rauthy (`OIDC_ISSUER=https://YOUR_DOMAIN/auth/v1`)
 
 Some provider's specific notes:
 
@@ -68,35 +71,12 @@ p.s. **First user to sign in via SSO when no local users exist becomes admin aut
 
 ## Troubleshooting
 
-### 403 Forbidden Error After SSO Login (Behind Reverse Proxy)
+### Redirected back to the login page after SSO
 
-If you successfully authenticate via SSO but get redirected back to the login page, and your logs show:
+The login page now shows why the sign-in failed, and the server log contains a `[oidc-callback]` line with the exact reason. The most common causes:
 
-```
+- **"Sign-in session expired or APP_URL does not match"**: the address in your browser is different from `APP_URL` (for example `http://192.168.1.10:1133` vs `https://files.example.com`). The temporary SSO cookies are set on one origin and the provider sends you back to the other. Always browse through the URL set in `APP_URL`.
+- **"The identity provider rejected the login"**: wrong client secret, or the redirect URI registered at your provider is not exactly `APP_URL/api/oidc/callback`. The server log includes the provider's error response.
+- **"Could not reach the identity provider"**: the container cannot reach `OIDC_ISSUER`. Check DNS and TLS from inside the container.
 
-MIDDLEWARE - sessionCheck: Response { ... status: 403 ... }
-
-MIDDLEWARE - session is not ok
-
-```
-
-This means the app is trying to validate your session by calling its own API through the external URL, but your reverse proxy is blocking it.
-
-**Solution**: Set the `INTERNAL_API_URL` environment variable:
-
-```yaml
-environment:
-  - INTERNAL_API_URL=http://localhost:3000
-```
-
-This tells the app to use `localhost` for internal API calls instead of going through the reverse proxy. The default value is already `http://localhost:3000`, but explicitly setting it can help in some edge cases.
-
-**Why this happens**: When `APP_URL` is set to your external domain (e.g., `https://scatola-magica.domain.com`), the middleware tries to validate sessions by making a fetch request to `https://scatola-magica.domain.com/api/auth/check-session`. This request goes through your reverse proxy, which may block it with a 403 Forbidden response due to security policies or misconfigurations.
-
-
-
-
-
-
-
-
+Set `DEBUGGER=true` to log the resolved claims.

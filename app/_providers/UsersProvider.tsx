@@ -7,11 +7,11 @@ import {
   useEffect,
   useCallback,
 } from "react";
-import { readUsers } from "@/app/_server/actions/user";
-import { User } from "@/app/_types";
+import { listUsers } from "@/app/_server/actions/user";
+import { PublicUser } from "@/app/_types";
 
 interface UsersContextValue {
-  users: User[];
+  users: PublicUser[];
   loading: boolean;
   refreshUsers: () => Promise<void>;
 }
@@ -31,16 +31,16 @@ export default function UsersProvider({
   initialUsers = [],
 }: {
   children: React.ReactNode;
-  initialUsers?: User[];
+  initialUsers?: PublicUser[];
 }) {
-  const [users, setUsers] = useState<User[]>(initialUsers);
+  const [users, setUsers] = useState<PublicUser[]>(initialUsers);
   const [loading, setLoading] = useState(false);
   const [hasInitialData] = useState(initialUsers.length > 0);
 
   const loadUsers = useCallback(async (showLoading = true) => {
     if (showLoading) setLoading(true);
     try {
-      const fetchedUsers = await readUsers();
+      const fetchedUsers = await listUsers();
       setUsers(fetchedUsers);
     } catch (error) {
       console.error("Failed to load users:", error);

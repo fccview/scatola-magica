@@ -1,9 +1,9 @@
 "use client";
 
-import { User } from "@/app/_types";
+import { PublicUser } from "@/app/_types";
 
 interface UserAvatarProps {
-  user: Partial<User>;
+  user: Partial<PublicUser>;
   size?: "sm" | "md" | "lg" | "xl";
   className?: string;
   onClick?: () => void;

@@ -1,19 +1,18 @@
 "use server";
 
-import { getCurrentUser } from "@/app/_server/actions/user";
-import { getEncryptionKey } from "@/app/_server/actions/user";
-import { getKeyStatus } from "@/app/_server/actions/pgp";
-import { auditLog } from "@/app/_server/actions/logs";
+import { getCurrentUser } from "@/app/_lib/current-user";
+import { getUserRecord } from "@/app/_lib/current-user";
+import { readKeyInfo } from "@/app/_lib/pgp";
+import { scopedId, scopedPath } from "@/app/_lib/storage";
+import { TORRENTS_DATA_DIR } from "@/app/_lib/data-paths";
+import { logger } from "@/app/_lib/logger";
+import { auditLog } from "@/app/_lib/audit-log";
 import { ServerActionResponse } from "@/app/_types";
-import { getUserPreferences } from "@/app/_lib/preferences";
+import { getUserPreferences } from "@/app/_lib/preferences-store";
 import { saveCreatedTorrent } from "@/app/_lib/torrents/created-torrents";
 import fs from "fs/promises";
 import path from "path";
 import crypto from "crypto";
-
-const UPLOADS_DIR = process.env.UPLOADS_DIR || "./data/uploads";
-const TORRENTS_DATA_DIR =
-  process.env.TORRENTS_DATA_DIR || "./data/config/torrents";
 
 const MAX_BENCODE_DEPTH = 20;
 
@@ -73,7 +72,6 @@ const _getFilesRecursive = async (
 
   const files: { path: string; length: number }[] = [];
 
-  // Check for symlinks on directory, to avoid path traversal
   const dirStats = await fs.lstat(dirPath);
   if (dirStats.isSymbolicLink()) {
     throw new Error("Symlinks are not allowed");
@@ -159,16 +157,9 @@ export const createTorrentFromFile = async (
     const preferences = await getUserPreferences(user.username);
     const prefs = preferences.torrentPreferences!;
 
-    const normalizedBase = path.normalize(path.resolve(UPLOADS_DIR));
-    const fullPath = path.resolve(UPLOADS_DIR, filePath);
-    const normalizedPath = path.normalize(fullPath);
+    const source = scopedPath(user, filePath);
+    const fullPath = source.absolute;
 
-    const relativePath = path.relative(normalizedBase, normalizedPath);
-    if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
-      return { success: false, error: "Invalid file path" };
-    }
-
-    // Check for symlinks to avoid path traversal
     const lstats = await fs.lstat(fullPath).catch(() => null);
     if (!lstats) {
       return { success: false, error: "File not found" };
@@ -251,7 +242,7 @@ export const createTorrentFromFile = async (
       name: info.name,
       magnetURI,
       torrentFilePath,
-      sourcePath: filePath,
+      sourcePath: scopedId(user, source.absolute),
       size: stats.size,
       fileCount: 1,
       createdAt: Date.now(),
@@ -275,7 +266,7 @@ export const createTorrentFromFile = async (
       },
     };
   } catch (error: any) {
-    console.error("Create torrent error:", error);
+    logger.error("make-torrents", "Failed to create torrent", error);
     const errorMsg =
       error?.message?.replace(/\/[^\s]+/g, "[path]") ||
       "Failed to create torrent";
@@ -329,16 +320,9 @@ export const createTorrentFromFolder = async (
     const preferences = await getUserPreferences(user.username);
     const prefs = preferences.torrentPreferences!;
 
-    const normalizedBase = path.normalize(path.resolve(UPLOADS_DIR));
-    const fullPath = path.resolve(UPLOADS_DIR, folderPath);
-    const normalizedPath = path.normalize(fullPath);
+    const source = scopedPath(user, folderPath);
+    const fullPath = source.absolute;
 
-    const relativePath = path.relative(normalizedBase, normalizedPath);
-    if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
-      return { success: false, error: "Invalid folder path" };
-    }
-
-    // Check for symlinks to avoid path traversal
     const lstats = await fs.lstat(fullPath).catch(() => null);
     if (!lstats) {
       return { success: false, error: "Folder not found" };
@@ -456,7 +440,7 @@ export const createTorrentFromFolder = async (
       name: info.name,
       magnetURI,
       torrentFilePath,
-      sourcePath: folderPath,
+      sourcePath: scopedId(user, source.absolute),
       size: totalSize,
       fileCount: files.length,
       createdAt: Date.now(),
@@ -482,7 +466,7 @@ export const createTorrentFromFolder = async (
       },
     };
   } catch (error: any) {
-    console.error("Create torrent from folder error:", error);
+    logger.error("make-torrents", "Failed to create folder torrent", error);
     const errorMsg =
       error?.message?.replace(/\/[^\s]+/g, "[path]") ||
       "Failed to create torrent from folder";
@@ -516,8 +500,8 @@ export const validateEncryptionForTorrents = async (): Promise<
       };
     }
 
-    const keyResult = await getEncryptionKey();
-    if (!keyResult.hasEncryptionKey) {
+    const record = await getUserRecord();
+    if (!record?.encryptionKey) {
       return {
         success: false,
         error:
@@ -526,8 +510,7 @@ export const validateEncryptionForTorrents = async (): Promise<
       };
     }
 
-    const keyStatus = await getKeyStatus();
-    if (!keyStatus.hasKeys) {
+    if (!(await readKeyInfo(record.username))) {
       return {
         success: false,
         error:
@@ -541,7 +524,7 @@ export const validateEncryptionForTorrents = async (): Promise<
       data: { hasEncryption: true },
     };
   } catch (error) {
-    console.error("Encryption validation error:", error);
+    logger.error("make-torrents", "Encryption validation failed", error);
     return {
       success: false,
       error: "Failed to validate encryption status",

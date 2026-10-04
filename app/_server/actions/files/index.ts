@@ -1,22 +1,29 @@
 "use server";
 
-import { unlink, stat, readdir, lstat, rename, mkdir } from "fs/promises";
+import { lstat, mkdir, rename, unlink } from "fs/promises";
 import path from "path";
+import { unstable_cache } from "next/cache";
 import {
-  ServerActionResponse,
-  PaginatedResponse,
   FileMetadata,
+  PaginatedResponse,
+  ServerActionResponse,
 } from "@/app/_types";
 import { SortBy } from "@/app/_types/enums";
-import { revalidatePath, revalidateTag } from "next/cache";
-import { getFileMimeType } from "@/app/_lib/file-utils";
-import { unstable_cache } from "next/cache";
-import { getCurrentUser } from "@/app/_server/actions/user";
-import { auditLog } from "@/app/_server/actions/logs";
+import { getCurrentUser } from "@/app/_lib/current-user";
+import { auditLog } from "@/app/_lib/audit-log";
+import { scanFiles } from "@/app/_lib/file-scan";
+import { isValidName, scopedPath, userRoot } from "@/app/_lib/storage";
+import {
+  bustFileCache,
+  CACHE_TTL_SECONDS,
+  CacheTag,
+} from "@/app/_lib/cache-tags";
+import { logger } from "@/app/_lib/logger";
 
-const UPLOAD_DIR = process.env.UPLOAD_DIR || "./data/uploads";
-
-const CACHE_TTL = 60;
+const SCOPE = "file-actions";
+const DEFAULT_PAGE_SIZE = 15;
+const MAX_PAGE_SIZE = 500;
+const UNAUTHORIZED = { success: false, error: "Unauthorized" };
 
 interface GetFilesOptions {
   page?: number;
@@ -27,506 +34,205 @@ interface GetFilesOptions {
   recursive?: boolean;
 }
 
-const _getFiles = unstable_cache(
-  async (folderPath: string, recursive: boolean) => {
-    const scanPath = folderPath
-      ? path.join(UPLOAD_DIR, folderPath)
-      : UPLOAD_DIR;
-
-    return await scanFilesystemDirectory(
-      scanPath,
-      folderPath,
-      recursive,
-      folderPath
-    );
-  },
+const _cachedScan = unstable_cache(
+  (ownerRoot: string, scanRoot: string, recursive: boolean) =>
+    scanFiles(ownerRoot, scanRoot, recursive),
   ["files-by-path"],
-  {
-    revalidate: CACHE_TTL,
-    tags: ["files"],
-  }
+  { revalidate: CACHE_TTL_SECONDS, tags: [CacheTag.FILES] }
 );
 
-const _sortFiles = (files: FileMetadata[], sortBy: SortBy): FileMetadata[] => {
-  const sorted = [...files];
+const SORTERS: Record<SortBy, (a: FileMetadata, b: FileMetadata) => number> = {
+  [SortBy.NAME_ASC]: (a, b) => a.originalName.localeCompare(b.originalName),
+  [SortBy.NAME_DESC]: (a, b) => b.originalName.localeCompare(a.originalName),
+  [SortBy.DATE_ASC]: (a, b) => a.uploadedAt - b.uploadedAt,
+  [SortBy.DATE_DESC]: (a, b) => b.uploadedAt - a.uploadedAt,
+  [SortBy.SIZE_ASC]: (a, b) => a.size - b.size,
+  [SortBy.SIZE_DESC]: (a, b) => b.size - a.size,
+};
 
-  switch (sortBy) {
-    case SortBy.NAME_ASC:
-      return sorted.sort((a, b) =>
-        a.originalName.localeCompare(b.originalName)
-      );
-    case SortBy.NAME_DESC:
-      return sorted.sort((a, b) =>
-        b.originalName.localeCompare(a.originalName)
-      );
-    case SortBy.DATE_ASC:
-      return sorted.sort((a, b) => a.uploadedAt - b.uploadedAt);
-    case SortBy.DATE_DESC:
-      return sorted.sort((a, b) => b.uploadedAt - a.uploadedAt);
-    case SortBy.SIZE_ASC:
-      return sorted.sort((a, b) => a.size - b.size);
-    case SortBy.SIZE_DESC:
-      return sorted.sort((a, b) => b.size - a.size);
-    default:
-      return sorted.sort((a, b) => b.uploadedAt - a.uploadedAt);
-  }
-}
+const _errorText = (error: unknown, fallback: string): string =>
+  error instanceof Error ? error.message : fallback;
 
-async function scanFilesystemDirectory(
-  dirPath: string,
-  relativePath: string = "",
-  recursive: boolean = false,
-  currentFolderPath: string = ""
-): Promise<FileMetadata[]> {
-  const files: FileMetadata[] = [];
-
-  try {
-    const entries = await readdir(dirPath);
-
-    for (const entry of entries) {
-      if (entry === "temp") continue;
-
-      const fullPath = path.join(dirPath, entry);
-      const entryRelativePath = relativePath
-        ? `${relativePath}/${entry}`
-        : entry;
-
-      try {
-        const stats = await lstat(fullPath);
-
-        if (stats.isFile()) {
-          let folderPath: string | undefined = undefined;
-          if (recursive && entryRelativePath) {
-            let pathWithoutCurrent = entryRelativePath;
-            if (currentFolderPath) {
-              const prefix = currentFolderPath + "/";
-              if (entryRelativePath.startsWith(prefix)) {
-                pathWithoutCurrent = entryRelativePath.slice(prefix.length);
-              } else if (entryRelativePath.startsWith(currentFolderPath)) {
-                pathWithoutCurrent = entryRelativePath
-                  .slice(currentFolderPath.length)
-                  .replace(/^\//, "");
-              }
-            }
-
-            const parts = pathWithoutCurrent.split("/");
-            if (parts.length > 1) {
-              parts.pop();
-              folderPath = parts.join("/");
-            }
-          }
-
-          const mimeType = getFileMimeType(entry);
-          files.push({
-            id: entryRelativePath,
-            name: entry,
-            originalName: entry,
-            size: stats.size,
-            mimeType,
-            uploadedAt: stats.mtime.getTime(),
-            lastModified: stats.mtime.getTime(),
-            path: `/uploads/${entryRelativePath}`,
-            folderPath,
-          });
-        } else if (stats.isDirectory() && recursive) {
-          const subFiles = await scanFilesystemDirectory(
-            fullPath,
-            entryRelativePath,
-            recursive,
-            currentFolderPath
-          );
-          files.push(...subFiles);
-        }
-      } catch (error) {
-        console.warn(`Error reading ${fullPath}:`, error);
-      }
-    }
-  } catch (error) {
-    console.warn(`Error scanning directory ${dirPath}:`, error);
-  }
-
-  return files;
-}
+const _clampPage = (value: unknown, fallback: number, max: number): number => {
+  const parsed = Math.floor(Number(value));
+  return Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, max) : fallback;
+};
 
 export const getFiles = async (
   options: GetFilesOptions = {}
 ): Promise<ServerActionResponse<PaginatedResponse<FileMetadata>>> => {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return UNAUTHORIZED;
+
   try {
-    const currentUser = await getCurrentUser();
-    if (!currentUser) {
-      return {
-        success: false,
-        error: "Unauthorized",
-      };
-    }
+    const page = _clampPage(options.page, 1, Number.MAX_SAFE_INTEGER);
+    const pageSize = _clampPage(options.pageSize, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE);
+    const search = String(options.search ?? "").toLowerCase();
+    const sorter = SORTERS[options.sortBy ?? SortBy.DATE_DESC] ?? SORTERS[SortBy.DATE_DESC];
 
-    const {
-      page = 1,
-      pageSize = 15,
-      search = "",
-      sortBy = SortBy.DATE_DESC,
-      folderPath = "",
-      recursive = false,
-    } = options;
+    const scanRoot = scopedPath(currentUser, options.folderPath).absolute;
+    const recursive = !!options.recursive || !!search;
 
-    const shouldScanRecursive = recursive || !!search;
-
-    let allFiles: FileMetadata[] = [];
-
-    if (currentUser.isAdmin) {
-      try {
-        allFiles = await _getFiles(folderPath, shouldScanRecursive);
-      } catch (error) {
-        console.error("Filesystem scan failed:", error);
-        return {
-          success: false,
-          error: "Failed to scan filesystem",
-        };
-      }
-    } else {
-      const actualFolderPath = folderPath
-        ? `${currentUser.username}/${folderPath}`
-        : currentUser.username;
-
-      try {
-        allFiles = await _getFiles(actualFolderPath, shouldScanRecursive);
-      } catch (error) {
-        console.error("Filesystem scan failed:", error);
-        return {
-          success: false,
-          error: "Failed to scan filesystem",
-        };
-      }
-
-      const userPrefix = `${currentUser.username}/`;
-      allFiles = allFiles.map((file) => ({
-        ...file,
-        id: file.id.startsWith(userPrefix)
-          ? file.id.slice(userPrefix.length)
-          : file.id,
-        path: file.path,
-        folderPath: file.folderPath
-          ? file.folderPath.startsWith(userPrefix)
-            ? file.folderPath.slice(userPrefix.length)
-            : file.folderPath
-          : undefined,
-      }));
-    }
+    let files = await _cachedScan(userRoot(currentUser), scanRoot, recursive);
 
     if (search) {
-      const searchLower = search.toLowerCase();
-      allFiles = allFiles.filter(
+      files = files.filter(
         (file) =>
-          file.originalName.toLowerCase().includes(searchLower) ||
-          file.mimeType.toLowerCase().includes(searchLower)
+          file.originalName.toLowerCase().includes(search) ||
+          file.mimeType.toLowerCase().includes(search)
       );
     }
 
-    const sortedFiles = _sortFiles(allFiles, sortBy);
-
+    const sorted = [...files].sort(sorter);
     const skip = (page - 1) * pageSize;
-    const paginatedFiles = sortedFiles.slice(skip, skip + pageSize);
+    const items = sorted.slice(skip, skip + pageSize);
 
     return {
       success: true,
       data: {
-        items: paginatedFiles,
-        total: sortedFiles.length,
+        items,
+        total: sorted.length,
         page,
         pageSize,
-        hasMore: skip + paginatedFiles.length < sortedFiles.length,
+        hasMore: skip + items.length < sorted.length,
       },
     };
   } catch (error) {
-    console.error("Get files error:", error);
-    return {
-      success: false,
-      error: "Failed to fetch files",
-    };
+    logger.error(SCOPE, "Failed to fetch files", error);
+    return { success: false, error: "Failed to fetch files" };
   }
-}
-
-export const getFileById = async (
-  id: string
-): Promise<ServerActionResponse<FileMetadata>> => {
-  try {
-    const relativePath = id;
-    const fullPath = path.join(UPLOAD_DIR, relativePath);
-
-    try {
-      const stats = await stat(fullPath);
-      const fileName = path.basename(relativePath);
-      const mimeType = getFileMimeType(fileName);
-
-      const fileMetadata: FileMetadata = {
-        id,
-        name: fileName,
-        originalName: fileName,
-        size: stats.size,
-        mimeType,
-        uploadedAt: stats.mtime.getTime(),
-        lastModified: stats.mtime.getTime(),
-        path: `/uploads/${relativePath}`,
-      };
-
-      return {
-        success: true,
-        data: fileMetadata,
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: "File not found",
-      };
-    }
-  } catch (error) {
-    console.error("Get file error:", error);
-    return {
-      success: false,
-      error: "Failed to fetch file",
-    };
-  }
-}
+};
 
 export const deleteFile = async (id: string): Promise<ServerActionResponse> => {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return UNAUTHORIZED;
+
+  let resource = String(id);
+
   try {
-    const currentUser = await getCurrentUser();
-    if (!currentUser) {
-      return {
-        success: false,
-        error: "Unauthorized",
-      };
+    const target = scopedPath(currentUser, id);
+    resource = target.relative;
+
+    const stats = await lstat(target.absolute);
+    if (!stats.isFile() && !stats.isSymbolicLink()) {
+      return { success: false, error: "Not a file" };
     }
 
-    const actualRelativePath = !currentUser.isAdmin
-      ? `${currentUser.username}/${id}`
-      : id;
+    await unlink(target.absolute);
+    await auditLog("file:delete", { resource, success: true });
+    bustFileCache();
 
-    const filePath = path.join(UPLOAD_DIR, actualRelativePath);
-
-    try {
-      await unlink(filePath);
-      await auditLog("file:delete", {
-        resource: actualRelativePath,
-        success: true,
-      });
-    } catch (error) {
-      console.error("Failed to delete file from disk:", error);
-      await auditLog("file:delete", {
-        resource: actualRelativePath,
-        success: false,
-        errorMessage: error instanceof Error ? error.message : "Failed to delete file",
-      });
-      return {
-        success: false,
-        error: "Failed to delete file",
-      };
-    }
-
-    revalidatePath("/files", "layout");
-    revalidateTag("files");
-
-    return {
-      success: true,
-      message: "File deleted successfully",
-    };
+    return { success: true, message: "File deleted successfully" };
   } catch (error) {
-    console.error("Delete file error:", error);
+    logger.error(SCOPE, `Failed to delete ${resource}`, error);
     await auditLog("file:delete", {
-      resource: id,
+      resource,
       success: false,
-      errorMessage: error instanceof Error ? error.message : "Failed to delete file",
+      errorMessage: _errorText(error, "Failed to delete file"),
     });
-    return {
-      success: false,
-      error: "Failed to delete file",
-    };
+    return { success: false, error: "Failed to delete file" };
   }
-}
+};
+
+const _exists = async (absolute: string): Promise<boolean> => {
+  try {
+    await lstat(absolute);
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 export const renameFile = async (
   fileId: string,
   newName: string
 ): Promise<ServerActionResponse> => {
-  try {
-    const currentUser = await getCurrentUser();
-    if (!currentUser) {
-      return {
-        success: false,
-        error: "Unauthorized",
-      };
-    }
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return UNAUTHORIZED;
 
-    if (!newName || newName.trim() === "") {
-      return {
-        success: false,
-        error: "File name cannot be empty",
-      };
-    }
-
-    const actualCurrentPath = !currentUser.isAdmin
-      ? `${currentUser.username}/${fileId}`
-      : fileId;
-
-    const currentFilePath = path.join(UPLOAD_DIR, actualCurrentPath);
-    const dirPath = path.dirname(currentFilePath);
-    const newFilePath = path.join(dirPath, newName.trim());
-
-    try {
-      const newFileExists = await stat(newFilePath)
-        .then(() => true)
-        .catch(() => false);
-      if (newFileExists) {
-        return {
-          success: false,
-          error: "A file with this name already exists",
-        };
-      }
-
-      await rename(currentFilePath, newFilePath);
-      await auditLog("file:rename", {
-        resource: actualCurrentPath,
-        details: { newName: newName.trim() },
-        success: true,
-      });
-    } catch (error) {
-      console.error("Failed to rename file on filesystem:", error);
-      await auditLog("file:rename", {
-        resource: actualCurrentPath,
-        details: { newName: newName.trim() },
-        success: false,
-        errorMessage: error instanceof Error ? error.message : "Failed to rename file",
-      });
-      return {
-        success: false,
-        error: "Failed to rename file on filesystem",
-      };
-    }
-
-    revalidatePath("/files", "layout");
-    revalidateTag("files");
-
-    return {
-      success: true,
-      message: "File renamed successfully",
-    };
-  } catch (error) {
-    console.error("Rename file error:", error);
-    await auditLog("file:rename", {
-      resource: fileId,
-      details: { newName },
-      success: false,
-      errorMessage: error instanceof Error ? error.message : "Failed to rename file",
-    });
-    return {
-      success: false,
-      error: "Failed to rename file",
-    };
+  const name = typeof newName === "string" ? newName.trim() : "";
+  if (!isValidName(name)) {
+    return { success: false, error: "Invalid file name" };
   }
-}
+
+  let resource = String(fileId);
+
+  try {
+    const source = scopedPath(currentUser, fileId);
+    resource = source.relative;
+
+    const parentId = path.posix.dirname(String(fileId));
+    const destination = scopedPath(
+      currentUser,
+      parentId === "." ? name : `${parentId}/${name}`
+    );
+
+    if (await _exists(destination.absolute)) {
+      return { success: false, error: "A file with this name already exists" };
+    }
+
+    await rename(source.absolute, destination.absolute);
+    await auditLog("file:rename", {
+      resource,
+      details: { newName: name },
+      success: true,
+    });
+    bustFileCache();
+
+    return { success: true, message: "File renamed successfully" };
+  } catch (error) {
+    logger.error(SCOPE, `Failed to rename ${resource}`, error);
+    await auditLog("file:rename", {
+      resource,
+      details: { newName: name },
+      success: false,
+      errorMessage: _errorText(error, "Failed to rename file"),
+    });
+    return { success: false, error: "Failed to rename file" };
+  }
+};
 
 export const moveFile = async (
   fileId: string,
   targetFolderPath: string
 ): Promise<ServerActionResponse> => {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return UNAUTHORIZED;
+
+  let resource = String(fileId);
+
   try {
-    const currentUser = await getCurrentUser();
-    if (!currentUser) {
-      return {
-        success: false,
-        error: "Unauthorized",
-      };
+    const source = scopedPath(currentUser, fileId);
+    resource = source.relative;
+
+    const targetDir = scopedPath(currentUser, targetFolderPath);
+    const destination = scopedPath(
+      currentUser,
+      path.posix.join(targetFolderPath || "", path.basename(source.absolute))
+    );
+
+    if (await _exists(destination.absolute)) {
+      return { success: false, error: "A file with this name already exists" };
     }
 
-    const actualCurrentPath = !currentUser.isAdmin
-      ? `${currentUser.username}/${fileId}`
-      : fileId;
-
-    const actualTargetPath = !currentUser.isAdmin
-      ? targetFolderPath
-        ? `${currentUser.username}/${targetFolderPath}`
-        : currentUser.username
-      : targetFolderPath;
-
-    const currentFilePath = path.join(UPLOAD_DIR, actualCurrentPath);
-    const fileName = path.basename(actualCurrentPath);
-
-    const targetDir = actualTargetPath
-      ? path.join(UPLOAD_DIR, actualTargetPath)
-      : UPLOAD_DIR;
-    const targetFilePath = path.join(targetDir, fileName);
-
-    try {
-      await mkdir(targetDir, { recursive: true });
-      await rename(currentFilePath, targetFilePath);
-      await auditLog("file:move", {
-        resource: actualCurrentPath,
-        details: { targetPath: actualTargetPath },
-        success: true,
-      });
-    } catch (error) {
-      console.error("Failed to move file on filesystem:", error);
-      await auditLog("file:move", {
-        resource: actualCurrentPath,
-        details: { targetPath: actualTargetPath },
-        success: false,
-        errorMessage: error instanceof Error ? error.message : "Failed to move file",
-      });
-      return {
-        success: false,
-        error: "Failed to move file on filesystem",
-      };
-    }
-
-    revalidatePath("/files", "layout");
-    revalidateTag("files");
-
-    return {
-      success: true,
-      message: "File moved successfully",
-    };
-  } catch (error) {
-    console.error("Move file error:", error);
+    await mkdir(targetDir.absolute, { recursive: true });
+    await rename(source.absolute, destination.absolute);
     await auditLog("file:move", {
-      resource: fileId,
+      resource,
+      details: { targetPath: targetDir.relative },
+      success: true,
+    });
+    bustFileCache();
+
+    return { success: true, message: "File moved successfully" };
+  } catch (error) {
+    logger.error(SCOPE, `Failed to move ${resource}`, error);
+    await auditLog("file:move", {
+      resource,
       details: { targetPath: targetFolderPath },
       success: false,
-      errorMessage: error instanceof Error ? error.message : "Failed to move file",
+      errorMessage: _errorText(error, "Failed to move file"),
     });
-    return {
-      success: false,
-      error: "Failed to move file",
-    };
+    return { success: false, error: "Failed to move file" };
   }
-}
-
-export const getStorageStats = async (): Promise<
-  ServerActionResponse<{
-    totalFiles: number;
-    totalSize: number;
-    averageSize: number;
-  }>
-> => {
-  try {
-    const files = await scanFilesystemDirectory(UPLOAD_DIR, "", true);
-
-    const totalFiles = files.length;
-    const totalSize = files.reduce((sum, file) => sum + file.size, 0);
-    const averageSize = totalFiles > 0 ? totalSize / totalFiles : 0;
-
-    return {
-      success: true,
-      data: {
-        totalFiles,
-        totalSize,
-        averageSize,
-      },
-    };
-  } catch (error) {
-    console.error("Get storage stats error:", error);
-    return {
-      success: false,
-      error: "Failed to fetch storage stats",
-    };
-  }
-}
+};

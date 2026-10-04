@@ -1,100 +1,59 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createReadStream } from "fs";
 import { stat } from "fs/promises";
 import path from "path";
 import { getFileMimeType } from "@/app/_lib/file-utils";
 import { validateRequest } from "@/app/_lib/request-auth";
+import { scopedPath } from "@/app/_lib/storage";
+import {
+  contentDisposition,
+  isInlineType,
+  pathErrorResponse,
+  SANDBOX_CSP,
+  streamFile,
+} from "@/app/_lib/file-response";
 
-const UPLOAD_DIR = process.env.UPLOAD_DIR || "./data/uploads";
+const PDF_TYPE = "application/pdf";
 
-export async function GET(
+export const GET = async (
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
-) {
+) => {
+  const user = await validateRequest(request);
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
-    const user = await validateRequest(request);
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const { id } = await params;
+    const target = scopedPath(user, decodeURIComponent(id));
 
-    const relativePath = decodeURIComponent(id);
-    const scopedPath = user.isAdmin
-      ? relativePath
-      : `${user.username}/${relativePath}`;
-
-    const filePath = path.join(UPLOAD_DIR, scopedPath);
-
-    const resolvedPath = path.resolve(filePath);
-    const resolvedUploadDir = path.resolve(UPLOAD_DIR);
-    if (!resolvedPath.startsWith(resolvedUploadDir + path.sep) && resolvedPath !== resolvedUploadDir) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    const fileStats = await stat(target.absolute).catch(() => null);
+    if (!fileStats?.isFile()) {
+      return NextResponse.json({ error: "File not found" }, { status: 404 });
     }
 
-    let fileStats;
-    try {
-      fileStats = await stat(filePath);
-    } catch {
-      return NextResponse.json(
-        { error: "File not found on disk" },
-        { status: 404 }
-      );
-    }
-
-    const fileName = path.basename(relativePath);
+    const fileName = path.basename(target.absolute);
     const mimeType = getFileMimeType(fileName);
+    const viewInline =
+      request.nextUrl.searchParams.get("view") === "true" && isInlineType(mimeType);
 
-    const fileStream = createReadStream(filePath);
-    const readableStream = new ReadableStream({
-      start(controller) {
-        fileStream.on("data", (chunk: Buffer | string) => {
-          if (Buffer.isBuffer(chunk)) {
-            controller.enqueue(
-              new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength)
-            );
-          }
-        });
-        fileStream.on("end", () => {
-          controller.close();
-        });
-        fileStream.on("error", (error) => {
-          controller.error(error);
-        });
-      },
-      cancel() {
-        fileStream.destroy();
-      },
-    });
-
-    const viewInline = request.nextUrl.searchParams.get("view") === "true";
-    const isViewable =
-      mimeType.startsWith("image/") ||
-      mimeType.startsWith("video/") ||
-      mimeType.startsWith("text/") ||
-      mimeType === "application/pdf";
-
-    const disposition = viewInline && isViewable ? "inline" : "attachment";
-
-    const headers: HeadersInit = {
+    const headers: Record<string, string> = {
       "Content-Type": mimeType,
       "Content-Length": fileStats.size.toString(),
-      "Content-Disposition": `${disposition}; filename="${encodeURIComponent(
+      "Content-Disposition": contentDisposition(
+        viewInline ? "inline" : "attachment",
         fileName
-      )}"`,
+      ),
       "Cache-Control": "private, no-store",
+      "X-Content-Type-Options": "nosniff",
     };
 
-    if (!viewInline && !isViewable) {
-      headers["X-Frame-Options"] = "DENY";
+    if (mimeType !== PDF_TYPE) {
+      headers["Content-Security-Policy"] = SANDBOX_CSP;
     }
 
-    return new NextResponse(readableStream, { headers });
+    return new NextResponse(streamFile(target.absolute), { headers });
   } catch (error) {
-    console.error("Download error:", error);
-    return NextResponse.json(
-      { error: "Failed to download file" },
-      { status: 500 }
-    );
+    return pathErrorResponse(error, "download");
   }
-}
+};

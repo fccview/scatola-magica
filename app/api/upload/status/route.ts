@@ -1,67 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validateRequest } from "@/app/_lib/request-auth";
-import { loadUploadSession, deleteUploadSession } from "@/app/_lib/upload-sessions";
-import * as fs from "fs/promises";
-import path from "path";
+import { uploadStatus } from "@/app/_lib/uploads";
+import { unauthorized } from "@/app/_lib/upload-responses";
+import { logger } from "@/app/_lib/logger";
 
-const UPLOAD_DIR = process.env.UPLOAD_DIR || "./data/uploads";
-const TEMP_DIR = `${UPLOAD_DIR}/temp`;
+export const dynamic = "force-dynamic";
 
-export async function POST(request: NextRequest) {
+export const POST = async (request: NextRequest) => {
+  const user = await validateRequest(request);
+  if (!user) return unauthorized();
+
   try {
-    const user = await validateRequest(request);
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const body = await request.json();
-    const { uploadId } = body;
-
+    const { uploadId } = await request.json();
     if (!uploadId) {
-      return NextResponse.json(
-        { error: "uploadId required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "uploadId required" }, { status: 400 });
     }
 
-    const session = await loadUploadSession(uploadId);
-
-    if (!session) {
-      return NextResponse.json({
-        exists: false,
-      });
-    }
-
-    const tempDir = path.join(TEMP_DIR, uploadId);
-    let uploadedChunks: number[] = [];
-
-    try {
-      const files = await fs.readdir(tempDir);
-      uploadedChunks = files
-        .filter(f => f.startsWith("chunk-"))
-        .map(f => parseInt(f.replace("chunk-", "")))
-        .filter(n => !isNaN(n))
-        .sort((a, b) => a - b);
-    } catch (error) {
-      uploadedChunks = [];
-    }
-
-    return NextResponse.json({
-      exists: true,
-      fileName: session.fileName,
-      fileSize: session.fileSize,
-      totalChunks: session.totalChunks,
-      uploadedChunks,
-      progress: (uploadedChunks.length / session.totalChunks) * 100,
-      createdAt: session.createdAt,
-      e2eEncrypted: session.e2eEncrypted,
-      chunkSize: session.chunkSize,
-    });
+    return NextResponse.json(await uploadStatus(user, uploadId));
   } catch (error) {
-    console.error("Upload status error:", error);
-    return NextResponse.json(
-      { error: "Failed to get upload status" },
-      { status: 500 }
-    );
+    logger.error("upload-status", "Failed to get upload status", error);
+    return NextResponse.json({ error: "Failed to get upload status" }, { status: 500 });
   }
-}
+};

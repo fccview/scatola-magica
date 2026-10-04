@@ -1,38 +1,37 @@
 "use server";
 
-import { writeFile } from "fs/promises";
-import path from "path";
-import { getCurrentUser } from "@/app/_server/actions/user";
+import { lstat, writeFile } from "fs/promises";
+import { getCurrentUser } from "@/app/_lib/current-user";
 import { decryptPath } from "@/app/_lib/path-encryption";
+import { scopedPath } from "@/app/_lib/storage";
+import { bustFileCache } from "@/app/_lib/cache-tags";
+import { logger } from "@/app/_lib/logger";
 
-const UPLOAD_DIR = process.env.UPLOAD_DIR || "./data/uploads";
+const SCOPE = "editor";
 
 export const saveFileContent = async (fileId: string, content: string) => {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { success: false, error: "Unauthorized" };
+  }
+
+  if (typeof content !== "string") {
+    return { success: false, error: "Invalid content" };
+  }
+
   try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return { success: false, error: "Unauthorized" };
+    const target = scopedPath(user, await decryptPath(fileId));
+
+    if (!(await lstat(target.absolute)).isFile()) {
+      return { success: false, error: "Not a file" };
     }
 
-    const decryptedPath = await decryptPath(fileId);
-    const resolvedUploadDir = path.resolve(UPLOAD_DIR);
-    const filePath = path.resolve(path.join(UPLOAD_DIR, decryptedPath));
-
-    if (!filePath.startsWith(resolvedUploadDir)) {
-      return {
-        success: false,
-        error: "Invalid file path"
-      };
-    }
-
-    await writeFile(filePath, content, "utf-8");
+    await writeFile(target.absolute, content, "utf-8");
+    bustFileCache();
 
     return { success: true };
   } catch (error) {
-    console.error("Save file error:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to save file",
-    };
+    logger.error(SCOPE, "Failed to save file", error);
+    return { success: false, error: "Failed to save file" };
   }
-}
+};

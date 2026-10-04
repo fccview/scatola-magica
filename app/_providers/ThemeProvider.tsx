@@ -122,7 +122,7 @@ export default function ThemeProvider({
     const persistentTheme = user?.persistentTheme ?? false;
     const validPokemonThemes: PokemonTheme[] = ["pikachu", "bulbasaur", "charmander", "squirtle", "gengar"];
 
-    let initialPokemon: PokemonTheme = null;
+    let initialPokemon: PokemonTheme;
     let initialColorMode: ColorMode;
 
     if (persistentTheme && user) {

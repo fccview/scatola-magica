@@ -75,6 +75,21 @@ export interface User {
   colorMode?: "light" | "dark";
 }
 
+export type PublicUser = Pick<
+  User,
+  "username" | "isAdmin" | "isSuperAdmin" | "createdAt" | "avatar"
+>;
+
+export interface CurrentUser {
+  username: string;
+  isAdmin: boolean;
+  isSuperAdmin: boolean;
+  avatar?: string;
+  persistentTheme?: boolean;
+  pokemonTheme?: string | null;
+  colorMode?: "light" | "dark";
+}
+
 export interface Session {
   sessionId: string;
   username: string;

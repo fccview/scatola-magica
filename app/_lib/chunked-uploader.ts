@@ -96,84 +96,80 @@ export class ChunkedUploader {
     this.startTime = Date.now();
     this.abortController = new AbortController();
 
-    try {
-      const maxFileSize =
-        this.appSettings?.maxFileSize ?? UPLOAD_CONFIG.MAX_FILE_SIZE;
+    const maxFileSize =
+      this.appSettings?.maxFileSize ?? UPLOAD_CONFIG.MAX_FILE_SIZE;
 
-      if (maxFileSize > 0 && this.file.size > maxFileSize) {
-        const fileSizeGB = (this.file.size / 1024 / 1024 / 1024).toFixed(2);
-        const maxSizeGB = (maxFileSize / 1024 / 1024 / 1024).toFixed(2);
+    if (maxFileSize > 0 && this.file.size > maxFileSize) {
+      const fileSizeGB = (this.file.size / 1024 / 1024 / 1024).toFixed(2);
+      const maxSizeGB = (maxFileSize / 1024 / 1024 / 1024).toFixed(2);
+      throw new Error(
+        `File size (${fileSizeGB} GB) exceeds maximum allowed size (${maxSizeGB} GB)`
+      );
+    }
+
+    if (this.e2eEncryption?.enabled) {
+      if (!window.isSecureContext) {
         throw new Error(
-          `File size (${fileSizeGB} GB) exceeds maximum allowed size (${maxSizeGB} GB)`
+          "E2E encryption requires HTTPS or localhost. " +
+          "Current context is not secure (HTTP with IP/domain). " +
+          "Files would upload UNENCRYPTED."
         );
       }
-
-      if (this.e2eEncryption?.enabled) {
-        if (!window.isSecureContext) {
-          throw new Error(
-            "E2E encryption requires HTTPS or localhost. " +
-            "Current context is not secure (HTTP with IP/domain). " +
-            "Files would upload UNENCRYPTED."
-          );
-        }
-        if (!window.crypto?.subtle) {
-          throw new Error(
-            "Web Crypto API (crypto.subtle) is not available. " +
-            "E2E encryption cannot be used in this browser/context."
-          );
-        }
+      if (!window.crypto?.subtle) {
+        throw new Error(
+          "Web Crypto API (crypto.subtle) is not available. " +
+          "E2E encryption cannot be used in this browser/context."
+        );
       }
-
-      await this.detectOptimalChunkSize();
-
-      this.totalChunks = Math.ceil(this.file.size / this.chunkSize);
-
-      if (this.e2eEncryption?.enabled && this.e2eEncryption.password) {
-        await this.deriveEncryptionKey(this.e2eEncryption.password);
-      }
-
-      const existingUpload = await ChunkedUploader.checkForExistingUpload(this.uploadId);
-      if (existingUpload.exists && existingUpload.uploadedChunks) {
-        if (existingUpload.chunkSize) {
-          this.chunkSize = existingUpload.chunkSize;
-        }
-        existingUpload.uploadedChunks.forEach(chunkIndex => {
-          this.uploadedChunks.add(chunkIndex);
-        });
-        this.uploadedBytes = existingUpload.uploadedChunks.reduce((total, chunkIndex) => {
-          const start = chunkIndex * this.chunkSize;
-          const end = Math.min(start + this.chunkSize, this.file.size);
-          return total + (end - start);
-        }, 0);
-      }
-
-      if (this.onProgressCallback) {
-        this.onProgressCallback({
-          fileId: this.uploadId,
-          fileName: this.file.name,
-          totalSize: this.file.size,
-          uploadedSize: this.uploadedBytes,
-          progress: (this.uploadedBytes / this.file.size) * 100,
-          status: UploadStatus.UPLOADING,
-          speed: 0,
-          remainingTime: 0,
-          chunksCompleted: this.uploadedChunks.size,
-          totalChunks: this.totalChunks,
-        });
-      }
-
-      if (!existingUpload.exists) {
-        await this.initializeUploadSession();
-      }
-
-      await this.uploadChunksInParallel();
-
-      const result = await this.finalizeUpload();
-
-      return result.fileId;
-    } catch (error) {
-      throw error;
     }
+
+    await this.detectOptimalChunkSize();
+
+    this.totalChunks = Math.ceil(this.file.size / this.chunkSize);
+
+    if (this.e2eEncryption?.enabled && this.e2eEncryption.password) {
+      await this.deriveEncryptionKey(this.e2eEncryption.password);
+    }
+
+    const existingUpload = await ChunkedUploader.checkForExistingUpload(this.uploadId);
+    if (existingUpload.exists && existingUpload.uploadedChunks) {
+      if (existingUpload.chunkSize) {
+        this.chunkSize = existingUpload.chunkSize;
+      }
+      existingUpload.uploadedChunks.forEach(chunkIndex => {
+        this.uploadedChunks.add(chunkIndex);
+      });
+      this.uploadedBytes = existingUpload.uploadedChunks.reduce((total, chunkIndex) => {
+        const start = chunkIndex * this.chunkSize;
+        const end = Math.min(start + this.chunkSize, this.file.size);
+        return total + (end - start);
+      }, 0);
+    }
+
+    if (this.onProgressCallback) {
+      this.onProgressCallback({
+        fileId: this.uploadId,
+        fileName: this.file.name,
+        totalSize: this.file.size,
+        uploadedSize: this.uploadedBytes,
+        progress: (this.uploadedBytes / this.file.size) * 100,
+        status: UploadStatus.UPLOADING,
+        speed: 0,
+        remainingTime: 0,
+        chunksCompleted: this.uploadedChunks.size,
+        totalChunks: this.totalChunks,
+      });
+    }
+
+    if (!existingUpload.exists) {
+      await this.initializeUploadSession();
+    }
+
+    await this.uploadChunksInParallel();
+
+    const result = await this.finalizeUpload();
+
+    return result.fileId;
   }
 
   cancel(): void {
@@ -341,7 +337,8 @@ export class ChunkedUploader {
           retries++;
           if (retries >= UPLOAD_CONFIG.CHUNK_RETRY_ATTEMPTS) {
             throw new Error(
-              `Failed to upload chunk ${index} after ${retries} attempts`
+              `Failed to upload chunk ${index} after ${retries} attempts`,
+              { cause: error }
             );
           }
           await this.delay(
@@ -384,7 +381,8 @@ export class ChunkedUploader {
       } catch (encryptError) {
         console.error("Encryption error:", encryptError);
         throw new Error(
-          `Failed to encrypt chunk ${index}: ${encryptError instanceof Error ? encryptError.message : "Unknown error"}`
+          `Failed to encrypt chunk ${index}: ${encryptError instanceof Error ? encryptError.message : "Unknown error"}`,
+          { cause: encryptError }
         );
       }
     }

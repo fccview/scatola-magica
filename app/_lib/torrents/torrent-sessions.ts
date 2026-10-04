@@ -1,13 +1,14 @@
-"use server";
+import "server-only";
 
 import fs from "fs/promises";
 import path from "path";
 import { lock, unlock } from "proper-lockfile";
 import { TorrentMetadata } from "@/app/_types/torrent";
-import { encryptJsonData, decryptJsonData } from "@/app/_server/actions/pgp";
+import { encryptJsonFor, decryptJsonFor } from "@/app/_lib/pgp";
+import { TORRENTS_DATA_DIR } from "@/app/_lib/data-paths";
+import { logger } from "@/app/_lib/logger";
 
-const TORRENTS_DATA_DIR =
-  process.env.TORRENTS_DATA_DIR || "./data/config/torrents";
+const SCOPE = "torrent-sessions";
 
 interface StoredTorrentSession {
   metadata: TorrentMetadata;
@@ -54,7 +55,9 @@ export const saveTorrentSession = async (
   try {
     const content = await fs.readFile(file, "utf-8");
     sessions = JSON.parse(content);
-  } catch { }
+  } catch (error) {
+    logger.warn(SCOPE, `Could not parse torrent data for ${username}`, error);
+  }
 
   const existingIndex = sessions.findIndex(
     (s) => s.metadata.infoHash === metadata.infoHash
@@ -97,7 +100,7 @@ export const saveTorrentSession = async (
         continue;
       }
       if (lockError.code === "ELOCKED") {
-        throw new Error("Failed to save torrent session: file is locked");
+        throw new Error("Failed to save torrent session: file is locked", { cause: lockError });
       }
       throw lockError;
     }
@@ -171,15 +174,15 @@ export const encryptTorrentSessions = async (
       return { success: true };
     }
 
-    const encryptResult = await encryptJsonData(content);
-    if (!encryptResult.success || !encryptResult.encryptedData) {
+    const encryptResult = await encryptJsonFor(username, content);
+    if (!encryptResult.success || !encryptResult.data) {
       return {
         success: false,
         error: encryptResult.message || "Failed to encrypt",
       };
     }
 
-    await fs.writeFile(encryptedFile, encryptResult.encryptedData);
+    await fs.writeFile(encryptedFile, encryptResult.data);
     await fs.unlink(file).catch(() => { });
 
     return { success: true };
@@ -213,15 +216,15 @@ export const decryptTorrentSessions = async (
       return { success: true };
     }
 
-    const decryptResult = await decryptJsonData(encryptedContent, password);
-    if (!decryptResult.success || !decryptResult.decryptedData) {
+    const decryptResult = await decryptJsonFor(username, encryptedContent, password);
+    if (!decryptResult.success || !decryptResult.data) {
       return {
         success: false,
         error: decryptResult.message || "Failed to decrypt",
       };
     }
 
-    await fs.writeFile(file, decryptResult.decryptedData);
+    await fs.writeFile(file, decryptResult.data);
     await fs.unlink(encryptedFile).catch(() => { });
 
     return { success: true };
@@ -277,7 +280,7 @@ export const deleteTorrentSession = async (
           continue;
         }
         if (lockError.code === "ELOCKED") {
-          throw new Error("Failed to delete torrent session: file is locked");
+          throw new Error("Failed to delete torrent session: file is locked", { cause: lockError });
         }
         throw lockError;
       }

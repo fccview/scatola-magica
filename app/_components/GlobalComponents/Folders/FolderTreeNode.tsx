@@ -1,5 +1,6 @@
 "use client";
 
+import type { PublicUser } from "@/app/_types";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -117,8 +118,8 @@ export default function FolderTreeNode({
             />
           )}
           {(() => {
-            let folderUser = null;
-            const userSpecificMatch = folder.id.match(/^([^\/]+)\//);
+            let folderUser: PublicUser | undefined;
+            const userSpecificMatch = folder.id.match(/^([^/]+)\//);
             if (userSpecificMatch) {
               folderUser = allUsers.find(
                 (u) => u.username === userSpecificMatch[1]
@@ -206,8 +207,8 @@ export default function FolderTreeNode({
             />
 
             {(() => {
-              let folderUser = null;
-              const userSpecificMatch = folder.id.match(/^([^\/]+)\//);
+              let folderUser: PublicUser | undefined;
+              const userSpecificMatch = folder.id.match(/^([^/]+)\//);
               if (userSpecificMatch) {
                 folderUser = allUsers.find(
                   (u) => u.username === userSpecificMatch[1]

@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { FileMetadata, User } from "@/app/_types";
+import { FileMetadata, PublicUser } from "@/app/_types";
 import { formatBytes } from "@/app/_lib/file-utils";
 import { FolderMetadata } from "@/app/_server/actions/folders";
 import ItemActionsMenu from "@/app/_components/FeatureComponents/FilesPage/ItemActionsMenu";
@@ -27,8 +27,8 @@ interface GridCardProps {
   isSelectionMode?: boolean;
   isSelected?: boolean;
   onToggleSelect?: () => void;
-  currentUser?: User;
-  allUsers?: User[];
+  currentUser?: PublicUser;
+  allUsers?: PublicUser[];
   recursive?: boolean;
   hasTorrent?: boolean;
   showThumbnails?: boolean;
@@ -270,9 +270,9 @@ export default function GridCard({
           >
             {(() => {
               const folderData = item as FolderMetadata;
-              let folderUser = null;
+              let folderUser: PublicUser | undefined;
 
-              const userSpecificMatch = itemId.match(/^([^\/]+)\//);
+              const userSpecificMatch = itemId.match(/^([^/]+)\//);
               if (userSpecificMatch) {
                 folderUser = allUsers.find(
                   (u) => u.username === userSpecificMatch[1]
@@ -313,9 +313,9 @@ export default function GridCard({
             {isFolder
               ? (() => {
                 const folderData = item as FolderMetadata;
-                let folderUser = null;
+                let folderUser: PublicUser | undefined;
 
-                const userSpecificMatch = itemId.match(/^([^\/]+)\//);
+                const userSpecificMatch = itemId.match(/^([^/]+)\//);
                 if (userSpecificMatch) {
                   folderUser = allUsers.find(
                     (u) => u.username === userSpecificMatch[1]

@@ -1,128 +1,72 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import crypto from "crypto";
-import { readUsers, createSession } from "@/app/_server/actions/user";
-import { COOKIE_NAME } from "@/app/_lib/auth-constants";
+import { createSession, findUser, newSessionId } from "@/app/_lib/auth-utils";
+import { ensureEncryptionPassword } from "@/app/_lib/current-user";
+import {
+  clearFailures,
+  clientIp,
+  isBruteForceEnabled,
+  isLockedOut,
+  recordFailure,
+} from "@/app/_lib/brute-force";
+import { isPasswordLoginDisabled } from "@/app/_lib/oidc";
+import { setSessionCookie } from "@/app/_lib/session-cookie";
+import { logger } from "@/app/_lib/logger";
 
 export const dynamic = "force-dynamic";
 
-const _failedAttempts = new Map<string, { count: number; until: number }>();
-const LOCKOUT_THRESHOLD = 10;
-const LOCKOUT_MS = 15 * 60 * 1000;
+const SCOPE = "auth-login";
+const DUMMY_HASH = "$2b$12$C6UzMDM.H6dfI/f/IKcEeO5Z8Q0mQ1rN0qNfJm1u7Qw1y0bJp6rWa";
 
-function _getClientIp(request: NextRequest): string {
-  return (
-    request.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
-    request.headers.get("x-real-ip") ||
-    "unknown"
-  );
-}
+const _invalid = () =>
+  NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
 
-function _checkBruteForce(ip: string): boolean {
-  const entry = _failedAttempts.get(ip);
-  if (!entry) return false;
-  if (Date.now() < entry.until) return true;
-  _failedAttempts.delete(ip);
-  return false;
-}
-
-function _recordFailure(ip: string) {
-  const entry = _failedAttempts.get(ip) ?? { count: 0, until: 0 };
-  entry.count += 1;
-  if (entry.count >= LOCKOUT_THRESHOLD) {
-    entry.until = Date.now() + LOCKOUT_MS;
+export const POST = async (request: NextRequest) => {
+  if (isPasswordLoginDisabled()) {
+    return NextResponse.json({ error: "Password login is disabled" }, { status: 403 });
   }
-  _failedAttempts.set(ip, entry);
-}
 
-function _clearFailures(ip: string) {
-  _failedAttempts.delete(ip);
-}
+  const guard = isBruteForceEnabled();
+  const ip = guard ? clientIp(request) : "";
 
-function base64UrlEncode(buffer: Buffer) {
-  return buffer
-    .toString("base64")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/g, "");
-}
+  if (guard && isLockedOut(ip)) {
+    return NextResponse.json(
+      { error: "Too many failed attempts. Try again later." },
+      { status: 429 }
+    );
+  }
 
-export async function POST(request: NextRequest) {
   try {
-    const bruteForceEnabled = process.env.BRUTEFORCE_PROTECTION === "true";
-    const ip = bruteForceEnabled ? _getClientIp(request) : "";
-
-    if (bruteForceEnabled && _checkBruteForce(ip)) {
-      return NextResponse.json(
-        { error: "Too many failed attempts. Try again later." },
-        { status: 429 }
-      );
-    }
-
     const { username, password } = await request.json();
 
-    if (!username || !password) {
+    if (typeof username !== "string" || typeof password !== "string" || !username || !password) {
       return NextResponse.json(
         { error: "Username and password are required" },
         { status: 400 }
       );
     }
 
-    const users = await readUsers();
-    const user = users.find((u) => u.username === username);
+    const user = await findUser(username);
+    const isValid = await bcrypt.compare(password, user?.passwordHash || DUMMY_HASH);
 
-    if (!user) {
-      if (bruteForceEnabled) _recordFailure(ip);
-      return NextResponse.json(
-        { error: "Invalid credentials" },
-        { status: 401 }
-      );
+    if (!user?.passwordHash || !isValid) {
+      if (guard) recordFailure(ip);
+      logger.warn(SCOPE, `Failed login for "${username}"`);
+      return _invalid();
     }
 
-    if (!user.passwordHash) {
-      if (bruteForceEnabled) _recordFailure(ip);
-      return NextResponse.json(
-        { error: "Invalid credentials" },
-        { status: 401 }
-      );
-    }
+    if (guard) clearFailures(ip);
 
-    const isValid = await bcrypt.compare(password, user.passwordHash);
+    await ensureEncryptionPassword(user.username);
 
-    if (!isValid) {
-      if (bruteForceEnabled) _recordFailure(ip);
-      return NextResponse.json(
-        { error: "Invalid credentials" },
-        { status: 401 }
-      );
-    }
+    const sessionId = newSessionId();
+    await createSession(sessionId, user.username);
 
-    if (bruteForceEnabled) _clearFailures(ip);
-
-    const { ensureEncryptionPassword } = await import(
-      "@/app/_server/actions/user"
-    );
-    await ensureEncryptionPassword(username);
-
-    const sessionId = base64UrlEncode(crypto.randomBytes(32));
-    await createSession(sessionId, username);
-
-    const response = NextResponse.json({ success: true, username });
-    response.cookies.set(COOKIE_NAME, sessionId, {
-      httpOnly: true,
-      secure:
-        process.env.NODE_ENV === "production" && process.env.HTTPS === "true",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 30 * 24 * 60 * 60,
-    });
-
+    const response = NextResponse.json({ success: true, username: user.username });
+    setSessionCookie(response, sessionId);
     return response;
   } catch (error) {
-    console.error("Login error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    logger.error(SCOPE, "Login failed", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
-}
+};

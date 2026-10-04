@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { usePreferences } from "@/app/_providers/PreferencesProvider";
+import type { CurrentUser } from "@/app/_types";
 import DropdownMenu from "@/app/_components/GlobalComponents/Form/DropdownMenu";
 import UserAvatar from "@/app/_components/FeatureComponents/User/UserAvatar";
 import CreateUserModal from "@/app/_components/FeatureComponents/Modals/CreateUserModal";
@@ -14,6 +15,10 @@ export default function UserMenu() {
     return null;
   }
 
+  return <UserMenuContent user={user} />;
+}
+
+const UserMenuContent = ({ user }: { user: CurrentUser }) => {
   const { username, isAdmin } = user;
   const router = useRouter();
   const [showCreateUser, setShowCreateUser] = useState(false);
@@ -78,4 +83,4 @@ export default function UserMenu() {
       )}
     </>
   );
-}
+};

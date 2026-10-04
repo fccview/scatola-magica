@@ -38,13 +38,12 @@ export default function FolderTreeSidebar({
     }
   }, [pathname, decryptPath]);
 
-  const folderTreeHook =
-    providedHook ||
-    useFolderTree({
-      currentFolderId,
-      onFolderSelect: () => {},
-      variant: "sidebar",
-    });
+  const ownHook = useFolderTree({
+    currentFolderId,
+    onFolderSelect: () => {},
+    variant: "sidebar",
+  });
+  const folderTreeHook = providedHook ?? ownHook;
 
   const { filteredTree, searchQuery, setSearchQuery } = folderTreeHook;
 

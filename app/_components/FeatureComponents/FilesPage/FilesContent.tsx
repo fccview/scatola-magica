@@ -1,7 +1,9 @@
 import { cookies } from "next/headers";
 import { getFiles } from "@/app/_server/actions/files";
 import { getFolders, getFolderPath } from "@/app/_server/actions/folders";
-import { readUsers } from "@/app/_server/actions/user";
+import { listUsers } from "@/app/_server/actions/user";
+import { logger } from "@/app/_lib/logger";
+import type { PublicUser } from "@/app/_types";
 import { SortBy } from "@/app/_types/enums";
 import FileListClient from "@/app/_components/GlobalComponents/Files/FileListClient";
 import Breadcrumb from "@/app/_components/FeatureComponents/FilesPage/Breadcrumb";
@@ -59,12 +61,11 @@ export default async function FilesContent({
       : Promise.resolve({ success: true, data: [] }),
   ]);
 
-  let allUsers: any[] = [];
+  let allUsers: PublicUser[] = [];
   try {
-    allUsers = await readUsers();
+    allUsers = await listUsers();
   } catch (error) {
-    console.error("Failed to read users:", error);
-    allUsers = [];
+    logger.error("files-content", "Failed to read users", error);
   }
 
   if (!filesResult.success || !filesResult.data) {
