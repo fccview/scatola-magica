@@ -26,20 +26,24 @@ RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
 RUN mkdir -p \
-    /data/uploads/temp \
-    /data/config/avatars \
-    /data/config/torrents \
-    /data/config/keys \
-    /data/audit-logs \
+    /app/data/uploads/temp \
+    /app/data/config/avatars \
+    /app/data/config/torrents \
+    /app/data/config/keys \
+    /app/data/audit-logs \
+    /app/data/thumbnails \
     /app/.next/cache && \
-    chown -R nextjs:nodejs /data /app/.next
+    chown -R nextjs:nodejs /app/data /app/.next && \
+    # Sticky + world-writable like /tmp, so any --user UID can run without volumes.
+    chmod -R 1777 /app/data /app/.next/cache
 
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 COPY --from=builder /app/public ./public
 
-USER nextjs
+# Numeric so runAsNonRoot can verify it.
+USER 1001:1001
 
 EXPOSE 3000
 
